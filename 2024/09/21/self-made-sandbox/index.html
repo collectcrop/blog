@@ -1,0 +1,534 @@
+
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8" />
+    <title>self-made sandbox | Collectcrop&#39;s Blog</title>
+    <meta name="author" content="collectcrop" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <link rel="icon" href="/images/avatar.jpg" />
+    <link rel="preconnect" href="https://s4.zstatic.net" />
+<script src="https://s4.zstatic.net/ajax/libs/vue/3.3.7/vue.global.prod.min.js"></script>
+<link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.cn" />
+<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin />
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.cn/css2?family=Fira+Code:wght@400;500;600;700&family=Lexend:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&display=swap"
+/>
+<script> const mixins = {}; </script>
+
+<script src="https://polyfill.alicdn.com/v3/polyfill.min.js?features=default"></script>
+
+
+<script src="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+/>
+<script src="/js/lib/highlight.js"></script>
+
+
+
+<script src="/js/lib/preview.js"></script>
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/css/main.css" />
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+<body>
+    <div id="layout">
+        <transition name="fade">
+            <div id="loading" v-show="loading">
+                <div id="loading-circle">
+                    <h2>LOADING</h2>
+                    <p>加载过慢请开启缓存 浏览器默认开启</p>
+                    <img src="/images/loading.gif" />
+                </div>
+            </div>
+        </transition>
+        <div id="menu" :class="{ hidden: hiddenMenu, 'menu-color': menuColor}">
+    <nav id="desktop-menu">
+        <a class="title" href="/">
+            <span>COLLECTCROP&#39;S BLOG</span>
+        </a>
+        
+        <a href="/">
+            <i class="fa-solid fa-house fa-fw"></i>
+            <span>&ensp;Home</span>
+        </a>
+        
+        <a href="/about">
+            <i class="fa-solid fa-id-card fa-fw"></i>
+            <span>&ensp;About</span>
+        </a>
+        
+        <a href="/archives">
+            <i class="fa-solid fa-box-archive fa-fw"></i>
+            <span>&ensp;Archives</span>
+        </a>
+        
+        <a href="/categories">
+            <i class="fa-solid fa-bookmark fa-fw"></i>
+            <span>&ensp;Categories</span>
+        </a>
+        
+        <a href="/tags">
+            <i class="fa-solid fa-tags fa-fw"></i>
+            <span>&ensp;Tags</span>
+        </a>
+        
+    </nav>
+    <nav id="mobile-menu">
+        <div class="title" @click="showMenuItems = !showMenuItems">
+            <i class="fa-solid fa-bars fa-fw"></i>
+            <span>&emsp;COLLECTCROP&#39;S BLOG</span>
+        </div>
+        <transition name="slide">
+            <div class="items" v-show="showMenuItems">
+                
+                <a href="/">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-house fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Home</div>
+                    </div>
+                </a>
+                
+                <a href="/about">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-id-card fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">About</div>
+                    </div>
+                </a>
+                
+                <a href="/archives">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-box-archive fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Archives</div>
+                    </div>
+                </a>
+                
+                <a href="/categories">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-bookmark fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Categories</div>
+                    </div>
+                </a>
+                
+                <a href="/tags">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-tags fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Tags</div>
+                    </div>
+                </a>
+                
+            </div>
+        </transition>
+    </nav>
+</div>
+<transition name="fade">
+    <div id="menu-curtain" @click="showMenuItems = !showMenuItems" v-show="showMenuItems"></div>
+</transition>
+
+        <div id="main" :class="loading ? 'into-enter-from': 'into-enter-active'">
+            <div class="article">
+    <div>
+        <h1>self-made sandbox</h1>
+    </div>
+    <div class="info">
+        <span class="date">
+            <span class="icon">
+                <i class="fa-solid fa-calendar fa-fw"></i>
+            </span>
+            2024/9/21
+        </span>
+        
+        <span class="category">
+            <a href="/categories/pwn/">
+                <span class="icon">
+                    <i class="fa-solid fa-bookmark fa-fw"></i>
+                </span>
+                pwn
+            </a>
+        </span>
+        
+        
+        <span class="tags">
+            <span class="icon">
+                <i class="fa-solid fa-tags fa-fw"></i>
+            </span>
+            
+            
+            <span class="tag">
+                
+                <a href="/tags/pwn/" style="color: #ff7d73">
+                    pwn
+                </a>
+            </span>
+            
+            <span class="tag">
+                
+                <a href="/tags/sandbox/" style="color: #03a9f4">
+                    sandbox
+                </a>
+            </span>
+            
+        </span>
+        
+    </div>
+    
+    <div class="content" v-pre>
+        <p>由于最近要打几场awd，一个一个漏洞改过来感觉有点麻烦，所以想到了上沙箱，但是一般好像比赛会禁止上通防，这里想试试看自己通过系统调用写一个沙箱出来，看看能不能瞒天过海。</p>
+<h3 id="一、c代码实现沙箱"><a href="#一、c代码实现沙箱" class="headerlink" title="一、c代码实现沙箱"></a>一、c代码实现沙箱</h3><p>不是很清楚沙箱具体用到的系统调用，所以先让gpt生成了一段正常用c语言实现的沙箱代码。</p>
+<pre><code class="c">//test.c
+//gcc -g test.c -o test
+#include &lt;linux/seccomp.h&gt;
+#include &lt;linux/filter.h&gt;
+#include &lt;sys/prctl.h&gt;
+#include &lt;stddef.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+void install_seccomp() &#123;
+    struct sock_filter filter[] = &#123;
+        // 读取系统调用号
+        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+        
+        // 检查是否为 execve 系统调用（编号 59）
+        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 59, 0, 1), 
+        
+        // 如果是 execve，则杀死进程
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+        
+        // 允许其他系统调用
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
+    &#125;;
+    
+    struct sock_fprog prog = &#123;
+        .len = sizeof(filter) / sizeof(filter[0]),
+        .filter = filter
+    &#125;;
+    
+    // 启用 seccomp 过滤模式
+    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != 0) &#123;
+        perror(&quot;prctl&quot;);
+        _exit(1);
+    &#125;
+
+&#125;
+
+int main() &#123;
+    install_seccomp();
+    // 你可以在这里运行原来的程序逻辑
+    system(&quot;/bin/sh&quot;);
+    return 0;
+&#125;
+</code></pre>
+<p>这个 <code>install_seccomp()</code> 函数的作用是通过 <code>seccomp</code>（安全计算模式）设置一个简单的沙箱来限制程序能够调用的系统调用，具体来说，是禁止调用 <code>execve</code> 系统调用。如果程序尝试调用 <code>execve</code>，则会被杀死。其余的系统调用则被允许执行。</p>
+<p>以下是其中每个部分的功能和用法的详细解释：</p>
+<h4 id="struct-sock-filter-filter"><a href="#struct-sock-filter-filter" class="headerlink" title="struct sock_filter filter[]"></a>struct sock_filter filter[]</h4><pre><code class="c">struct sock_filter filter[] = &#123;
+    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 59, 0, 1), 
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
+&#125;;
+</code></pre>
+<p>这是一个 BPF（Berkeley Packet Filter）过滤器指令数组，用来定义程序的过滤规则。每一条 <code>sock_filter</code> 定义了一条 BPF 指令，用来判断并处理系统调用。</p>
+<p><strong>第一条指令</strong></p>
+<pre><code class="c">BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr))
+</code></pre>
+<ul>
+<li>这里使用 <code>BPF_LD</code> 加载 <code>seccomp_data</code> 结构体中的 <code>nr</code> 成员（即系统调用号）。</li>
+<li><code>BPF_W</code> 表示加载的是一个 32 位的值。</li>
+<li><code>BPF_ABS</code> 表示从固定的偏移量读取数据。</li>
+<li><code>offsetof(struct seccomp_data, nr)</code> 是 <code>seccomp_data</code> 结构体中 <code>nr</code> 成员的偏移量，<code>nr</code> 是存储系统调用号的字段。</li>
+</ul>
+<p>这条指令的作用是读取当前正在执行的系统调用号，以便后续判断是否是 <code>execve</code> 系统调用。</p>
+<pre><code class="c">struct seccomp_data &#123;
+    int nr;        // 系统调用号
+    __u32 arch;    // 架构信息
+    __u64 instruction_pointer; // 指令指针
+    __u64 args[6]; // 系统调用参数
+&#125;;
+</code></pre>
+<p>其中由于linux内核中结构体定义如上，所以实际上offsetof(struct seccomp_data, nr)也可以写为0。</p>
+<p><strong>第二条指令</strong></p>
+<pre><code class="c">BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 59, 0, 1)
+</code></pre>
+<ul>
+<li><code>BPF_JMP</code> 指令执行跳转。</li>
+<li><code>BPF_JEQ</code> 是“跳转如果相等”的操作符，表示如果条件为真则跳转。</li>
+<li><code>BPF_K</code> 指定了一个立即数（这里为 59）。</li>
+</ul>
+<p>这条指令会判断加载的系统调用号是否等于 <code>execve</code> 的系统调用号（59）。如果是，则跳过后面的第一条指令，继续执行杀死进程的语句；否则跳过后面的两条指令，直接允许执行系统调用。</p>
+<p><strong>第三条指令</strong></p>
+<pre><code class="c">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL)
+</code></pre>
+<ul>
+<li><code>BPF_RET</code> 表示返回结果。</li>
+<li><code>BPF_K</code> 表示一个立即数操作，这里为 <code>SECCOMP_RET_KILL</code>，这是 seccomp 的一个特定返回值，表示当遇到 <code>execve</code> 系统调用时杀死进程。</li>
+</ul>
+<p>这条指令表示如果系统调用号是 <code>execve</code>，则终止进程。</p>
+<p><strong>第四条指令</strong></p>
+<pre><code class="c">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
+</code></pre>
+<ul>
+<li>这条指令会返回 <code>SECCOMP_RET_ALLOW</code>，表示允许其他系统调用正常执行。</li>
+</ul>
+<h4 id="struct-sock-fprog-prog"><a href="#struct-sock-fprog-prog" class="headerlink" title="struct sock_fprog prog"></a><strong>struct sock_fprog prog</strong></h4><pre><code class="c">struct sock_fprog prog = &#123;
+    .len = sizeof(filter) / sizeof(filter[0]),
+    .filter = filter
+&#125;;
+</code></pre>
+<ul>
+<li><code>struct sock_fprog</code> 是一个包含 seccomp 过滤器程序的结构体：<ul>
+<li><code>len</code> 表示 <code>filter</code> 数组的长度（指令数量）。通过 <code>sizeof(filter) / sizeof(filter[0])</code> 来计算过滤器中有多少条指令。</li>
+<li><code>filter</code> 是一个指向 <code>sock_filter</code> 数组的指针，用于存储 seccomp 过滤器的指令集。</li>
+</ul>
+</li>
+</ul>
+<p>该结构体用于将 BPF 过滤器指令加载到内核中。</p>
+<h4 id="prctl-系统调用"><a href="#prctl-系统调用" class="headerlink" title="prctl 系统调用"></a><strong>prctl 系统调用</strong></h4><pre><code class="c">if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != 0) &#123;
+    perror(&quot;prctl&quot;);
+    _exit(1);
+&#125;
+</code></pre>
+<ul>
+<li><code>prctl</code> 是用来对进程的某些属性进行设置的系统调用。</li>
+<li><code>PR_SET_SECCOMP</code> 是用于启用 seccomp 的选项。</li>
+<li><code>SECCOMP_MODE_FILTER</code> 表示以过滤模式运行 seccomp，意味着我们会使用 BPF 过滤器来决定哪些系统调用可以执行，哪些会被拒绝。</li>
+<li><code>&amp;prog</code> 是指向我们定义的过滤器程序的指针，它告诉内核使用这个过滤器来限制系统调用。</li>
+</ul>
+<p>如果 <code>prctl</code> 调用失败，意味着 seccomp 设置失败，会输出错误信息并终止进程。</p>
+<p>这里其实也可以把SECCOMP_MODE_FILTER改成 SECCOMP_MODE_STRICT  ，然后就不用构建并传prog了，这样一来会仅仅允许exit，sigreturn，read以及write的系统调用。</p>
+<p>其中BPF_STMT与BPF_JUMP实际上是一个宏定义，是条件编译后赋值的sock_filter结构体，这就是为什么<code>struct sock_filter filter[]</code>这个声明是声明结构体数组。</p>
+<pre><code class="c">#ifndef     BPF_STMT
+#define    BPF_STMT(code,k)&#123;(unsigned short)(code),0,0,k&#125;
+#endif
+#ifndef     BPF_JUMP
+#define    BPF_JUMP(code,k,jt,jf)&#123;(unsigned short)(code),jt,jf,k&#125;
+#endif
+</code></pre>
+<p>而sock_filter的结构体定义如下：</p>
+<pre><code class="c">struct sock_filter &#123;
+    __u16   code;   /* BPF opcode */
+    __u8    jt;     /* Jump true */
+    __u8    jf;     /* Jump false */
+    __u32   k;      /* Generic multiuse field */
+&#125;;
+</code></pre>
+<h4 id="其他一些常用的宏定义"><a href="#其他一些常用的宏定义" class="headerlink" title="其他一些常用的宏定义"></a>其他一些常用的宏定义</h4><p>基本都是位掩码，只需要知道其代表的含义即可。</p>
+<pre><code class="c">// 主指令类别（2 位）
+#define BPF_LD          0x00  // Load
+#define BPF_LDX         0x01  // Load with index
+#define BPF_ST          0x02  // Store
+#define BPF_STX         0x03  // Store with index
+#define BPF_ALU         0x04  // ALU (arithmetic logic unit) operation
+#define BPF_JMP         0x05  // Jump
+#define BPF_RET         0x06  // Return
+#define BPF_MISC        0x07  // Miscellaneous
+
+// 操作码的大小（3 位）
+#define BPF_W           0x00  // Word (32-bit)
+#define BPF_H           0x08  // Half-word (16-bit)
+#define BPF_B           0x10  // Byte (8-bit)
+
+// 加载/存储操作的模式（3 位）
+#define BPF_IMM         0x00  // Immediate value
+#define BPF_ABS         0x20  // Absolute
+#define BPF_IND         0x40  // Indirect
+#define BPF_MEM         0x60  // Memory
+#define BPF_LEN         0x80  // Packet length
+#define BPF_MSH         0xA0  // Modulo shift
+
+// 计算和比较操作的源（1 位）
+#define BPF_K           0x00  // Constant
+#define BPF_X           0x08  // Register
+
+// ALU 运算符（4 位）
+#define BPF_ADD         0x00  // Addition
+#define BPF_SUB         0x10  // Subtraction
+#define BPF_MUL         0x20  // Multiplication
+#define BPF_DIV         0x30  // Division
+#define BPF_OR          0x40  // Bitwise OR
+#define BPF_AND         0x50  // Bitwise AND
+#define BPF_LSH         0x60  // Left shift
+#define BPF_RSH         0x70  // Right shift
+#define BPF_NEG         0x80  // Negation
+#define BPF_MOD         0x90  // Modulo
+#define BPF_XOR         0xA0  // Bitwise XOR
+
+// 跳转条件（4 位）
+#define BPF_JA          0x00  // Jump unconditionally
+#define BPF_JEQ         0x10  // Jump if equal
+#define BPF_JGT         0x20  // Jump if greater than
+#define BPF_JGE         0x30  // Jump if greater or equal
+#define BPF_JSET        0x40  // Jump if bits are set
+
+// Return 操作码
+#define BPF_RET         0x06  // Return
+#define SECCOMP_RET_KILL 0x00000000  // Kill process
+#define SECCOMP_RET_ALLOW 0x7fff0000 // Allow syscall
+
+//对seccomp mode 进行操作
+#define PR_GET_SECCOMP      21
+#define PR_SET_SECCOMP     22
+</code></pre>
+<h3 id="二、调试获取汇编写法"><a href="#二、调试获取汇编写法" class="headerlink" title="二、调试获取汇编写法"></a>二、调试获取汇编写法</h3><p>查看pwndbg，install_seccomp()函数的主逻辑如下，我们可以发现除了prctl系统调用外，前面的一系列结构体的初始化都没有调用函数，而且这一大通操作实际上很多是一个一个字节进行的修改，那么我们在eh_frame空间有限的情况下，实际可以通过8字节直接赋值参数来节省掉许多指令字节。</p>
+<pre><code class="asm">0x5555555551e4 &lt;install_seccomp+27&gt;    mov    word ptr [rbp - 0x30], 0x20     [0x7fffffffe450] =&gt; 0x20
+0x5555555551ea &lt;install_seccomp+33&gt;    mov    byte ptr [rbp - 0x2e], 0        [0x7fffffffe452] =&gt; 0
+0x5555555551ee &lt;install_seccomp+37&gt;    mov    byte ptr [rbp - 0x2d], 0        [0x7fffffffe453] =&gt; 0
+0x5555555551f2 &lt;install_seccomp+41&gt;    mov    dword ptr [rbp - 0x2c], 0       [0x7fffffffe454] =&gt; 0
+0x5555555551f9 &lt;install_seccomp+48&gt;    mov    word ptr [rbp - 0x28], 0x15     [0x7fffffffe458] =&gt; 0x15
+0x5555555551ff &lt;install_seccomp+54&gt;    mov    byte ptr [rbp - 0x26], 0        [0x7fffffffe45a] =&gt; 0
+0x555555555203 &lt;install_seccomp+58&gt;     mov    byte ptr [rbp - 0x25], 1               [0x7fffffffe45b] =&gt; 1
+0x555555555207 &lt;install_seccomp+62&gt;     mov    dword ptr [rbp - 0x24], 0x3b           [0x7fffffffe45c] =&gt; 0x3b
+0x55555555520e &lt;install_seccomp+69&gt;     mov    word ptr [rbp - 0x20], 6               [0x7fffffffe460] =&gt; 6
+0x555555555214 &lt;install_seccomp+75&gt;     mov    byte ptr [rbp - 0x1e], 0               [0x7fffffffe462] =&gt; 0
+0x555555555218 &lt;install_seccomp+79&gt;     mov    byte ptr [rbp - 0x1d], 0               [0x7fffffffe463] =&gt; 0
+0x55555555521c &lt;install_seccomp+83&gt;     mov    dword ptr [rbp - 0x1c], 0              [0x7fffffffe464] =&gt; 0
+0x555555555223 &lt;install_seccomp+90&gt;     mov    word ptr [rbp - 0x18], 6               [0x7fffffffe468] =&gt; 6
+0x555555555229 &lt;install_seccomp+96&gt;     mov    byte ptr [rbp - 0x16], 0               [0x7fffffffe46a] =&gt; 0
+0x55555555522d &lt;install_seccomp+100&gt;    mov    byte ptr [rbp - 0x15], 0               [0x7fffffffe46b] =&gt; 0
+0x555555555231 &lt;install_seccomp+104&gt;    mov    dword ptr [rbp - 0x14], 0x7fff0000     [0x7fffffffe46c] =&gt; 0x7fff0000
+0x555555555238 &lt;install_seccomp+111&gt;    mov    word ptr [rbp - 0x40], 4               [0x7fffffffe440] =&gt; 4
+0x55555555523e &lt;install_seccomp+117&gt;    lea    rax, [rbp - 0x30]                      RAX =&gt; 0x7fffffffe450 ◂— 0x20 /* &#39; &#39; */
+0x555555555242 &lt;install_seccomp+121&gt;    mov    qword ptr [rbp - 0x38], rax            [0x7fffffffe448] =&gt; 0x7fffffffe450 ◂— 0x20 /* &#39; &#39; */
+0x555555555246 &lt;install_seccomp+125&gt;    lea    rax, [rbp - 0x40]                      RAX =&gt; 0x7fffffffe440 ◂— 4
+0x55555555524a &lt;install_seccomp+129&gt;    mov    rdx, rax                               RDX =&gt; 0x7fffffffe440 ◂— 4
+0x55555555524d &lt;install_seccomp+132&gt;    mov    esi, 2                                 ESI =&gt; 2
+0x555555555252 &lt;install_seccomp+137&gt;    mov    edi, 0x16                              EDI =&gt; 0x16
+0x555555555257 &lt;install_seccomp+142&gt;    mov    eax, 0                                 EAX =&gt; 0
+0x55555555525c &lt;install_seccomp+147&gt;    call   prctl@plt                   			  &lt;prctl@plt&gt;
+</code></pre>
+<p><img src="/./assets/image-20240921151136186.png" alt="image-20240921151136186"></p>
+<p>最后整个prog结构体的地址是存在rdx中，也就是rbp - 0x40这个地址处。但之后遇到了问题，在prctl函数的实现中，在prctl的系统调用时始终不成功，返回的rax代表的错误码。之后尝试直接执行test，发现是权限问题。</p>
+<p><img src="/./assets/image-20240921151151584.png" alt="image-20240921151151584"></p>
+<p>这下尴尬了，本来想上沙箱是为了方便防御，这么一来二去搞awd前还得提权，更加麻烦了，这下就只能算是学习沙箱实现的机制了。那么我们得切到root用户进行调试（本来想setuid改文件，但好像wsl不支持），进到prctl具体实现里看看。</p>
+<pre><code class="c">0x7ffff7eae338 &lt;prctl+8&gt;        mov    r10, rcx                        R10 =&gt; 0x555555557da0 (__do_global_dtors_aux_fini_array_entry) —▸ 0x555555555180 (__do_global_dtors_aux) ◂— endbr64
+0x7ffff7eae33b &lt;prctl+11&gt;       mov    qword ptr [rsp + 0x28], rsi     [0x7fffffffe408] =&gt; 2
+0x7ffff7eae340 &lt;prctl+16&gt;       mov    qword ptr [rsp + 0x30], rdx     [0x7fffffffe410] =&gt; 0x7fffffffe440 ◂— 4
+0x7ffff7eae345 &lt;prctl+21&gt;       mov    qword ptr [rsp + 0x38], rcx     [0x7fffffffe418] =&gt; 0x555555557da0 (__do_global_dtors_aux_fini_array_entry) —▸ 0x555555555180 (__do_global_dtors_aux) ◂— endbr64
+0x7ffff7eae34a &lt;prctl+26&gt;       mov    qword ptr [rsp + 0x40], r8      [0x7fffffffe420] =&gt; 0x7ffff7fa3f10 (initial+16) ◂— 4
+0x7ffff7eae34f &lt;prctl+31&gt;       mov    rax, qword ptr fs:[0x28]        RAX, [0x7ffff7d85768] =&gt; 0xc68810ecdaf50d00
+0x7ffff7eae358 &lt;prctl+40&gt;       mov    qword ptr [rsp + 0x18], rax     [0x7fffffffe3f8] =&gt; 0xc68810ecdaf50d00
+0x7ffff7eae35d &lt;prctl+45&gt;    xor    eax, eax                        EAX =&gt; 0
+0x7ffff7eae35f &lt;prctl+47&gt;    lea    rax, [rsp + 0x60]               RAX =&gt; 0x7fffffffe440 ◂— 4
+0x7ffff7eae364 &lt;prctl+52&gt;    mov    dword ptr [rsp], 8              [0x7fffffffe3e0] =&gt; 8
+0x7ffff7eae36b &lt;prctl+59&gt;    mov    qword ptr [rsp + 8], rax        [0x7fffffffe3e8] =&gt; 0x7fffffffe440 ◂— 4
+0x7ffff7eae370 &lt;prctl+64&gt;    lea    rax, [rsp + 0x20]               RAX =&gt; 0x7fffffffe400 ◂— 0
+0x7ffff7eae375 &lt;prctl+69&gt;    mov    qword ptr [rsp + 0x10], rax     [0x7fffffffe3f0] =&gt; 0x7fffffffe400 ◂— 0
+0x7ffff7eae37a &lt;prctl+74&gt;    mov    eax, 0x9d                       EAX =&gt; 0x9d
+0x7ffff7eae37f &lt;prctl+79&gt;    syscall  &lt;SYS_prctl&gt;
+</code></pre>
+<p>最后syscall时rdi为0x16，rsi为2，rdx为0x7fffffffe440（prog结构体地址），前面的操作用处不大，就是把寄存器参数加载到了栈上以及存了下canary。r10用rcx赋值，r8不变。那么我们只要把那个结构体伪造出来，就可以直接syscall来禁用一些系统调用。理论可行，开始手搓。</p>
+<p>我们可以拿一道简单的栈溢出来试一下，更改程序我用的是 <a target="_blank" rel="noopener" href="https://github.com/aftern00n/AwdPwnPatcher">https://github.com/aftern00n/AwdPwnPatcher</a> 这个库，我们可以把call init patch成一个跳转到ehframe段执行，再在ehframe段最后手动加上call init。AwdPwnPatcher中有个add_constant_in_ehframe方法，其中会将传入的字符串转换为字节字符串。我感觉还是直接在传参前用p64伪造好结构体的各字段比较方便，所以就把库里面字符串的encode逻辑给注释掉了。</p>
+<p><img src="/./assets/image-20240921151211381.png" alt="image-20240921151211381"></p>
+<p><img src="/./assets/image-20240921151222496.png" alt="image-20240921151222496"></p>
+<pre><code class="python">from AwdPwnPatcher import *
+from pwn import *
+
+binary = &quot;./pwn&quot;
+awd_pwn_patcher = AwdPwnPatcher(binary)
+sock_filter = p64(0x20) + p64(0x3b01000015) + p64(6) + p64(0x7fff000000000006)
+sock_filter_addr = awd_pwn_patcher.add_constant_in_ehframe(sock_filter)
+
+prog = p64(4) + p64(sock_filter_addr)
+prog_addr = awd_pwn_patcher.add_constant_in_ehframe(prog)
+
+assembly = f&quot;&quot;&quot;
+    mov rax,157
+    mov rdi,22
+    mov rsi,2
+    lea rdx,[&#123;prog_addr&#125;]
+    syscall
+    call 0x40117A
+&quot;&quot;&quot;
+
+awd_pwn_patcher.patch_by_jmp(jmp_from=0x4011F0,jmp_to=0x4011F5,assembly=assembly)
+awd_pwn_patcher.save()
+</code></pre>
+<p>这时候本来充满期待开始调试二进制程序，但是首先遇到的问题是ehframe段不可执行，一般来说awd_pwn_patcher.save()时会自动把这个段设为可执行，但这里不知道出了什么问题，得自己手动来。根据<a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_46106285/article/details/124972056">https://blog.csdn.net/qq_46106285/article/details/124972056</a> 这篇博客能够成功地设置段权限。第二个问题是我在root用户下安装pwntools后，发现会让正常用户gdb调试时出现问题，这个问题的解决方案是起一个python的虚拟环境给root用，或者是<code>sudo pip install --user pwntools</code>来指定只给root用户安装python库。之后运行就不会出现问题了。</p>
+<p>运行没有patch过的程序：</p>
+<p><img src="/./assets/image-20240921151236768.png" alt="image-20240921151236768"></p>
+<p>经过patch之后：</p>
+<p><img src="/./assets/image-20240921151247626.png" alt="image-20240921151247626"></p>
+<p><img src="/./assets/image-20240921151256919.png" alt="image-20240921151256919"></p>
+<p><img src="/./assets/image-20240921151305738.png" alt="image-20240921151305738"></p>
+<p>经过计算，构造禁用execve沙箱所用的仅有0x53字节，一般而言ehframe段还是够用的，每个多加的规则也只会多出8字节的开销，改一下结构体的参数就行。但由于前提是要有root权限执行程序，也是挺鸡肋的。</p>
+<h3 id="三、自动化工具"><a href="#三、自动化工具" class="headerlink" title="三、自动化工具"></a>三、自动化工具</h3><p>感觉这个挺有意思的，感觉逻辑也挺简单，上头了小写一手自动化工具（虽然没有什么卵用）</p>
+<p>效果图：</p>
+<p><img src="/./assets/image-20240921151317438.png" alt="image-20240921151317438"></p>
+<p><img src="/./assets/image-20240921151328087.png" alt="image-20240921151328087"></p>
+
+    </div>
+    
+    
+    
+    
+    
+    
+    
+</div>
+
+            <footer id="footer">
+    <div id="footer-wrap">
+        <div>
+            &copy;
+            2022 - 2024 Collectcrop&#39;s Blog
+            <span id="footer-icon">
+                <i class="fa-solid fa-font-awesome fa-fw"></i>
+            </span>
+            &commat;collectcrop
+        </div>
+        <div>
+            Based on the <a target="_blank" rel="noopener" href="https://hexo.io">Hexo Engine</a> &amp;
+            <a target="_blank" rel="noopener" href="https://github.com/theme-particlex/hexo-theme-particlex">ParticleX Theme</a>
+        </div>
+        
+    </div>
+</footer>
+
+        </div>
+        
+        <transition name="fade">
+            <div id="preview" ref="preview" v-show="previewShow">
+                <img id="preview-content" ref="previewContent" />
+            </div>
+        </transition>
+        
+    </div>
+    <script src="/js/main.js"></script>
+    
+    
+
+
+
+
+    
+</body>
+</html>
