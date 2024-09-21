@@ -184,14 +184,14 @@
             
             <span class="tag">
                 
-                <a href="/tags/pwn/" style="color: #03a9f4">
+                <a href="/tags/pwn/" style="color: #ff7d73">
                     pwn
                 </a>
             </span>
             
             <span class="tag">
                 
-                <a href="/tags/mips/" style="color: #ffa2c4">
+                <a href="/tags/mips/" style="color: #00a596">
                     mips
                 </a>
             </span>
@@ -661,7 +661,7 @@ gdb-multiarch --version
 </code></pre>
 <p>mipsrop.py在 ida-plugins&#x2F;plugins&#x2F;mipsrop目录下，将其复制进IDA的plugins目录即可</p>
 <p><strong>可能遇到的问题</strong></p>
-/2024/09/21/mips-pwn/image-20240921180630264.png
+<img src="/2024/09/21/mips-pwn/image-20240921180630264.png" class="">
 
 <p>在ida-plugins&#x2F;plugins目录下还有个shims文件夹，将其也复制到IDA的plugins目录就行。</p>
 <h5 id="5-调试方法"><a href="#5-调试方法" class="headerlink" title="5.调试方法"></a>5.调试方法</h5><pre><code class="bash">qemu-mipsel-static -g 6666 -L ./ ./program		#开的端口是6666
@@ -684,10 +684,10 @@ gdb.attach(p,f&#39;&#39;&#39;
 <h5 id="1-栈溢出-syscall"><a href="#1-栈溢出-syscall" class="headerlink" title="1.栈溢出+syscall"></a>1.栈溢出+syscall</h5><p>如果一个函数是非叶子函数，则其返回地址也会出现在栈上，最后会读取该地址并返回，类似于x86架构，那我们就可以覆盖返回地址实现ROP，mips架构中比较麻烦的是寻找gadget，这里我们用的是IDA的mipsrop插件。</p>
 <p>由于mips架构是没有NX保护的，其实我们可以把shellcode写到栈上后想办法跳转到shellcode处执行。</p>
 <p>我们可以先用<code>mipsrop.stackfinders()</code>这个方法来获取能把栈相关地址写到某个寄存器的gadget，然后定位到control jump中为jalr $fp的那个，因为$fp也是一个栈相关的地址，正好位于返回地址向低地址偏移4字节处，如果能栈溢出的话也能进行控制$fp位置的内容。</p>
-/2024/09/21/mips-pwn/image-20240921180732229.png
+<img src="/2024/09/21/mips-pwn/image-20240921180732229.png" class="">
 
 <p>然后既然能控制$a2寄存器的值为一个栈上的可控地址，那么只要我们再找到一个能跳转到$a2的gadget，将其写入$fp的位置处，就能实现ret2syscall。<code>move $t9,reg</code>后面一般都会找到对应的跳转语句。</p>
-/2024/09/21/mips-pwn/image-20240921180805478.png
+<img src="/2024/09/21/mips-pwn/image-20240921180805478.png" class="">
 
 <p>之后就可以手搓execve系统调用的shellcode了，系统调用号可以在<a target="_blank" rel="noopener" href="https://syscalls.w3challs.com/?arch=mips_o32%E8%BF%99%E6%9F%A5%EF%BC%8Cv0%E5%AD%98%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%8F%B7%EF%BC%8Ca0%EF%BC%8Ca1%EF%BC%8Ca2%E5%88%86%E5%88%AB%E5%AD%98%E4%B8%89%E4%B8%AA%E5%8F%82%E6%95%B0%EF%BC%8C%E5%8F%AF%E4%BB%A5%E9%80%9A%E8%BF%87%E5%B0%86%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%86%99%E5%88%B0%E6%A0%88%E9%A1%B6%EF%BC%8C%E5%9C%A8%E6%8A%8A%E5%8F%82%E6%95%B0%E6%8C%87%E5%90%91$sp%EF%BC%8C%E5%B0%B1%E8%83%BD%E5%AE%9E%E7%8E%B0%E5%AD%97%E7%AC%A6%E5%8F%82%E6%95%B0%E7%9A%84%E4%BC%A0%E9%80%92%E4%BA%86%E3%80%82">https://syscalls.w3challs.com/?arch=mips_o32这查，v0存系统调用号，a0，a1，a2分别存三个参数，可以通过将字符串写到栈顶，在把参数指向$sp，就能实现字符参数的传递了。</a></p>
 <pre><code class="python">shellcode = &quot;&quot;&quot;
@@ -705,9 +705,9 @@ syscall
 &quot;&quot;&quot;
 </code></pre>
 <p>这里需要注意的一点是execve的第一个参数最好是&#x2F;bin&#x2F;sh，如果图方便只传进去一个sh，因为后面的环境变量参数置零了，很可能会找不到sh报警告，继续向下执行。</p>
-/2024/09/21/mips-pwn/image-20240921180832554.png
+<img src="/2024/09/21/mips-pwn/image-20240921180832554.png" class="">
 
-<h4 id="四、题目复现"><a href="#四、题目复现" class="headerlink" title="四、题目复现"></a>四、题目复现</h4><h5 id="xyctf2024-Ez1-0"><a href="#xyctf2024-Ez1-0" class="headerlink" title="[xyctf2024]Ez1.0"></a>[xyctf2024]Ez1.0</h5>/2024/09/21/mips-pwn/image-20240921180859013.png
+<h4 id="四、题目复现"><a href="#四、题目复现" class="headerlink" title="四、题目复现"></a>四、题目复现</h4><h5 id="xyctf2024-Ez1-0"><a href="#xyctf2024-Ez1-0" class="headerlink" title="[xyctf2024]Ez1.0"></a>[xyctf2024]Ez1.0</h5><img src="/2024/09/21/mips-pwn/image-20240921180859013.png" class="">
 
 <p>非常简单粗暴的栈溢出，根据上述漏洞利用原理构造即可</p>
 <pre><code class="python">from pwn import *
