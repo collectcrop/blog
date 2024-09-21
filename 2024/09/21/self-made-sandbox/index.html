@@ -184,14 +184,14 @@
             
             <span class="tag">
                 
-                <a href="/tags/pwn/" style="color: #03a9f4">
+                <a href="/tags/pwn/" style="color: #ffa2c4">
                     pwn
                 </a>
             </span>
             
             <span class="tag">
                 
-                <a href="/tags/sandbox/" style="color: #ffa2c4">
+                <a href="/tags/sandbox/" style="color: #00bcd4">
                     sandbox
                 </a>
             </span>
@@ -425,9 +425,9 @@ int main() &#123;
 0x555555555257 &lt;install_seccomp+142&gt;    mov    eax, 0                                 EAX =&gt; 0
 0x55555555525c &lt;install_seccomp+147&gt;    call   prctl@plt                   			  &lt;prctl@plt&gt;
 </code></pre>
-<p><img src="/./assets/image-20240921151136186.png" alt="image-20240921151136186"></p>
+<p><img src="/./self-made-sandbox/image-20240921151136186.png" alt="image-20240921151136186"></p>
 <p>最后整个prog结构体的地址是存在rdx中，也就是rbp - 0x40这个地址处。但之后遇到了问题，在prctl函数的实现中，在prctl的系统调用时始终不成功，返回的rax代表的错误码。之后尝试直接执行test，发现是权限问题。</p>
-<p><img src="/./assets/image-20240921151151584.png" alt="image-20240921151151584"></p>
+<p><img src="/./self-made-sandbox/image-20240921151151584.png" alt="image-20240921151151584"></p>
 <p>这下尴尬了，本来想上沙箱是为了方便防御，这么一来二去搞awd前还得提权，更加麻烦了，这下就只能算是学习沙箱实现的机制了。那么我们得切到root用户进行调试（本来想setuid改文件，但好像wsl不支持），进到prctl具体实现里看看。</p>
 <pre><code class="c">0x7ffff7eae338 &lt;prctl+8&gt;        mov    r10, rcx                        R10 =&gt; 0x555555557da0 (__do_global_dtors_aux_fini_array_entry) —▸ 0x555555555180 (__do_global_dtors_aux) ◂— endbr64
 0x7ffff7eae33b &lt;prctl+11&gt;       mov    qword ptr [rsp + 0x28], rsi     [0x7fffffffe408] =&gt; 2
@@ -447,8 +447,8 @@ int main() &#123;
 </code></pre>
 <p>最后syscall时rdi为0x16，rsi为2，rdx为0x7fffffffe440（prog结构体地址），前面的操作用处不大，就是把寄存器参数加载到了栈上以及存了下canary。r10用rcx赋值，r8不变。那么我们只要把那个结构体伪造出来，就可以直接syscall来禁用一些系统调用。理论可行，开始手搓。</p>
 <p>我们可以拿一道简单的栈溢出来试一下，更改程序我用的是 <a target="_blank" rel="noopener" href="https://github.com/aftern00n/AwdPwnPatcher">https://github.com/aftern00n/AwdPwnPatcher</a> 这个库，我们可以把call init patch成一个跳转到ehframe段执行，再在ehframe段最后手动加上call init。AwdPwnPatcher中有个add_constant_in_ehframe方法，其中会将传入的字符串转换为字节字符串。我感觉还是直接在传参前用p64伪造好结构体的各字段比较方便，所以就把库里面字符串的encode逻辑给注释掉了。</p>
-<p><img src="/./assets/image-20240921151211381.png" alt="image-20240921151211381"></p>
-<p><img src="/./assets/image-20240921151222496.png" alt="image-20240921151222496"></p>
+<p><img src="/./self-made-sandbox/image-20240921151211381.png" alt="image-20240921151211381"></p>
+<p><img src="/./self-made-sandbox/image-20240921151222496.png" alt="image-20240921151222496"></p>
 <pre><code class="python">from AwdPwnPatcher import *
 from pwn import *
 
@@ -474,16 +474,17 @@ awd_pwn_patcher.save()
 </code></pre>
 <p>这时候本来充满期待开始调试二进制程序，但是首先遇到的问题是ehframe段不可执行，一般来说awd_pwn_patcher.save()时会自动把这个段设为可执行，但这里不知道出了什么问题，得自己手动来。根据<a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_46106285/article/details/124972056">https://blog.csdn.net/qq_46106285/article/details/124972056</a> 这篇博客能够成功地设置段权限。第二个问题是我在root用户下安装pwntools后，发现会让正常用户gdb调试时出现问题，这个问题的解决方案是起一个python的虚拟环境给root用，或者是<code>sudo pip install --user pwntools</code>来指定只给root用户安装python库。之后运行就不会出现问题了。</p>
 <p>运行没有patch过的程序：</p>
-<p><img src="/./assets/image-20240921151236768.png" alt="image-20240921151236768"></p>
+<p><img src="/./self-made-sandbox/image-20240921151236768.png" alt="image-20240921151236768"></p>
 <p>经过patch之后：</p>
-<p><img src="/./assets/image-20240921151247626.png" alt="image-20240921151247626"></p>
-<p><img src="/./assets/image-20240921151256919.png" alt="image-20240921151256919"></p>
-<p><img src="/./assets/image-20240921151305738.png" alt="image-20240921151305738"></p>
+<p><img src="/./self-made-sandbox/image-20240921151247626.png" alt="image-20240921151247626"></p>
+<p><img src="/./self-made-sandbox/image-20240921151256919.png" alt="image-20240921151256919"></p>
+<p><img src="/./self-made-sandbox/image-20240921151305738.png" alt="image-20240921151305738"></p>
 <p>经过计算，构造禁用execve沙箱所用的仅有0x53字节，一般而言ehframe段还是够用的，每个多加的规则也只会多出8字节的开销，改一下结构体的参数就行。但由于前提是要有root权限执行程序，也是挺鸡肋的。</p>
 <h3 id="三、自动化工具"><a href="#三、自动化工具" class="headerlink" title="三、自动化工具"></a>三、自动化工具</h3><p>感觉这个挺有意思的，感觉逻辑也挺简单，上头了小写一手自动化工具（虽然没有什么卵用）</p>
 <p>效果图：</p>
-<p><img src="/./assets/image-20240921151317438.png" alt="image-20240921151317438"></p>
-<p><img src="/./assets/image-20240921151328087.png" alt="image-20240921151328087"></p>
+<p><img src="/./self-made-sandbox/image-20240921151317438.png" alt="image-20240921151317438"></p>
+<p><img src="/./self-made-sandbox/image-20240921151328087.png" alt="image-20240921151328087"></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/collectcrop/SandboxAttacher">https://github.com/collectcrop/SandboxAttacher</a></p>
 
     </div>
     
