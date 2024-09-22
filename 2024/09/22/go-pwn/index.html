@@ -184,21 +184,21 @@
             
             <span class="tag">
                 
-                <a href="/tags/pwn/" style="color: #ffa2c4">
+                <a href="/tags/pwn/" style="color: #03a9f4">
                     pwn
                 </a>
             </span>
             
             <span class="tag">
                 
-                <a href="/tags/go/" style="color: #00a596">
+                <a href="/tags/go/" style="color: #ff7d73">
                     go
                 </a>
             </span>
             
             <span class="tag">
                 
-                <a href="/tags/ciscn-wp/" style="color: #ffa2c4">
+                <a href="/tags/ciscn-wp/" style="color: #00a596">
                     ciscn wp
                 </a>
             </span>
@@ -231,14 +231,14 @@ mov     rcx, [rsp+arg_10]
 jmp     a
 </code></pre>
 <p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202642330.png" class="">
 
-
-
+<img src="/2024/09/22/go-pwn/image-20240922202650340.png" class="">
 
 <p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
 <h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
 <h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922202702201.png" class="">
 
 <p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
 <pre><code class="txt">nAcDsMicN
@@ -252,25 +252,25 @@ ls -al
 whoami
 </code></pre>
 <p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922202742958.png" class="">
 
 <p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
+<img src="/2024/09/22/go-pwn/image-20240922202759540.png" class="">
 
-
-
+<img src="/2024/09/22/go-pwn/image-20240922202808837.png" class="">
 
 <p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922202821181.png" class="">
 
 <p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
 <p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922202832431.png" class="">
 
 <p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922202844042.png" class="">
 
 <p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922202852228.png" class="">
 
 <p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
 <p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
@@ -309,17 +309,17 @@ pause()
 p.send(&quot;/flag\x00&quot;)
 p.interactive()
 </code></pre>
-<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5>
+<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img src="/2024/09/22/go-pwn/image-20240922202922399.png" class="">
 
 <p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922202932191.png" class="">
 
 <p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202943137.png" class="">
 
+<img src="/2024/09/22/go-pwn/image-20240922202953894.png" class="">
 
-
-
-
+<img src="/2024/09/22/go-pwn/image-20240922203005886.png" class="">
 
 <p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
 <pre><code class="asm">call    os_exec_Command
@@ -341,23 +341,23 @@ call    os_exec__ptr_Cmd_Run
 0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;
 </code></pre>
 <p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
+<img src="/2024/09/22/go-pwn/image-20240922203024108.png" class="">
 
-
-
+<img src="/2024/09/22/go-pwn/image-20240922203039143.png" class="">
 
 <p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922203058314.png" class="">
 
 <p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922203113527.png" class="">
 
 <p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
+<img src="/2024/09/22/go-pwn/image-20240922203128877.png" class="">
 
-
-
+<img src="/2024/09/22/go-pwn/image-20240922203145314.png" class="">
 
 <p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
-
+<img src="/2024/09/22/go-pwn/image-20240922203202348.png" class="">
 
 <h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><pre><code class="python">from pwn import *
 context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
