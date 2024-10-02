@@ -1,0 +1,544 @@
+
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8" />
+    <title>非栈上格式化字符串一次利用 | Collectcrop&#39;s Blog</title>
+    <meta name="author" content="collectcrop" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <link rel="icon" href="/images/avatar.jpg" />
+    <link rel="preconnect" href="https://s4.zstatic.net" />
+<script src="https://s4.zstatic.net/ajax/libs/vue/3.3.7/vue.global.prod.min.js"></script>
+<link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.cn" />
+<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin />
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.cn/css2?family=Fira+Code:wght@400;500;600;700&family=Lexend:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&display=swap"
+/>
+<script> const mixins = {}; </script>
+
+<script src="https://polyfill.alicdn.com/v3/polyfill.min.js?features=default"></script>
+
+
+<script src="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+/>
+<script src="/js/lib/highlight.js"></script>
+
+
+
+<script src="/js/lib/preview.js"></script>
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/css/main.css" />
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+<body>
+    <div id="layout">
+        <transition name="fade">
+            <div id="loading" v-show="loading">
+                <div id="loading-circle">
+                    <h2>LOADING</h2>
+                    <p>加载过慢请开启缓存 浏览器默认开启</p>
+                    <img src="/images/loading.gif" />
+                </div>
+            </div>
+        </transition>
+        <div id="menu" :class="{ hidden: hiddenMenu, 'menu-color': menuColor}">
+    <nav id="desktop-menu">
+        <a class="title" href="/">
+            <span>COLLECTCROP&#39;S BLOG</span>
+        </a>
+        
+        <a href="/">
+            <i class="fa-solid fa-house fa-fw"></i>
+            <span>&ensp;Home</span>
+        </a>
+        
+        <a href="/about">
+            <i class="fa-solid fa-id-card fa-fw"></i>
+            <span>&ensp;About</span>
+        </a>
+        
+        <a href="/archives">
+            <i class="fa-solid fa-box-archive fa-fw"></i>
+            <span>&ensp;Archives</span>
+        </a>
+        
+        <a href="/categories">
+            <i class="fa-solid fa-bookmark fa-fw"></i>
+            <span>&ensp;Categories</span>
+        </a>
+        
+        <a href="/tags">
+            <i class="fa-solid fa-tags fa-fw"></i>
+            <span>&ensp;Tags</span>
+        </a>
+        
+    </nav>
+    <nav id="mobile-menu">
+        <div class="title" @click="showMenuItems = !showMenuItems">
+            <i class="fa-solid fa-bars fa-fw"></i>
+            <span>&emsp;COLLECTCROP&#39;S BLOG</span>
+        </div>
+        <transition name="slide">
+            <div class="items" v-show="showMenuItems">
+                
+                <a href="/">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-house fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Home</div>
+                    </div>
+                </a>
+                
+                <a href="/about">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-id-card fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">About</div>
+                    </div>
+                </a>
+                
+                <a href="/archives">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-box-archive fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Archives</div>
+                    </div>
+                </a>
+                
+                <a href="/categories">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-bookmark fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Categories</div>
+                    </div>
+                </a>
+                
+                <a href="/tags">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-tags fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Tags</div>
+                    </div>
+                </a>
+                
+            </div>
+        </transition>
+    </nav>
+</div>
+<transition name="fade">
+    <div id="menu-curtain" @click="showMenuItems = !showMenuItems" v-show="showMenuItems"></div>
+</transition>
+
+        <div id="main" :class="loading ? 'into-enter-from': 'into-enter-active'">
+            <div class="article">
+    <div>
+        <h1>非栈上格式化字符串一次利用</h1>
+    </div>
+    <div class="info">
+        <span class="date">
+            <span class="icon">
+                <i class="fa-solid fa-calendar fa-fw"></i>
+            </span>
+            2024/10/2
+        </span>
+        
+        <span class="category">
+            <a href="/categories/pwn/">
+                <span class="icon">
+                    <i class="fa-solid fa-bookmark fa-fw"></i>
+                </span>
+                pwn
+            </a>
+        </span>
+        
+        
+        <span class="tags">
+            <span class="icon">
+                <i class="fa-solid fa-tags fa-fw"></i>
+            </span>
+            
+            
+            <span class="tag">
+                
+                <a href="/tags/pwn/" style="color: #ffa2c4">
+                    pwn
+                </a>
+            </span>
+            
+            <span class="tag">
+                
+                <a href="/tags/format-string/" style="color: #00bcd4">
+                    format string
+                </a>
+            </span>
+            
+        </span>
+        
+    </div>
+    
+    <div class="content" v-pre>
+        <h2 id="单次非栈上格式化字符串漏洞利用"><a href="#单次非栈上格式化字符串漏洞利用" class="headerlink" title="单次非栈上格式化字符串漏洞利用"></a>单次非栈上格式化字符串漏洞利用</h2><h4 id="问题发展路径"><a href="#问题发展路径" class="headerlink" title="问题发展路径"></a>问题发展路径</h4><ul>
+<li>一开始最基本的格式化字符串漏洞任意地址写，没有什么限制</li>
+<li>进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。</li>
+<li>最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用格式化字符串漏洞的次数，绕过更多的限制。</li>
+</ul>
+<h4 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h4><p>比如我们假设程序中有后门函数，目标是把栈上的返回地址的后两个字节给覆盖了以实现返回到后门函数中去。其中要利用到的两个链条的偏移分别为15和45。按照一般的多次漏洞的利用来说，是要先通过覆盖偏移15处的<code>0x7ffd991d220e</code>的低两个字节<code>0x220e</code>为<code>0x1898</code>，这样以后在r12指向的偏移45处就会是一个指针直接指向要返回到的地址，然后再通过写偏移45处内容的低两个字节实现对返回地址的低两个字节的写入。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001001143123.png" class="">
+
+<p>这里我们很容易就想到尝试直接把两个并到一起写，就有了如下payload：</p>
+<pre><code class="python">payload = f&quot;%&#123;part1&#125;c%15$hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;
+</code></pre>
+<p>但在实际调试过后会发现现实的残酷，这个格式化字符串的解析中并不是按照先来后到的顺序，先解析完前一个再解析后一个的。实际上这里改的内容都是原偏移地址处指针指向的内容，最后并不会对返回地址进行修改。</p>
+<p>于是就有如下的比较神奇的绕过方法，就可以通过格式化字符串参数解析的特性来实现逐级的赋值。</p>
+<pre><code class="python">payload = &quot;%p&quot;*13
+payload = f&quot;%&#123;part1-130-0x8&#125;c%hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;
+</code></pre>
+<p>这里省略掉了<code>%x$n</code>这种组合，而是直接<code>%hn</code>，这样省略以后会根据顺序来确定指定的参数偏移，由于前面有14个%，这里的%实际就会被解析为指向偏移15处的参数，这样一来在%的解析阶段就能把指定内容写到偏移15的指针处，从而与后面的内容进行联动，实现栈上内容的低两个字节内容的修改。这里part1就是我们通过泄露出栈相关地址后，计算出的返回地址在栈上位置的后两个字节。减去130是前面13个%p打印出的内容长度，最后的减0x8是调试后测出来的差值（这个的确不知道是在哪里多的内容）。</p>
+<h4 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h4><p>首先在<code>stdio-common/printf.c</code>中可以找到printf的具体实现。</p>
+<pre><code class="c">#include &lt;libioP.h&gt;
+#include &lt;stdarg.h&gt;
+#include &lt;stdio.h&gt;
+
+#undef printf
+
+/* Write formatted output to stdout from the format string FORMAT.  */
+/* VARARGS1 */
+int
+__printf (const char *format, ...)
+&#123;
+  va_list arg;				//声明一个 va_list 类型的变量 arg，用于存储可变参数列表。
+  int done;					//写入的字符数或其他状态信息。
+
+  va_start (arg, format);	//初始化 arg，使其指向可变参数列表的第一个参数。
+  done = __vfprintf_internal (stdout, format, arg, 0);
+  va_end (arg);				//清理 arg，以释放相关资源
+
+  return done;
+&#125;
+
+#undef _IO_printf
+ldbl_strong_alias (__printf, printf);
+ldbl_strong_alias (__printf, _IO_printf);
+</code></pre>
+<p>其最核心的功能要到<code>vfprintf.c</code>中去寻找，这里结合gdb带源码调试。</p>
+<p>首先会进入ARGCHECK中进行一系列检测，确保格式字符串符合要求。</p>
+<pre><code class="c">#define ARGCHECK(S, Format) \
+  do									      \
+    &#123;									      \
+      /* Check file argument for consistence.  */			      \
+      CHECK_FILE (S, -1);						 //检查文件流有效性和状态     \
+      if (S-&gt;_flags &amp; _IO_NO_WRITES)			//如果指定文件流不可写就返回错误		      \
+    &#123;								      \
+      S-&gt;_flags |= _IO_ERR_SEEN;					      \
+      __set_errno (EBADF);						      \
+      return -1;							      \
+    &#125;								      \
+      if (Format == NULL)			//如果格式化字符串为空就返回错误			      \
+    &#123;								      \
+      __set_errno (EINVAL);						      \
+      return -1;							      \
+    &#125;								      \
+    &#125; while (0)
+</code></pre>
+<p>然后会检查文件流 <code>s</code> 是否处于无缓冲模式，如果处于无缓冲模式，代码调用一个辅助函数 <code>buffered_vfprintf</code>。这个函数的作用是为该流分配一个局部临时缓冲区，然后重新调用原来的格式化输出函数。这样可以在处理输出时提供一个缓冲层，即使原始流不支持缓冲。这里我们调试时会进到<code>buffered_vfprintf</code>里面，最后实际还会调用回<code>vfprintf</code>。</p>
+<pre><code class="c">if (UNBUFFERED_P (s))
+/* Use a helper function which will allocate a local temporary buffer
+   for the stream and then call us again.  */
+    return buffered_vfprintf (s, format, ap, mode_flags);
+</code></pre>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001102135414.png" class="">
+
+<p>然后会判断代码是否支持宽字符的处理，然后查找格式字符串中的第一个格式说明符。</p>
+<pre><code class="c">#ifdef COMPILE_WPRINTF
+  /* Find the first format specifier.  */
+  f = lead_str_end = __find_specwc ((const UCHAR_T *) format);
+#else
+  /* Find the first format specifier.  */
+  f = lead_str_end = __find_specmb ((const UCHAR_T *) format);
+#endif
+</code></pre>
+<p>后面也有类似的，但是会自增f，用于逐个解析。</p>
+<pre><code class="c">/* Get current character in format string.  */
+      JUMP (*++f, step0_jumps);
+......
+#ifdef COMPILE_WPRINTF
+      f = __find_specwc ((end_of_spec = ++f));
+#else
+      f = __find_specmb ((end_of_spec = ++f));
+#endif
+      /* Write the following constant string.  */
+      outstring (end_of_spec, f - end_of_spec);
+</code></pre>
+<pre><code class="c">#define outstring(String, Len)						\
+  do									\
+    &#123;									\
+      const void *string_ = (String);					\
+      done = outstring_func (s, string_, (Len), done);			\
+      if (done &lt; 0)							\
+    goto all_done;							\
+    &#125;									\
+   while (0)
+</code></pre>
+<p>我们现在关注那个指向程序名的链条，栈上地址低3位16进制为288。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001112058996.png" class="">
+
+<p>之后在调试时会发现，f会逐渐自增解析各个格式化字符串中的内容，在解析一串%p时其实不会在每一次outstring中打印内容，而是在解析到<code>%xxxc</code>后一并打印内容出来。之后在解析%hn时，会到这里进行跳转。这里对各种类型修饰符进行了解析</p>
+<pre><code class="c">  /* Process &#39;h&#39; modifier.  There might another &#39;h&#39; following.  */
+LABEL (mod_half):
+  is_short = 1;
+  JUMP (*++f, step3a_jumps);
+
+  /* Process &#39;hh&#39; modifier.  */
+LABEL (mod_halfhalf):
+  is_short = 0;
+  is_char = 1;
+  JUMP (*++f, step4_jumps);
+
+  /* Process &#39;l&#39; modifier.  There might another &#39;l&#39; following.  */
+LABEL (mod_long):
+  is_long = 1;
+  JUMP (*++f, step3b_jumps);
+
+  /* Process &#39;L&#39;, &#39;q&#39;, or &#39;ll&#39; modifier.  No other modifier is
+ allowed to follow.  */
+LABEL (mod_longlong):
+  is_long_double = 1;
+  is_long = 1;
+  JUMP (*++f, step4_jumps);
+</code></pre>
+<p><strong>处理 <code>h</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_half)</code><ul>
+<li>当遇到 <code>h</code> 修饰符时，将 <code>is_short</code> 设置为 1，表示后续的参数应被视为 <code>short int</code> 类型。</li>
+<li>然后跳转到下一个处理步骤 <code>step3a_jumps</code>，继续解析后续的格式字符。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>hh</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_halfhalf)</code><ul>
+<li>当遇到 <code>hh</code> 修饰符时，设置 <code>is_short</code> 为 0，并将 <code>is_char</code> 设置为 1。这表示后续参数将被视为 <code>unsigned char</code> 类型。</li>
+<li>跳转到 <code>step4_jumps</code>，继续后续解析。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>l</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_long)</code><ul>
+<li>当遇到 <code>l</code> 修饰符时，将 <code>is_long</code> 设置为 1，表示后续的参数应被视为 <code>long int</code> 类型。</li>
+<li>跳转到 <code>step3b_jumps</code>，继续解析。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_longlong)</code><ul>
+<li>当遇到 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符时，将 <code>is_long_double</code> 设置为 1，并将 <code>is_long</code> 设置为 1。这表明后续参数应被视为 <code>long double</code> 类型或 <code>long long int</code> 类型。</li>
+<li>这个标签后不允许有其他修饰符，因此跳转到 <code>step4_jumps</code>，继续后续解析。</li>
+</ul>
+</li>
+</ul>
+<p>解析完成后，我们发现栈上的内容实际已经被修改了，而后面的内容还没有开始解析。所以在%hn这种方式进行解析后会直接写入目标地址。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113356649.png" class="">
+
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113519869.png" class="">
+
+<p>之后解析到$时会跳转到<code>do_positional</code>进行进一步操作，然后会调用printf_positional进行进一步操作。这边如果步过就能直接完成操作了。</p>
+<pre><code class="c">if (*f == L_(&#39;$&#39;))
+/* Oh, oh.  The argument comes from a positional parameter.  */
+    goto do_positional;
+JUMP (*f, step1_jumps);
+</code></pre>
+<pre><code class="c">do_positional:
+  done = printf_positional (s, format, readonly_format, ap, &amp;ap_save,
+                done, nspecs_done, lead_str_end, work_buffer,
+                save_errno, grouping, thousands_sep, mode_flags);
+</code></pre>
+<p>现在我们来看看用<code>payload = f&quot;%&#123;part1&#125;c%15$hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;</code>这个会发生什么。首先在前面<code>%xxxc</code>会直接打印占位符，同样的，我们现在关注指向程序名的链条。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120346608.png" class="">
+
+<p>程序在解析<code>%&#123;part1&#125;c%15$hn</code>时，会进入<code>printf_positional</code>进行进一步处理，其中解析的核心函数是 <code>nargs += __parse_one_specmb (f, nargs, &amp;specs[nspecs], &amp;max_ref_arg);</code> 然后会发现解析完前面的内容之后，栈上那个指向程序名的指针并没有被改变。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120419249.png" class="">
+
+<p>当解析完最后一个之后，会进入如下两个switch分支：</p>
+<pre><code class="c">for (cnt = 0; cnt &lt; nspecs; ++cnt)
+    &#123;
+      /* If the width is determined by an argument this is an int.  */
+      if (specs[cnt].width_arg != -1)
+    args_type[specs[cnt].width_arg] = PA_INT;
+
+      /* If the precision is determined by an argument this is an int.  */
+      if (specs[cnt].prec_arg != -1)
+    args_type[specs[cnt].prec_arg] = PA_INT;
+
+      switch (specs[cnt].ndata_args)
+    &#123;
+    case 0:		/* No arguments.  */
+      break;
+    case 1:		/* One argument; we already have the
+               type and size.  */
+      args_type[specs[cnt].data_arg] = specs[cnt].data_arg_type;
+      args_size[specs[cnt].data_arg] = specs[cnt].size;
+      break;
+    default:
+      /* We have more than one argument for this format spec.
+         We must call the arginfo function again to determine
+         all the types.  */
+      (void) (*__printf_arginfo_table[specs[cnt].info.spec])
+        (&amp;specs[cnt].info,
+         specs[cnt].ndata_args, &amp;args_type[specs[cnt].data_arg],
+         &amp;args_size[specs[cnt].data_arg]);
+      break;
+    &#125;
+    
+--------------------------------------------------------------------------------------------------
+      for (cnt = 0; cnt &lt; nargs; ++cnt)
+    switch (args_type[cnt])
+      &#123;
+#define T(tag, mem, type)				\
+    case tag:					\
+      args_value[cnt].mem = va_arg (*ap_savep, type); \
+      break
+
+    T (PA_WCHAR, pa_wchar, wint_t);
+      case PA_CHAR:				/* Promoted.  */
+      case PA_INT|PA_FLAG_SHORT:		/* Promoted.  */
+#if LONG_MAX == INT_MAX
+      case PA_INT|PA_FLAG_LONG:
+#endif
+    T (PA_INT, pa_int, int);
+#if LONG_MAX == LONG_LONG_MAX
+      case PA_INT|PA_FLAG_LONG:
+#endif
+    T (PA_INT|PA_FLAG_LONG_LONG, pa_long_long_int, long long int);
+#if LONG_MAX != INT_MAX &amp;&amp; LONG_MAX != LONG_LONG_MAX
+# error &quot;he?&quot;
+#endif
+      case PA_FLOAT:				/* Promoted.  */
+    T (PA_DOUBLE, pa_double, double);
+      case PA_DOUBLE|PA_FLAG_LONG_DOUBLE:
+    if (__glibc_unlikely ((mode_flags &amp; PRINTF_LDBL_IS_DBL) != 0))
+      &#123;
+        args_value[cnt].pa_double = va_arg (*ap_savep, double);
+        args_type[cnt] &amp;= ~PA_FLAG_LONG_DOUBLE;
+      &#125;
+#if __HAVE_FLOAT128_UNLIKE_LDBL
+    else if ((mode_flags &amp; PRINTF_LDBL_USES_FLOAT128) != 0)
+      args_value[cnt].pa_float128 = va_arg (*ap_savep, _Float128);
+#endif
+    else
+      args_value[cnt].pa_long_double = va_arg (*ap_savep, long double);
+    break;
+      case PA_STRING:				/* All pointers are the same */
+      case PA_WSTRING:			/* All pointers are the same */
+    T (PA_POINTER, pa_pointer, void *);
+#undef T
+      default:
+    if ((args_type[cnt] &amp; PA_FLAG_PTR) != 0)
+      args_value[cnt].pa_pointer = va_arg (*ap_savep, void *);
+    else if (__glibc_unlikely (__printf_va_arg_table != NULL)
+         &amp;&amp; __printf_va_arg_table[args_type[cnt] - PA_LAST] != NULL)
+      &#123;
+        args_value[cnt].pa_user = alloca (args_size[cnt]);
+        (*__printf_va_arg_table[args_type[cnt] - PA_LAST])
+          (args_value[cnt].pa_user, ap_savep);
+      &#125;
+    else
+      memset (&amp;args_value[cnt], 0, sizeof (args_value[cnt]));
+    break;
+      case -1:
+    /* Error case.  Not all parameters appear in N$ format
+       strings.  We have no way to determine their type.  */
+    assert ((mode_flags &amp; PRINTF_FORTIFY) != 0);
+    __libc_fatal (&quot;*** invalid %N$ use detected ***\n&quot;);
+      &#125;
+</code></pre>
+<p>**第一个 <code>switch</code>**：解析格式说明符并确定各个参数的类型和大小，建立参数类型映射。</p>
+<p>**第二个 <code>switch</code>**：根据映射提取实际参数，确保能够正确处理可变参数列表，确保每个参数的类型和大小都被正确使用。</p>
+<p>最后会统一处理格式化说明符。</p>
+<pre><code class="c">/* Now walk through all format specifiers and process them.  */
+  for (; (size_t) nspecs_done &lt; nspecs; ++nspecs_done)
+    &#123;
+      ..............................
+</code></pre>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001121745055.png" class="">
+
+<p>这里步过一次后会跳转到这个位置，我们能发现rcx被指向了.&#x2F;pwn，也就是第一次15偏移处的位置，执行两次后就把原来指向程序名的指针修改了。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001122059746.png" class="">
+
+<p>之后再处理后，会发现改的是原来的的内容，<code>./</code>被改成了<code>\x08\x12</code>。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001123259237.png" class="">
+
+<p>分析到这其实大体原理已经清晰了，如果硬要从源码分析的话也定位到了相关函数，但感觉再分析下去效率太低了，以后有研究的需求再深入分析吧。</p>
+
+    </div>
+    
+    
+    
+    
+    
+    
+    
+</div>
+
+            <footer id="footer">
+    <div id="footer-wrap">
+        <div>
+            &copy;
+            2022 - 2024 Collectcrop&#39;s Blog
+            <span id="footer-icon">
+                <i class="fa-solid fa-font-awesome fa-fw"></i>
+            </span>
+            &commat;collectcrop
+        </div>
+        <div>
+            Based on the <a target="_blank" rel="noopener" href="https://hexo.io">Hexo Engine</a> &amp;
+            <a target="_blank" rel="noopener" href="https://github.com/theme-particlex/hexo-theme-particlex">ParticleX Theme</a>
+        </div>
+        
+    </div>
+</footer>
+
+        </div>
+        
+        <transition name="fade">
+            <div id="preview" ref="preview" v-show="previewShow">
+                <img id="preview-content" ref="previewContent" />
+            </div>
+        </transition>
+        
+    </div>
+    <script src="/js/main.js"></script>
+    
+    
+
+
+
+
+    
+</body>
+</html>
