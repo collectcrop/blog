@@ -184,21 +184,21 @@
             
             <span class="tag">
                 
-                <a href="/tags/pwn/" style="color: #00bcd4">
+                <a href="/tags/pwn/" style="color: #03a9f4">
                     pwn
                 </a>
             </span>
             
             <span class="tag">
                 
-                <a href="/tags/heap/" style="color: #ffa2c4">
+                <a href="/tags/heap/" style="color: #00a596">
                     heap
                 </a>
             </span>
             
             <span class="tag">
                 
-                <a href="/tags/house-of/" style="color: #00a596">
+                <a href="/tags/house-of/" style="color: #ff7d73">
                     house of
                 </a>
             </span>
@@ -232,13 +232,13 @@ _IO_wdefault_xsgetn -&gt; __wunderflow -&gt; _IO_switch_to_wget_mode -&gt; _IO_W
 </code></pre>
 <h4 id="利用细节"><a href="#利用细节" class="headerlink" title="利用细节"></a>利用细节</h4><p>这里以源鲁杯的futureheap这道题对这种利用方式进行学习。</p>
 <h5 id="结构体"><a href="#结构体" class="headerlink" title="结构体"></a>结构体</h5><p>先熟悉一下几个结构体的具体字段。</p>
-<h6 id="IO-FILE"><a href="#IO-FILE" class="headerlink" title="_IO_FILE"></a>_IO_FILE</h6>
+<h6 id="IO-FILE"><a href="#IO-FILE" class="headerlink" title="_IO_FILE"></a>_IO_FILE</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109154309187.png" class="">
 
-<h6 id="IO-wfile-jumps"><a href="#IO-wfile-jumps" class="headerlink" title="_IO_wfile_jumps"></a>_IO_wfile_jumps</h6>
+<h6 id="IO-wfile-jumps"><a href="#IO-wfile-jumps" class="headerlink" title="_IO_wfile_jumps"></a>_IO_wfile_jumps</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109113127595.png" class="">
 
-<h6 id="IO-file-jumps"><a href="#IO-file-jumps" class="headerlink" title="_IO_file_jumps"></a>_IO_file_jumps</h6>
+<h6 id="IO-file-jumps"><a href="#IO-file-jumps" class="headerlink" title="_IO_file_jumps"></a>_IO_file_jumps</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241110004510956.png" class="">
 
-<h6 id="IO-wide-data"><a href="#IO-wide-data" class="headerlink" title="_IO_wide_data"></a>_IO_wide_data</h6>
+<h6 id="IO-wide-data"><a href="#IO-wide-data" class="headerlink" title="_IO_wide_data"></a>_IO_wide_data</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109232015744.png" class="">
 
 <blockquote>
 <p>在glibc2.24以后加入了对虚函数的检测，在调用虚函数之前首先会检查虚函数地址的合法性。</p>
@@ -297,7 +297,7 @@ _IO_wdoallocbuf (FILE *fp)
                        + offsetof(TYPE, MEMBER)))
 </code></pre>
 <p>首先最终的目标是<code>_IO_wdoallocbuf</code>中的<code>(wint_t)_IO_WDOALLOCATE (fp)</code>的调用，追踪几个宏定义会发现，最终执行了<code>*(fp-&gt;_wide_data-&gt;_wide_vtable + 0x68)(fp)</code>这样一个函数。这里的_wide_vtable实际上就是一个虚表，其0x68偏移处就是<code>__doallocate</code>这一项。</p>
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109155032548.png" class="">
 
 <p>那么我们反向追溯一下，发现需要让如下的条件成立以绕过条件判断：</p>
 <pre><code class="c">fp-&gt;_wide_data-&gt;_IO_buf_base==0;
@@ -326,26 +326,26 @@ f-&gt;_flags &amp; _IO_NO_WRITES==0;		//f-&gt;_flags &amp; 0x8==0;
     result = EOF;
 </code></pre>
 <p>需要注意的是，最后是<code>call qword ptr [rax + 0x68]</code>实现跳转，所以在rax+0x68的位置不能直接是shellcode，而是一个合法的地址。在这里报错时就可以观察寄存器信息，这里rdx实质就指向我们之前伪造的fake_IO_FILE的_wide_data域。</p>
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109200034550.png" class="">
 
 <p>这里setcontext能够把rdx作为一个类sigFrame的指针，然后恢复各字段。然后就能够进行各种操作了，比如进行srop等等。</p>
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109200645735.png" class="">
 
 <p>现在我们来分析一下futureheap这道题</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109221708861.png" class="">
 
-
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109225750797.png" class="">
 
 <p>首先这个init函数中是经典的伪随机数的利用，可以最终得到libc_base和一个fortune的地址，这个fortune是一个rwx的段，可以写shellcode然后想办法执行。这道题也刚好沙箱禁用了直接的execve调用和一些基本的orw函数。但是我们只要能劫持程序执行流，还是能比较方便的利用系统调用读取flag。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230302958.png" class="">
 
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230106028.png" class="">
 
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230119254.png" class="">
 
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230135976.png" class="">
 
-
-
-
-
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230148959.png" class="">
 
 <p>还是比较经典的菜单题，主要功能有add，delete和edit。其中delete存在UAF，add只能申请largebin chunk。edit有3次机会，之后会直接调用exit退出。然后还存在一个函数，只要输对密码就能往fortune中写入0x500字节。这个密码的获取是一个简单的换表base64。</p>
 <p>那么我们就可以开始学习house of apple2的利用了，首先就是用largebin attack来把_IO_list_all改成我们一个largebin chunk的地址，然后再在该largebin chunk中伪造IO_FILE结构体。</p>
@@ -359,7 +359,7 @@ log.success(&quot;_io_list_all:&quot;+hex(_IO_list_all))
 edit(0,p64(0)*3+p64(_IO_list_all-0x20))
 </code></pre>
 <p>一开始的largebin attack过程就不过多赘述了，先留一个chunk在largebin里，改掉其bk_nextsize域为<code>tar-0x20</code>，然后再让一个较小的chunk进入到largebin时，就能触发glibc2.31版本以上的改单一地址的largebin attack。到这里我们的_IO_list_all被成功改写成largebin chunk的地址。</p>
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109231242168.png" class="">
 
 <p>然后最关键的就是这个<code>_IO_FILE</code>结构体的构造,由于我们是从数据域开始写，所以一开始的<code>_flags</code>和<code>_IO_read_ptr</code>是无法通过edit控制的。</p>
 <pre><code class="python">fake_IO_FILE  = p64(0)*2
@@ -390,12 +390,12 @@ out()
 p.sendline(passwd)
 p.sendline(fake_IO_FILE)
 </code></pre>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109231530476.png" class="">
 
-
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109233732611.png" class="">
 
 <p>首先将<code>write_base</code>和<code>write_ptr</code>这两个字段分别置1和2，并且把mode置0是为了满足<code>_IO_flush_all_lockp</code>中一个条件，原理见上文。之后要把vtable指向<code>_IO_wfile_jumps</code>，这是因为虽然在glibc2.24及以上多了一个对虚表地址的检测，使其不能偏离所在段太远，但是我们还是可以利用附近的别的虚表进行利用。这里我们选择触发的是<code>_IO_wfile_jumps</code>的<code>_IO_wfile_overflow</code>。也就是<code>_IO_flush_all_lockp</code>中的<code>_IO_OVERFLOW (fp, EOF)</code>这个。因为多态的设计，虚表的结构都是一样的，所以我们本来是调用正常的overflow虚表函数，这里我们劫持到<code>_IO_wfile_jumps</code>后，我们调用的就是<code>__GI__IO_wfile_overflow</code>。然后其具体函数实现里给了我们可趁之机。</p>
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109232222317.png" class="">
 
 <p>然后就能进入<code>_IO_wfile_overflow</code>中。这里我们_flags字段为0，是能够满足里面的各种条件的。然后最关键的就是伪造的<code>IO_FILE</code>的<code>_wide_data</code>这个字段的赋值，因为我们没有堆的基址，但有一个fortune的地址，所以我们可以把伪造的<code>_wide_data</code>这个结构体放到fortune这个位置处，为了方便我们可以复用原来的伪造到堆上的IO_FILE结构，但是因为要使<code>f-&gt;_wide_data-&gt;_IO_write_base == 0</code>，所以我们进行一定的错位，这里我选择的是把<code>_wide_data</code>弄到<code>fortune+0x18</code>，这个位置去。然后就能满足下面这两个条件</p>
 <blockquote>
@@ -416,9 +416,9 @@ p.sendline(fake_IO_FILE)
 fake_IO_FILE = fake_IO_FILE.ljust(0x100,b&#39;\x00&#39;)
 fake_IO_FILE += p64(setcontext+61) + shellcode
 </code></pre>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109235637786.png" class="">
 
-
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109235847848.png" class="">
 
 <p>exp:</p>
 <pre><code class="python">from pwn import *
@@ -653,7 +653,7 @@ fp-&gt;_wide_data-&gt;_IO_save_base == NULL;	//也可以不为null，但要执�
 <li><code>_wide_data-&gt;_wide_vtable-&gt;doallocate</code> &#x3D; 地址<code>C</code>，用于劫持 <code>RIP</code>（即满足<code>*(B+0x68)=C</code>）</li>
 </ul>
 <p>但这里rdx进去不是可控地址，看上去是把我们处在第二个字段<code>_IO_read_ptr</code>的largebin chunk size给赋值过来了。这就为setcontext赋值增加了难度，所以这一题不用这个方法。我们能成功的到这一步其实已经算是成功的利用了这条链条。可以尝试call到别的地方打。</p>
-
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241110011234406.png" class="">
 
 <pre><code class="c">fake_IO_FILE  = p64(0x1000)   #read_end
 fake_IO_FILE += p64(3)          #read_base
