@@ -1,0 +1,445 @@
+
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8" />
+    <title>protobuf初探 | Collectcrop&#39;s Blog</title>
+    <meta name="author" content="collectcrop" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <link rel="icon" href="/images/avatar.jpg" />
+    <link rel="preconnect" href="https://s4.zstatic.net" />
+<script src="https://s4.zstatic.net/ajax/libs/vue/3.3.7/vue.global.prod.min.js"></script>
+<link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.cn" />
+<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin />
+<link
+    rel="stylesheet"
+    href="https://fonts.googleapis.cn/css2?family=Fira+Code:wght@400;500;600;700&family=Lexend:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&display=swap"
+/>
+<script> const mixins = {}; </script>
+
+<script src="https://polyfill.alicdn.com/v3/polyfill.min.js?features=default"></script>
+
+
+<script src="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://s4.zstatic.net/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+/>
+<script src="/js/lib/highlight.js"></script>
+
+
+
+<script src="/js/lib/preview.js"></script>
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/css/main.css" />
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+<body>
+    <div id="layout">
+        <transition name="fade">
+            <div id="loading" v-show="loading">
+                <div id="loading-circle">
+                    <h2>LOADING</h2>
+                    <p>加载过慢请开启缓存 浏览器默认开启</p>
+                    <img src="/images/loading.gif" />
+                </div>
+            </div>
+        </transition>
+        <div id="menu" :class="{ hidden: hiddenMenu, 'menu-color': menuColor}">
+    <nav id="desktop-menu">
+        <a class="title" href="/">
+            <span>COLLECTCROP&#39;S BLOG</span>
+        </a>
+        
+        <a href="/">
+            <i class="fa-solid fa-house fa-fw"></i>
+            <span>&ensp;Home</span>
+        </a>
+        
+        <a href="/about">
+            <i class="fa-solid fa-id-card fa-fw"></i>
+            <span>&ensp;About</span>
+        </a>
+        
+        <a href="/archives">
+            <i class="fa-solid fa-box-archive fa-fw"></i>
+            <span>&ensp;Archives</span>
+        </a>
+        
+        <a href="/categories">
+            <i class="fa-solid fa-bookmark fa-fw"></i>
+            <span>&ensp;Categories</span>
+        </a>
+        
+        <a href="/tags">
+            <i class="fa-solid fa-tags fa-fw"></i>
+            <span>&ensp;Tags</span>
+        </a>
+        
+    </nav>
+    <nav id="mobile-menu">
+        <div class="title" @click="showMenuItems = !showMenuItems">
+            <i class="fa-solid fa-bars fa-fw"></i>
+            <span>&emsp;COLLECTCROP&#39;S BLOG</span>
+        </div>
+        <transition name="slide">
+            <div class="items" v-show="showMenuItems">
+                
+                <a href="/">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-house fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Home</div>
+                    </div>
+                </a>
+                
+                <a href="/about">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-id-card fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">About</div>
+                    </div>
+                </a>
+                
+                <a href="/archives">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-box-archive fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Archives</div>
+                    </div>
+                </a>
+                
+                <a href="/categories">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-bookmark fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Categories</div>
+                    </div>
+                </a>
+                
+                <a href="/tags">
+                    <div class="item">
+                        <div style="min-width: 20px; max-width: 50px; width: 10%">
+                            <i class="fa-solid fa-tags fa-fw"></i>
+                        </div>
+                        <div style="min-width: 100px; max-width: 150%; width: 20%">Tags</div>
+                    </div>
+                </a>
+                
+            </div>
+        </transition>
+    </nav>
+</div>
+<transition name="fade">
+    <div id="menu-curtain" @click="showMenuItems = !showMenuItems" v-show="showMenuItems"></div>
+</transition>
+
+        <div id="main" :class="loading ? 'into-enter-from': 'into-enter-active'">
+            <div class="article">
+    <div>
+        <h1>protobuf初探</h1>
+    </div>
+    <div class="info">
+        <span class="date">
+            <span class="icon">
+                <i class="fa-solid fa-calendar fa-fw"></i>
+            </span>
+            2024/11/21
+        </span>
+        
+        <span class="category">
+            <a href="/categories/pwn/">
+                <span class="icon">
+                    <i class="fa-solid fa-bookmark fa-fw"></i>
+                </span>
+                pwn
+            </a>
+        </span>
+        
+        
+        <span class="tags">
+            <span class="icon">
+                <i class="fa-solid fa-tags fa-fw"></i>
+            </span>
+            
+            
+            <span class="tag">
+                
+                <a href="/tags/pwn/" style="color: #00bcd4">
+                    pwn
+                </a>
+            </span>
+            
+            <span class="tag">
+                
+                <a href="/tags/protobuf/" style="color: #03a9f4">
+                    protobuf
+                </a>
+            </span>
+            
+        </span>
+        
+    </div>
+    
+    <div class="content" v-pre>
+        <h2 id="protobuf-pwn初探"><a href="#protobuf-pwn初探" class="headerlink" title="protobuf pwn初探"></a>protobuf pwn初探</h2><h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
+<ol>
+<li><strong>高效性</strong>：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。</li>
+<li><strong>语言中立</strong>：支持多种编程语言，包括C++、Java、Python、Go等，使得跨平台的数据交换变得简单。</li>
+<li><strong>易于扩展</strong>：可以在不破坏现有数据结构的情况下，轻松地添加新字段。</li>
+<li><strong>定义文件</strong>：使用<code>.proto</code>文件来定义数据结构和服务，可以通过工具自动生成相应的代码。</li>
+</ol>
+<p>通过protobuf，开发者可以定义消息类型，使用这些类型进行数据序列化和反序列化，从而在不同的系统或服务之间传输数据。</p>
+<p><strong>Proto2</strong>: 支持 <code>required</code> 和 <code>optional</code> 修饰符。</p>
+<p><strong>Proto3</strong>: 默认所有字段为 <code>optional</code>，不支持 <code>required</code></p>
+<h4 id="工具集安装"><a href="#工具集安装" class="headerlink" title="工具集安装"></a>工具集安装</h4><ul>
+<li>pbtk:（自动化分析）</li>
+</ul>
+<pre><code>sudo apt install python3-pip git openjdk-11-jre libqt5x11extras5 python3-pyqt5.qtwebengine python3-pyqt5
+sudo pip3 install protobuf pyqt5 pyqtwebengine requests websocket-client
+git clone https://github.com/marin-m/pbtk
+</code></pre>
+<ul>
+<li>Protobuf 库:（本地搓proto文件并编译成python）</li>
+</ul>
+<pre><code class="shell">sudo apt-get update
+sudo apt-get install -y protobuf-compiler libprotobuf-dev		
+sudo apt-get install libprotobuf-c-dev protobuf-c-compiler
+</code></pre>
+<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>protobuf这类题一般都会将输入转化成特殊的结构体，这就要求我们首先要</p>
+<h4 id="一些结构体定义"><a href="#一些结构体定义" class="headerlink" title="一些结构体定义"></a>一些结构体定义</h4><h6 id="ProtobufCFieldDescriptor"><a href="#ProtobufCFieldDescriptor" class="headerlink" title="ProtobufCFieldDescriptor"></a>ProtobufCFieldDescriptor</h6><img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png" class="">
+
+<pre><code class="c">struct ProtobufCFieldDescriptor &#123;
+    /** Name of the field as given in the .proto file. */
+    const char      *name;				
+
+    /** Tag value of the field as given in the .proto file. */
+    uint32_t        id;					
+
+    /** Whether the field is `REQUIRED`, `OPTIONAL`, or `REPEATED`. */
+    ProtobufCLabel      label;					
+
+    /** The type of the field. */
+    ProtobufCType       type;					
+
+    /**
+     * The offset in bytes of the message&#39;s C structure&#39;s quantifier field
+     * (the `has_MEMBER` field for optional members or the `n_MEMBER` field
+     * for repeated members or the case enum for oneofs).
+     */
+    unsigned        quantifier_offset;							
+
+    /**
+     * The offset in bytes into the message&#39;s C structure for the member
+     * itself.
+     */
+    unsigned        offset;					
+
+    /**
+     * A type-specific descriptor.
+     *
+     * If `type` is `PROTOBUF_C_TYPE_ENUM`, then `descriptor` points to the
+     * corresponding `ProtobufCEnumDescriptor`.
+     *
+     * If `type` is `PROTOBUF_C_TYPE_MESSAGE`, then `descriptor` points to
+     * the corresponding `ProtobufCMessageDescriptor`.
+     *
+     * Otherwise this field is NULL.
+     */
+    const void      *descriptor; /* for MESSAGE and ENUM types */
+
+    /** The default value for this field, if defined. May be NULL. */
+    const void      *default_value;
+
+    /**
+     * A flag word. Zero or more of the bits defined in the
+     * `ProtobufCFieldFlag` enum may be set.
+     */
+    uint32_t        flags;
+
+    /** Reserved for future use. */
+    unsigned        reserved_flags;
+    /** Reserved for future use. */
+    void            *reserved2;
+    /** Reserved for future use. */
+    void            *reserved3;
+&#125;;
+</code></pre>
+<h6 id="label和type"><a href="#label和type" class="headerlink" title="label和type"></a>label和type</h6><p>label和type都是枚举类型：</p>
+<pre><code class="c">typedef enum &#123;
+    /** A well-formed message must have exactly one of this field. */
+    PROTOBUF_C_LABEL_REQUIRED,
+
+    /**
+     * A well-formed message can have zero or one of this field (but not
+     * more than one).
+     */
+    PROTOBUF_C_LABEL_OPTIONAL,
+
+    /**
+     * This field can be repeated any number of times (including zero) in a
+     * well-formed message. The order of the repeated values will be
+     * preserved.
+     */
+    PROTOBUF_C_LABEL_REPEATED,
+
+    /**
+     * This field has no label. This is valid only in proto3 and is
+     * equivalent to OPTIONAL but no &quot;has&quot; quantifier will be consulted.
+     */
+    PROTOBUF_C_LABEL_NONE,
+&#125; ProtobufCLabel;
+
+
+typedef enum &#123;
+    PROTOBUF_C_TYPE_INT32,      /**0&lt; int32 */
+    PROTOBUF_C_TYPE_SINT32,     /**1&lt; signed int32 */
+    PROTOBUF_C_TYPE_SFIXED32,   /**2&lt; signed int32 (4 bytes) */
+    PROTOBUF_C_TYPE_INT64,      /**3&lt; int64 */
+    PROTOBUF_C_TYPE_SINT64,     /**4&lt; signed int64 */
+    PROTOBUF_C_TYPE_SFIXED64,   /**5&lt; signed int64 (8 bytes) */
+    PROTOBUF_C_TYPE_UINT32,     /**6&lt; unsigned int32 */
+    PROTOBUF_C_TYPE_FIXED32,    /**7&lt; unsigned int32 (4 bytes) */
+    PROTOBUF_C_TYPE_UINT64,     /**8&lt; unsigned int64 */
+    PROTOBUF_C_TYPE_FIXED64,    /**9&lt; unsigned int64 (8 bytes) */
+    PROTOBUF_C_TYPE_FLOAT,      /**10&lt; float */
+    PROTOBUF_C_TYPE_DOUBLE,     /**11&lt; double */
+    PROTOBUF_C_TYPE_BOOL,       /**12&lt; boolean */
+    PROTOBUF_C_TYPE_ENUM,       /**13&lt; enumerated type */
+    PROTOBUF_C_TYPE_STRING,     /**14&lt; UTF-8 or ASCII string */
+    PROTOBUF_C_TYPE_BYTES,      /**15&lt; arbitrary byte sequence */
+    PROTOBUF_C_TYPE_MESSAGE,    /**16&lt; nested message */
+&#125; ProtobufCType;
+</code></pre>
+<h4 id="定位结构体方式"><a href="#定位结构体方式" class="headerlink" title="定位结构体方式"></a>定位结构体方式</h4><h5 id="1-手动定位"><a href="#1-手动定位" class="headerlink" title="1.手动定位"></a>1.手动定位</h5><p>因为我们输入的内容会通过<code>protobuf_c_message_unpack</code>这个函数进行解析。所以我们可以对比链接库中的函数具体定义以及我们pwn的主程序中调用的传参。然后就能跳转到主程序中的具体descriptor中进行下一步分析。</p>
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png" class="">
+
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png" class="">
+
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png" class="">
+
+<p>首先要在主程序里找一个<code>message_descriptor</code>，一般在.data.rel.ro段，其开头的魔数(magic)是0x28AAEEF9，一般而言下面会直接解析出Protobuf结构体的名字，但也有IDA识别不出来的情况，我们可以手动将db类型转为dq类型，然后就会清晰很多。</p>
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png" class="">
+
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png" class="">
+
+<p>我们的消息结构体名字就为<code>MyMessage</code>。接着我们可以往<code>my_message__field_descriptors</code>里看，里面就是具体的字段，也就是<code>ProtobufCFieldDescriptor</code>这个结构体。但是也都被IDA当作了db解析，我们可以按照下表结构体的字段分布进行修改，手动将其解析一下，主要看name，id，label，type，其他怎么改影响不大。一下子就清晰了不少，然后我们就可以对照着枚举表还原出protobuf了。</p>
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png" class="">
+
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png" class="">
+
+<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png" class="">
+
+<pre><code class="c">//message.proto
+syntax = &quot;proto2&quot;;
+
+message MyMessage&#123;
+    optional string name = 1;
+    required bytes buffer = 3;
+    required uint32 size = 4;
+&#125;
+</code></pre>
+<p>然后在命令行将其转化成python文件即可</p>
+<pre><code class="shell">protoc --python_out=. message.proto
+</code></pre>
+<h5 id="2-自动分析"><a href="#2-自动分析" class="headerlink" title="2.自动分析"></a>2.自动分析</h5><p>首先进入之前安装好的pbtk目录，<code>python3 gui.py</code> 就可以启动一个gui窗口，然后选择<code>Extract .proto structures from apps</code>，就可以选择pwn程序自动提取其中的proto文件了。但有时会不灵，还是手动分析有趣。</p>
+<h4 id="脚本编写"><a href="#脚本编写" class="headerlink" title="脚本编写"></a>脚本编写</h4><p>分析完proto的结构，就可以进行exp脚本的编写了，之前我们通过proto生成的python文件名为<code>proto结构体名_pb2</code>，可以先导入exp。</p>
+<pre><code class="python">import message_pb2
+from pwn import *
+context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
+context.terminal=[&quot;cmd.exe&quot;,&quot;/c&quot;, &quot;start&quot;, &quot;cmd.exe&quot;, &quot;/c&quot;, &quot;wsl.exe&quot;, &quot;-e&quot;]
+p = process(&quot;filename&quot;)
+......
+msg = message_pb2.MyMessage()		#创建结构体
+
+#各字段赋值
+msg.name = &#39;Admin&#39;
+msg.buffer = shellcode.ljust(0x208,b&quot;a&quot;) + p64(canary) + p64(0) + p64(tar)
+msg.size = 0x220
+
+payload = msg.SerializeToString()		#转化成proto的序列化字符串
+p.sendline(payload)
+......
+</code></pre>
+<h4 id="判别proto版本方式"><a href="#判别proto版本方式" class="headerlink" title="判别proto版本方式"></a>判别proto版本方式</h4><p>一般proto分为proto2和proto3两个版本，在写proto文件时要在开头指明<code>syntax=proto2/3</code>。</p>
+<p>在proto3中移除了require这个修饰符，如果有的label位为0（required），就说明用的是proto2语法。</p>
+<p>其实也可以都带进去试试，总共就两个版本，别的地方没分析错的话总有一个会通过的。</p>
+<h4 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h4><h5 id="1-库找不到"><a href="#1-库找不到" class="headerlink" title="1.库找不到"></a>1.库找不到</h5><img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png" class="">
+
+<p>可以手动在&#x2F;usr&#x2F;lib下添加一个链接</p>
+<pre><code class="shell">sudo ln -s /mnt/e/ctf/2024shctf/pwn/shctf——challage_pwn_protobuf/libprotobuf-c.so.1 /usr/lib/libprotobuf-c.so.1
+</code></pre>
+<h5 id="2-运行exp时因为引入了proto转成的python文件报错"><a href="#2-运行exp时因为引入了proto转成的python文件报错" class="headerlink" title="2.运行exp时因为引入了proto转成的python文件报错"></a>2.运行exp时因为引入了proto转成的python文件报错</h5><img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png" class="">
+
+<p>提高python库中protobuf的版本</p>
+<pre><code class="shell">pip3 uninstall protobuf
+pip3 install protobuf==3.19.0
+</code></pre>
+<h5 id="3-逆出结构体后prpto一直无法正常解析"><a href="#3-逆出结构体后prpto一直无法正常解析" class="headerlink" title="3.逆出结构体后prpto一直无法正常解析"></a>3.逆出结构体后prpto一直无法正常解析</h5><p>可以尝试把<code>sendline</code>换成<code>send</code>，有时候多一个换行符就解析不出来了。</p>
+
+    </div>
+    
+    
+    
+    
+    
+    
+    
+</div>
+
+            <footer id="footer">
+    <div id="footer-wrap">
+        <div>
+            &copy;
+            2022 - 2024 Collectcrop&#39;s Blog
+            <span id="footer-icon">
+                <i class="fa-solid fa-font-awesome fa-fw"></i>
+            </span>
+            &commat;collectcrop
+        </div>
+        <div>
+            Based on the <a target="_blank" rel="noopener" href="https://hexo.io">Hexo Engine</a> &amp;
+            <a target="_blank" rel="noopener" href="https://github.com/theme-particlex/hexo-theme-particlex">ParticleX Theme</a>
+        </div>
+        
+    </div>
+</footer>
+
+        </div>
+        
+        <transition name="fade">
+            <div id="preview" ref="preview" v-show="previewShow">
+                <img id="preview-content" ref="previewContent" />
+            </div>
+        </transition>
+        
+    </div>
+    <script src="/js/main.js"></script>
+    
+    
+
+
+
+
+    
+</body>
+</html>
