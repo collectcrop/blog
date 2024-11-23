@@ -330,7 +330,7 @@
                                    href="/blog/"
                                         >
                                     <i class="fa-regular fa-house fa-fw"></i>
-                                    HOME
+                                    ACCUEIL
                                     
                                 </a>
 
@@ -381,7 +381,7 @@
                                    href="/blog/categories/"
                                         >
                                     <i class="fa-solid fa-folder fa-fw"></i>
-                                    CATEGORIES
+                                    CATÉGORIES
                                     
                                 </a>
 
@@ -398,7 +398,7 @@
                                    href="#"
                                         onClick=&#34;return false;&#34;>
                                     <i class="fa-regular fa-user fa-fw"></i>
-                                    ABOUT
+                                    À PROPOS
                                     <i class="fa-solid fa-chevron-down fa-fw"></i>
                                 </a>
 
@@ -414,7 +414,7 @@
                                         
                                             <li>
                                                 <a href="/blog/%5Bobject%20Object%5D">
-                                                    FRIENDS
+                                                    AMIS
                                                 </a>
                                             </li>
                                         
@@ -448,7 +448,7 @@
                            href="/blog/"
                         >
                             <span>
-                                HOME
+                                ACCUEIL
                             </span>
                             
                                 <i class="fa-regular fa-house fa-sm fa-fw"></i>
@@ -508,7 +508,7 @@
                            href="/blog/categories/"
                         >
                             <span>
-                                CATEGORIES
+                                CATÉGORIES
                             </span>
                             
                                 <i class="fa-solid fa-folder fa-sm fa-fw"></i>
@@ -528,7 +528,7 @@
                              navbar-data-toggle="submenu-About"
                         >
                             <span>
-                                ABOUT
+                                À PROPOS
                             </span>
                             
                                 <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
@@ -546,7 +546,7 @@
                                 
                                     <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
                                         <a class=" text-third-text-color text-xl"
-                                           href="/blog/%5Bobject%20Object%5D">FRIENDS</a>
+                                           href="/blog/%5Bobject%20Object%5D">AMIS</a>
                                     </div>
                                 
                             </div>
@@ -565,15 +565,15 @@
 
         <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">14</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">16</div>
         <div class="label text-third-text-color text-sm">Tags</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">2</div>
-        <div class="label text-third-text-color text-sm">Categories</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">3</div>
+        <div class="label text-third-text-color text-sm">Catégories</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
         <div class="label text-third-text-color text-sm">Posts</div>
     </a>
 </div>
@@ -646,15 +646,15 @@
 </div>
                 <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">14</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">16</div>
         <div class="label text-third-text-color text-sm">Tags</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">2</div>
-        <div class="label text-third-text-color text-sm">Categories</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">3</div>
+        <div class="label text-third-text-color text-sm">Catégories</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
         <div class="label text-third-text-color text-sm">Posts</div>
     </a>
 </div>
@@ -669,6 +669,80 @@
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/blog/2024/09/21/Exploits-under-exception-handling/">
+                            Exploits under exception handling
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            引入在栈溢出漏洞中，程序没有控制或错误控制输入的大小导致了该漏洞的产生。那我们很自然会想到能不能用try  throw catch的异常机制来捕获栈溢出行为，从而能更直观的获取错误信息，也在一定程度上避免了一些奇怪的错误产生。但在c++的异常处理实现中，如果我们放任输入数据超过缓冲区大小，冀以异常机制来捕获栈溢出，结果将不尽如人意，甚至还会导致canary保护机制的绕过。
+原理&amp;题目...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sat Sep 21 2024 17:00:04 GMT+0800">
+                
+                    2024-09-21
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/blog/tags/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                        <li>
+                            | 
+                            <a href="/blog/tags/exception/">exception</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/blog/2024/09/21/Exploits-under-exception-handling/">Lire la suite<span class="seo-reader-text">Exploits under exception handling</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -739,7 +813,7 @@
         
     </div>
 
-    <a href="/blog/2024/09/21/self-made-sandbox/">Read more<span class="seo-reader-text">self-made sandbox</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/09/21/self-made-sandbox/">Lire la suite<span class="seo-reader-text">self-made sandbox</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -775,11 +849,11 @@
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        11 posts in total
+                        12  posts au total
                     </span>
                     
                         <span>
-                            34k words in total
+                            35.2k mots au total
                         </span>
                     
                 </p>
@@ -790,13 +864,13 @@
             <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
                 
                     <span id="busuanzi_container_site_uv" class="lg:!block">
-                        <span class="text-sm">VISITOR COUNT</span>
+                        <span class="text-sm">VISITEURS</span>
                         <span id="busuanzi_value_site_uv"></span>
                     </span>
                 
                 
                     <span id="busuanzi_container_site_pv" class="lg:!block">
-                        <span class="text-sm">TOTAL PAGE VIEWS</span>
+                        <span class="text-sm">NOMBRE TOTAL DE PAGES VUES</span>
                         <span id="busuanzi_value_site_pv"></span>
                     </span>
                 
@@ -809,7 +883,7 @@
         
         
             <div>
-                Blog up for <span class="odometer" id="runtime_days" ></span> days <span class="odometer" id="runtime_hours"></span> hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
+                Blog en ligne depuis <span class="odometer" id="runtime_days" ></span> Jours <span class="odometer" id="runtime_hours"></span> Hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
             </div>
         
         

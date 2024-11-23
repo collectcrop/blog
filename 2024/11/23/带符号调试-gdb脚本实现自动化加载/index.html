@@ -13,36 +13,31 @@
     
     <!--- Seo Part-->
     
-    <link rel="canonical" href="https://collectcrop.github.io/blog/2024/11/21/protobuf初探/"/>
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2024/11/23/带符号调试-gdb脚本实现自动化加载/"/>
     <meta name="robots" content="index,follow">
     <meta name="googlebot" content="index,follow">
     <meta name="revisit-after" content="1 days">
     
-        <meta name="description" content="简要介绍什么是protobuf，如何使用protobuf以及如何在pwn中逆向protobuf。">
+        <meta name="description" content="带符号调试-gdb脚本实现自动化加载问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地">
 <meta property="og:type" content="article">
-<meta property="og:title" content="protobuf初探">
-<meta property="og:url" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/index.html">
+<meta property="og:title" content="带符号调试-gdb脚本实现自动化加载">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/index.html">
 <meta property="og:site_name" content="Collectcrop&#39;s Blog">
-<meta property="og:description" content="简要介绍什么是protobuf，如何使用protobuf以及如何在pwn中逆向protobuf。">
+<meta property="og:description" content="带符号调试-gdb脚本实现自动化加载问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地">
 <meta property="og:locale">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png">
-<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png">
-<meta property="article:published_time" content="2024-11-21T15:47:01.000Z">
-<meta property="article:modified_time" content="2024-11-23T08:20:47.024Z">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103232492.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103325230.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105018012.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105847709.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123121652093.png">
+<meta property="article:published_time" content="2024-11-23T11:31:26.000Z">
+<meta property="article:modified_time" content="2024-11-23T11:41:13.687Z">
 <meta property="article:author" content="collectcrop">
 <meta property="article:tag" content="pwn">
-<meta property="article:tag" content="protobuf">
+<meta property="article:tag" content="gdb">
+<meta property="article:tag" content="debug">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://collectcrop.github.io/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103232492.png">
     
     
     <!--- Icon Part-->
@@ -54,7 +49,7 @@
     
     <title>
         
-            protobuf初探 | Collectcrop&#39;s Blog
+            带符号调试-gdb脚本实现自动化加载 | Collectcrop&#39;s Blog
         
     </title>
 
@@ -579,7 +574,7 @@
 		<div class="article-title relative w-full">
 			
 			<div class="w-full flex items-center pt-6 justify-start">
-				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">protobuf初探</h1>
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">带符号调试-gdb脚本实现自动化加载</h1>
 			</div>
 			
 		</div>
@@ -600,15 +595,15 @@
 					<div class="article-meta-info">
     <span class="article-date article-meta-item">
         <i class="fa-regular fa-pen-fancy"></i>&nbsp;
-        <span class="desktop">2024-11-21 23:47:01</span>
-        <span class="mobile">2024-11-21 23:47:01</span>
+        <span class="desktop">2024-11-23 19:31:26</span>
+        <span class="mobile">2024-11-23 19:31:26</span>
         <span class="hover-info">Créé</span>
     </span>
     
         <span class="article-date article-meta-item">
             <i class="fa-regular fa-wrench"></i>&nbsp;
-            <span class="desktop">2024-11-23 16:20:47</span>
-            <span class="mobile">2024-11-23 16:20:47</span>
+            <span class="desktop">2024-11-23 19:41:13</span>
+            <span class="mobile">2024-11-23 19:41:13</span>
             <span class="hover-info">Mis à jour</span>
         </span>
     
@@ -622,7 +617,7 @@
                     
                         
                         <li>
-                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
+                            <a href="/blog/categories/debug/">debug</a>&nbsp;
                         </li>
                     
                     
@@ -640,7 +635,11 @@
                     </li>
                 
                     <li>
-                        | <a href="/blog/tags/protobuf/">protobuf</a>&nbsp;
+                        | <a href="/blog/tags/gdb/">gdb</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/debug/">debug</a>&nbsp;
                     </li>
                 
             </ul>
@@ -650,12 +649,12 @@
     
     
         <span class="article-wordcount article-meta-item">
-            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>1.5k Mots</span>
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>1.2k Mots</span>
         </span>
     
     
         <span class="article-min2read article-meta-item">
-            <i class="fa-regular fa-clock"></i>&nbsp;<span>6 Min</span>
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>5 Min</span>
         </span>
     
     
@@ -674,139 +673,77 @@
 
 
 		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
-			<h2 id="protobuf-pwn初探"><a href="#protobuf-pwn初探" class="headerlink" title="protobuf pwn初探"></a>protobuf pwn初探</h2><h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
-<ol>
-<li><strong>高效性</strong>：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。</li>
-<li><strong>语言中立</strong>：支持多种编程语言，包括C++、Java、Python、Go等，使得跨平台的数据交换变得简单。</li>
-<li><strong>易于扩展</strong>：可以在不破坏现有数据结构的情况下，轻松地添加新字段。</li>
-<li><strong>定义文件</strong>：使用<code>.proto</code>文件来定义数据结构和服务，可以通过工具自动生成相应的代码。</li>
+			<h2 id="带符号调试-gdb脚本实现自动化加载"><a href="#带符号调试-gdb脚本实现自动化加载" class="headerlink" title="带符号调试-gdb脚本实现自动化加载"></a>带符号调试-gdb脚本实现自动化加载</h2><h4 id="问题由来"><a href="#问题由来" class="headerlink" title="问题由来"></a>问题由来</h4><p>在对于堆的<code>_IO_FILE</code>利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103232492.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103325230.png"
+                      class=""
+                >
+
+<h4 id="符号文件"><a href="#符号文件" class="headerlink" title="符号文件"></a>符号文件</h4><h5 id="Build-ID"><a href="#Build-ID" class="headerlink" title="Build ID"></a>Build ID</h5><p><code>Build ID</code> 是 ELF 文件（可执行文件和共享库）中一个独特的标识符，用于标识文件的内容。它是一个不可变的标志，通常用来快速匹配文件与其调试符号或源代码。</p>
+<hr>
+<h6 id="主要用途"><a href="#主要用途" class="headerlink" title="主要用途"></a><strong>主要用途</strong></h6><ol>
+<li><strong>唯一标识 ELF 文件</strong>：<ul>
+<li>即使文件名或路径改变，<code>Build ID</code> 仍然可以唯一标识文件。</li>
+<li>不同编译选项或源代码的修改会导致新的 <code>Build ID</code>。</li>
+</ul>
+</li>
+<li><strong>关联调试符号和源代码</strong>：<ul>
+<li>调试符号文件（如 <code>.debug</code> 文件）通常使用 <code>Build ID</code> 来匹配对应的 ELF 文件。</li>
+</ul>
+</li>
+<li><strong>软件包管理和安全检查</strong>：<ul>
+<li>用于确保文件未被篡改，或用于匹配特定版本的依赖项。</li>
+</ul>
+</li>
 </ol>
-<p>通过protobuf，开发者可以定义消息类型，使用这些类型进行数据序列化和反序列化，从而在不同的系统或服务之间传输数据。</p>
-<p><strong>Proto2</strong>: 支持 <code>required</code> 和 <code>optional</code> 修饰符。</p>
-<p><strong>Proto3</strong>: 默认所有字段为 <code>optional</code>，不支持 <code>required</code></p>
-<h4 id="工具集安装"><a href="#工具集安装" class="headerlink" title="工具集安装"></a>工具集安装</h4><ul>
-<li>pbtk:（自动化分析）</li>
-</ul>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install python3-pip git openjdk-11-jre libqt5x11extras5 python3-pyqt5.qtwebengine python3-pyqt5</span><br><span class="line">sudo pip3 install protobuf pyqt5 pyqtwebengine requests websocket-client</span><br><span class="line">git clone https://github.com/marin-m/pbtk</span><br></pre></td></tr></table></figure></div>
+<hr>
+<h6 id="生成方式"><a href="#生成方式" class="headerlink" title="生成方式"></a><strong>生成方式</strong></h6><p><code>Build ID</code> 是通过对 ELF 文件的内容（如代码段和数据段）进行哈希计算生成的，具体方式取决于工具链。它通常由 <strong>编译器</strong> 或 <strong>链接器</strong> 自动生成，存储在 ELF 文件的 <code>.note.gnu.build-id</code> 段中。</p>
+<h6 id="查看-ELF-文件的-Build-ID"><a href="#查看-ELF-文件的-Build-ID" class="headerlink" title="查看 ELF 文件的 Build ID"></a><strong>查看 ELF 文件的 Build ID</strong></h6><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1.readelf -n /path/to/file | grep &#x27;Build ID&#x27;</span><br><span class="line">2.file /path/to/file</span><br></pre></td></tr></table></figure></div>
 
-<ul>
-<li>Protobuf 库:（本地搓proto文件并编译成python）</li>
-</ul>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install -y protobuf-compiler libprotobuf-dev		</span><br><span class="line">sudo apt-get install libprotobuf-c-dev protobuf-c-compiler</span><br></pre></td></tr></table></figure></div>
-
-
-
-<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>protobuf这类题一般都会将输入转化成特殊的结构体，这就要求我们首先要</p>
-<h4 id="一些结构体定义"><a href="#一些结构体定义" class="headerlink" title="一些结构体定义"></a>一些结构体定义</h4><h6 id="ProtobufCFieldDescriptor"><a href="#ProtobufCFieldDescriptor" class="headerlink" title="ProtobufCFieldDescriptor"></a>ProtobufCFieldDescriptor</h6><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
-                      class=""
-                >
-
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ProtobufCFieldDescriptor</span> &#123;</span></span><br><span class="line">    <span class="comment">/** Name of the field as given in the .proto file. */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span>      *name;				</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Tag value of the field as given in the .proto file. */</span></span><br><span class="line">    <span class="type">uint32_t</span>        id;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Whether the field is `REQUIRED`, `OPTIONAL`, or `REPEATED`. */</span></span><br><span class="line">    ProtobufCLabel      label;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The type of the field. */</span></span><br><span class="line">    ProtobufCType       type;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * The offset in bytes of the message&#x27;s C structure&#x27;s quantifier field</span></span><br><span class="line"><span class="comment">     * (the `has_MEMBER` field for optional members or the `n_MEMBER` field</span></span><br><span class="line"><span class="comment">     * for repeated members or the case enum for oneofs).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">unsigned</span>        quantifier_offset;							</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * The offset in bytes into the message&#x27;s C structure for the member</span></span><br><span class="line"><span class="comment">     * itself.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">unsigned</span>        offset;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A type-specific descriptor.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * If `type` is `PROTOBUF_C_TYPE_ENUM`, then `descriptor` points to the</span></span><br><span class="line"><span class="comment">     * corresponding `ProtobufCEnumDescriptor`.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * If `type` is `PROTOBUF_C_TYPE_MESSAGE`, then `descriptor` points to</span></span><br><span class="line"><span class="comment">     * the corresponding `ProtobufCMessageDescriptor`.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * Otherwise this field is NULL.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">void</span>      *descriptor; <span class="comment">/* for MESSAGE and ENUM types */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The default value for this field, if defined. May be NULL. */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">void</span>      *default_value;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A flag word. Zero or more of the bits defined in the</span></span><br><span class="line"><span class="comment">     * `ProtobufCFieldFlag` enum may be set.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">uint32_t</span>        flags;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">unsigned</span>        reserved_flags;</span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">void</span>            *reserved2;</span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">void</span>            *reserved3;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-<h6 id="label和type"><a href="#label和type" class="headerlink" title="label和type"></a>label和type</h6><p>label和type都是枚举类型：</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    <span class="comment">/** A well-formed message must have exactly one of this field. */</span></span><br><span class="line">    PROTOBUF_C_LABEL_REQUIRED,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A well-formed message can have zero or one of this field (but not</span></span><br><span class="line"><span class="comment">     * more than one).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_OPTIONAL,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * This field can be repeated any number of times (including zero) in a</span></span><br><span class="line"><span class="comment">     * well-formed message. The order of the repeated values will be</span></span><br><span class="line"><span class="comment">     * preserved.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_REPEATED,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * This field has no label. This is valid only in proto3 and is</span></span><br><span class="line"><span class="comment">     * equivalent to OPTIONAL but no &quot;has&quot; quantifier will be consulted.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_NONE,</span><br><span class="line">&#125; ProtobufCLabel;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    PROTOBUF_C_TYPE_INT32,      <span class="comment">/**0&lt; int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SINT32,     <span class="comment">/**1&lt; signed int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SFIXED32,   <span class="comment">/**2&lt; signed int32 (4 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_INT64,      <span class="comment">/**3&lt; int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SINT64,     <span class="comment">/**4&lt; signed int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SFIXED64,   <span class="comment">/**5&lt; signed int64 (8 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_UINT32,     <span class="comment">/**6&lt; unsigned int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FIXED32,    <span class="comment">/**7&lt; unsigned int32 (4 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_UINT64,     <span class="comment">/**8&lt; unsigned int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FIXED64,    <span class="comment">/**9&lt; unsigned int64 (8 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FLOAT,      <span class="comment">/**10&lt; float */</span></span><br><span class="line">    PROTOBUF_C_TYPE_DOUBLE,     <span class="comment">/**11&lt; double */</span></span><br><span class="line">    PROTOBUF_C_TYPE_BOOL,       <span class="comment">/**12&lt; boolean */</span></span><br><span class="line">    PROTOBUF_C_TYPE_ENUM,       <span class="comment">/**13&lt; enumerated type */</span></span><br><span class="line">    PROTOBUF_C_TYPE_STRING,     <span class="comment">/**14&lt; UTF-8 or ASCII string */</span></span><br><span class="line">    PROTOBUF_C_TYPE_BYTES,      <span class="comment">/**15&lt; arbitrary byte sequence */</span></span><br><span class="line">    PROTOBUF_C_TYPE_MESSAGE,    <span class="comment">/**16&lt; nested message */</span></span><br><span class="line">&#125; ProtobufCType;</span><br></pre></td></tr></table></figure></div>
-
-<h4 id="定位结构体方式"><a href="#定位结构体方式" class="headerlink" title="定位结构体方式"></a>定位结构体方式</h4><h5 id="1-手动定位"><a href="#1-手动定位" class="headerlink" title="1.手动定位"></a>1.手动定位</h5><p>因为我们输入的内容会通过<code>protobuf_c_message_unpack</code>这个函数进行解析。所以我们可以对比链接库中的函数具体定义以及我们pwn的主程序中调用的传参。然后就能跳转到主程序中的具体descriptor中进行下一步分析。</p>
+<h5 id="debug"><a href="#debug" class="headerlink" title=".debug"></a>.debug</h5><p>通常<code>symbol file</code>会在一个<code>.debug/.build-id/xx/</code>的目录下，这里在<code>build-id</code>中会有一堆2位16进制数构成的目录名，实际在.debug文件检索时，会先根据<code>build-id</code>的第一个字节（最高位）来进入对应前缀的文件夹，然后在该目录下找对应的.debug文件。比如我们的<code>build-id</code>为<code>89c3cb85f9e55046776471fed05ec441581d1969</code>，那么我们目标的.debug文件就在<code>.debug/.build-id/89/c3cb85f9e55046776471fed05ec441581d1969.debug</code>这个位置。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105018012.png"
                       class=""
                 >
 
+
+
+<h4 id="手动加载符号文件"><a href="#手动加载符号文件" class="headerlink" title="手动加载符号文件"></a>手动加载符号文件</h4><p>一般来说，我们用<code>glibc-all-in-one</code>下载到的glibc都是连带着<code>.debug</code>一起下的，但我们pwndbg会找不到目标的符号文件。我们可以直接在gdb中用<code>add-symbol-file /path/to/.debug</code>来读取符号信息。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105847709.png"
                       class=""
                 >
 
+<p>或者也可以在<code>~/.gdbinit</code>中加一个<code>set debug-file-directory /path/to/glibc-all-in-one/libs/2.35-0ubuntu3_amd64/.debug/</code>，然后进入gdb时就会自动检索到<code>.debug</code>文件，附加调试符号信息。</p>
+<h4 id="自动化进行附加符号文件"><a href="#自动化进行附加符号文件" class="headerlink" title="自动化进行附加符号文件"></a>自动化进行附加符号文件</h4><p>既然我们已经知道了手动附加的原理，这里我们就可以尝试使用脚本进行自动化附加。这里我们选择用gdb中的<code>info proc mappings</code>命令来获取libc的基址以及路径，后续.debug文件路径的判断也是基于此。所以我们想要附加生效，就要链接到glibc-all-in-one中的libc。</p>
+<p>在gdbinit中加入如下命令，这里使用了<code>gdb.events.stop.connect</code>来使gdb在停下来的时候调用函数进行加载<code>symbol file</code>，这是因为gdb.attach(p)时，<code>.gdbinit</code>是先加载后再把gdb附加到进程的，如果直接调用会报错。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line">python</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> subprocess</span><br><span class="line"></span><br><span class="line">DEBUG_FILE_DIR = <span class="string">&quot;/home/collectcrop/glibc_run/glibc-all-in-one/libs&quot;</span></span><br><span class="line">symbols_loaded = <span class="literal">False</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_build_id</span>(<span class="params">lib_path</span>):</span><br><span class="line">    <span class="comment">#从给定的库路径提取 build-id</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">	<span class="comment">#用外部命令获取build id</span></span><br><span class="line">        res = subprocess.check_output(</span><br><span class="line">            <span class="string">f&quot;readelf -n <span class="subst">&#123;lib_path&#125;</span> | grep &#x27;Build ID&#x27;&quot;</span>, </span><br><span class="line">            shell=<span class="literal">True</span>, </span><br><span class="line">            text=<span class="literal">True</span></span><br><span class="line">        )</span><br><span class="line">        <span class="comment"># 提取 Build ID 字符串</span></span><br><span class="line">        build_id = res[res.find(<span class="string">&#x27;:&#x27;</span>)+<span class="number">2</span>:]</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[*] Build ID: <span class="subst">&#123;build_id&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> build_id</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">except</span> gdb.error <span class="keyword">as</span> e:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[-] Error extracting build-id for <span class="subst">&#123;lib_path&#125;</span>: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">load_debug_symbols</span>():</span><br><span class="line">    <span class="keyword">global</span> symbols_loaded</span><br><span class="line">    mappings = gdb.execute(<span class="string">&quot;info proc mappings&quot;</span>, to_string=<span class="literal">True</span>).splitlines()</span><br><span class="line">    <span class="keyword">for</span> line <span class="keyword">in</span> mappings:</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;/libc.so&quot;</span> <span class="keyword">in</span> line:</span><br><span class="line">            parts = line.split()</span><br><span class="line">            libc_path = parts[-<span class="number">1</span>]</span><br><span class="line">            libc_base = parts[<span class="number">0</span>]</span><br><span class="line">            build_id = get_build_id(libc_path)</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> build_id:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">&quot;[-] Could not determine Build ID for libc.&quot;</span>)</span><br><span class="line">                <span class="keyword">return</span></span><br><span class="line">            </span><br><span class="line">            DEBUG_FILE_DIR = libc_path.replace(<span class="string">&quot;/libc.so.6&quot;</span>, <span class="string">&quot;/.debug/.build-id&quot;</span>)</span><br><span class="line">            <span class="comment"># 解析 .debug 文件路径</span></span><br><span class="line">            debug_file_path = os.path.join(</span><br><span class="line">                DEBUG_FILE_DIR,</span><br><span class="line">                build_id[:<span class="number">2</span>],</span><br><span class="line">                build_id[<span class="number">2</span>:].replace(<span class="string">&quot;\n&quot;</span>,<span class="string">&quot;&quot;</span>) + <span class="string">&quot;.debug&quot;</span></span><br><span class="line">            )</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;[*] debug file: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> os.path.exists(DEBUG_FILE_DIR):</span><br><span class="line">                <span class="keyword">if</span> os.path.exists(debug_file_path):</span><br><span class="line">                    gdb.execute(<span class="string">f&quot;add-symbol-file <span class="subst">&#123;debug_file_path&#125;</span> <span class="subst">&#123;libc_base&#125;</span>&quot;</span>)</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[+] Loaded symbols for <span class="subst">&#123;libc_path&#125;</span> from <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[-] Debug file not found: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[-] Build ID directory not found: <span class="subst">&#123;DEBUG_FILE_DIR&#125;</span>&quot;</span>)</span><br><span class="line">            symbols_loaded = <span class="literal">True</span></span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 延迟加载符号，确保附加到进程后运行</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">on_stop</span>(<span class="params">event</span>):</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> symbols_loaded:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;[*] Target process stopped. Attempting to load symbols...&quot;</span>)</span><br><span class="line">        load_debug_symbols()</span><br><span class="line"></span><br><span class="line">gdb.events.stop.connect(on_stop)</span><br><span class="line">end</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>然后就能愉快地调试了，好耶。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123121652093.png"
                       class=""
                 >
 
-<p>首先要在主程序里找一个<code>message_descriptor</code>，一般在.data.rel.ro段，其开头的魔数(magic)是0x28AAEEF9，一般而言下面会直接解析出Protobuf结构体的名字，但也有IDA识别不出来的情况，我们可以手动将db类型转为dq类型，然后就会清晰很多。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png"
-                      class=""
-                >
-
-<p>我们的消息结构体名字就为<code>MyMessage</code>。接着我们可以往<code>my_message__field_descriptors</code>里看，里面就是具体的字段，也就是<code>ProtobufCFieldDescriptor</code>这个结构体。但是也都被IDA当作了db解析，我们可以按照下表结构体的字段分布进行修改，手动将其解析一下，主要看name，id，label，type，其他怎么改影响不大。一下子就清晰了不少，然后我们就可以对照着枚举表还原出protobuf了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png"
-                      class=""
-                >
-
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//message.proto</span></span><br><span class="line">syntax = <span class="string">&quot;proto2&quot;</span>;</span><br><span class="line"></span><br><span class="line">message MyMessage&#123;</span><br><span class="line">    optional <span class="built_in">string</span> name = <span class="number">1</span>;</span><br><span class="line">    required bytes buffer = <span class="number">3</span>;</span><br><span class="line">    required uint32 size = <span class="number">4</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>然后在命令行将其转化成python文件即可</p>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">protoc --python_out=. message.proto</span><br></pre></td></tr></table></figure></div>
 
 
+<h4 id="一般换库步骤"><a href="#一般换库步骤" class="headerlink" title="一般换库步骤"></a>一般换库步骤</h4><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">strings ./libc.so.6  | grep &#x27;GNU&#x27;		#看给的libc版本</span><br><span class="line">ldd ./binary							#看程序动态链接库的情况</span><br><span class="line">patchelf --replace-needed original_libc target_libc ./binary	#换libc，original_libc由上面ldd能看到</span><br><span class="line">patchelf --set-interpreter target_ld ./binary					#换ld</span><br></pre></td></tr></table></figure></div>
 
-<h5 id="2-自动分析"><a href="#2-自动分析" class="headerlink" title="2.自动分析"></a>2.自动分析</h5><p>首先进入之前安装好的pbtk目录，<code>python3 gui.py</code> 就可以启动一个gui窗口，然后选择<code>Extract .proto structures from apps</code>，就可以选择pwn程序自动提取其中的proto文件了。但有时会不灵，还是手动分析有趣。</p>
-<h4 id="脚本编写"><a href="#脚本编写" class="headerlink" title="脚本编写"></a>脚本编写</h4><p>分析完proto的结构，就可以进行exp脚本的编写了，之前我们通过proto生成的python文件名为<code>proto结构体名_pb2</code>，可以先导入exp。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> message_pb2</span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">p = process(<span class="string">&quot;filename&quot;</span>)</span><br><span class="line">......</span><br><span class="line">msg = message_pb2.MyMessage()		<span class="comment">#创建结构体</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#各字段赋值</span></span><br><span class="line">msg.name = <span class="string">&#x27;Admin&#x27;</span></span><br><span class="line">msg.buffer = shellcode.ljust(<span class="number">0x208</span>,<span class="string">b&quot;a&quot;</span>) + p64(canary) + p64(<span class="number">0</span>) + p64(tar)</span><br><span class="line">msg.size = <span class="number">0x220</span></span><br><span class="line"></span><br><span class="line">payload = msg.SerializeToString()		<span class="comment">#转化成proto的序列化字符串</span></span><br><span class="line">p.sendline(payload)</span><br><span class="line">......</span><br></pre></td></tr></table></figure></div>
-
-
-
-<h4 id="判别proto版本方式"><a href="#判别proto版本方式" class="headerlink" title="判别proto版本方式"></a>判别proto版本方式</h4><p>一般proto分为proto2和proto3两个版本，在写proto文件时要在开头指明<code>syntax=proto2/3</code>。</p>
-<p>在proto3中移除了require这个修饰符，如果有的label位为0（required），就说明用的是proto2语法。</p>
-<p>其实也可以都带进去试试，总共就两个版本，别的地方没分析错的话总有一个会通过的。</p>
-<h4 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h4><h5 id="1-库找不到"><a href="#1-库找不到" class="headerlink" title="1.库找不到"></a>1.库找不到</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png"
-                      class=""
-                >
-
-<p>可以手动在&#x2F;usr&#x2F;lib下添加一个链接</p>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo ln -s /mnt/e/ctf/2024shctf/pwn/shctf——challage_pwn_protobuf/libprotobuf-c.so.1 /usr/lib/libprotobuf-c.so.1</span><br></pre></td></tr></table></figure></div>
-
-<h5 id="2-运行exp时因为引入了proto转成的python文件报错"><a href="#2-运行exp时因为引入了proto转成的python文件报错" class="headerlink" title="2.运行exp时因为引入了proto转成的python文件报错"></a>2.运行exp时因为引入了proto转成的python文件报错</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png"
-                      class=""
-                >
-
-<p>提高python库中protobuf的版本</p>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pip3 uninstall protobuf</span><br><span class="line">pip3 install protobuf==3.19.0</span><br></pre></td></tr></table></figure></div>
-
-
-
-<h5 id="3-逆出结构体后prpto一直无法正常解析"><a href="#3-逆出结构体后prpto一直无法正常解析" class="headerlink" title="3.逆出结构体后prpto一直无法正常解析"></a>3.逆出结构体后prpto一直无法正常解析</h5><p>可以尝试把<code>sendline</code>换成<code>send</code>，有时候多一个换行符就解析不出来了。</p>
 
 		</div>
 
@@ -814,18 +751,18 @@
 		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
 			<div class="article-copyright-info-container">
     <ul>
-        <li><strong>Titre:</strong> protobuf初探</li>
+        <li><strong>Titre:</strong> 带符号调试-gdb脚本实现自动化加载</li>
         <li><strong>Auteur:</strong> collectcrop</li>
         <li><strong>Créé à
-                :</strong> 2024-11-21 23:47:01</li>
+                :</strong> 2024-11-23 19:31:26</li>
         
             <li>
                 <strong>Mis à jour à
-                    :</strong> 2024-11-23 16:20:47
+                    :</strong> 2024-11-23 19:41:13
             </li>
         
         <li>
-            <strong>Lien:</strong> https://collectcrop.github.io/2024/11/21/protobuf初探/
+            <strong>Lien:</strong> https://collectcrop.github.io/2024/11/23/带符号调试-gdb脚本实现自动化加载/
         </li>
         <li>
             <strong>
@@ -851,7 +788,11 @@
 			</li>
 			
 			<li class="tag-item mx-0.5">
-				<a href="/blog/tags/protobuf/">#protobuf</a>&nbsp;
+				<a href="/blog/tags/gdb/">#gdb</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/debug/">#debug</a>&nbsp;
 			</li>
 			
 		</ul>
@@ -863,27 +804,27 @@
     <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
      <i aria-hidden="true"></i><span>推荐阅读</span>
     </div>
-    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/10/02/非栈上格式化字符串一次利用/" title="非栈上格式化字符串一次利用" rel="bookmark">
-  <img src="/images/wallhaven-wqery6-light.webp" alt="非栈上格式化字符串一次利用" class="!max-w-none">
-  <span class="title">非栈上格式化字符串一次利用</span>
-</a><a class="recommended-article-item" href="/blog/2024/09/21/webpwn/" title="webpwn" rel="bookmark">
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/09/21/webpwn/" title="webpwn" rel="bookmark">
   <img src="/images/wallhaven-wqery6-light.webp" alt="webpwn" class="!max-w-none">
   <span class="title">webpwn</span>
-</a><a class="recommended-article-item" href="/blog/2024/09/21/mips-pwn/" title="mips_pwn" rel="bookmark">
-  <img src="/images/wallhaven-wqery6-light.webp" alt="mips_pwn" class="!max-w-none">
-  <span class="title">mips_pwn</span>
+</a><a class="recommended-article-item" href="/blog/2024/11/10/house-of-apple2利用手法浅析/" title="house_of_apple2利用手法浅析" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="house_of_apple2利用手法浅析" class="!max-w-none">
+  <span class="title">house_of_apple2利用手法浅析</span>
+</a><a class="recommended-article-item" href="/blog/2024/11/21/protobuf初探/" title="protobuf初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="protobuf初探" class="!max-w-none">
+  <span class="title">protobuf初探</span>
 </a></div>
    </div>
    <div class="recommended-mobile">
    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
      <i aria-hidden="true"></i><span>推荐阅读</span>
    </div>
-   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/10/02/非栈上格式化字符串一次利用/" title="非栈上格式化字符串一次利用" rel="bookmark">
-  <img src="/images/wallhaven-wqery6-light.webp" alt="非栈上格式化字符串一次利用" class="!max-w-none">
-  <span class="title">非栈上格式化字符串一次利用</span>
-</a><a class="recommended-article-item" href="/blog/2024/09/21/webpwn/" title="webpwn" rel="bookmark">
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/09/21/webpwn/" title="webpwn" rel="bookmark">
   <img src="/images/wallhaven-wqery6-light.webp" alt="webpwn" class="!max-w-none">
   <span class="title">webpwn</span>
+</a><a class="recommended-article-item" href="/blog/2024/11/10/house-of-apple2利用手法浅析/" title="house_of_apple2利用手法浅析" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="house_of_apple2利用手法浅析" class="!max-w-none">
+  <span class="title">house_of_apple2利用手法浅析</span>
 </a></div>
    </div>
   </div>
@@ -891,23 +832,11 @@
 		
 		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
 			
-			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
-				<a class="prev" rel="prev" href="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/">
-					<span class="left arrow-icon flex justify-center items-center">
-						<i class="fa-solid fa-chevron-left"></i>
-					</span>
-					<span class="title flex justify-center items-center">
-						<span class="post-nav-title-item">带符号调试-gdb脚本实现自动化加载</span>
-						<span class="post-nav-item">Articles précédents</span>
-					</span>
-				</a>
-			</div>
-			
 			
 			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
-				<a class="next" rel="next" href="/blog/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/">
+				<a class="next" rel="next" href="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/">
 					<span class="title flex justify-center items-center">
-						<span class="post-nav-title-item">house_of_apple2利用手法浅析</span>
+						<span class="post-nav-title-item">protobuf初探</span>
 						<span class="post-nav-item">Articles suivants</span>
 					</span>
 					<span class="right arrow-icon flex justify-center items-center">
@@ -928,8 +857,8 @@
 		<div class="post-toc-wrap">
 	<div class="post-toc">
 		<div class="toc-title">Sur cette page</div>
-		<div class="page-title">protobuf初探</div>
-		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#protobuf-pwn%E5%88%9D%E6%8E%A2"><span class="nav-text">protobuf pwn初探</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#protobuf%E7%AE%80%E4%BB%8B"><span class="nav-text">protobuf简介</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B7%A5%E5%85%B7%E9%9B%86%E5%AE%89%E8%A3%85"><span class="nav-text">工具集安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%9B%AE%E6%A0%87"><span class="nav-text">目标</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%80%E4%BA%9B%E7%BB%93%E6%9E%84%E4%BD%93%E5%AE%9A%E4%B9%89"><span class="nav-text">一些结构体定义</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#ProtobufCFieldDescriptor"><span class="nav-text">ProtobufCFieldDescriptor</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#label%E5%92%8Ctype"><span class="nav-text">label和type</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%9A%E4%BD%8D%E7%BB%93%E6%9E%84%E4%BD%93%E6%96%B9%E5%BC%8F"><span class="nav-text">定位结构体方式</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-%E6%89%8B%E5%8A%A8%E5%AE%9A%E4%BD%8D"><span class="nav-text">1.手动定位</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-%E8%87%AA%E5%8A%A8%E5%88%86%E6%9E%90"><span class="nav-text">2.自动分析</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%84%9A%E6%9C%AC%E7%BC%96%E5%86%99"><span class="nav-text">脚本编写</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%A4%E5%88%ABproto%E7%89%88%E6%9C%AC%E6%96%B9%E5%BC%8F"><span class="nav-text">判别proto版本方式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E8%A7%A3%E5%86%B3"><span class="nav-text">常见问题解决</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-%E5%BA%93%E6%89%BE%E4%B8%8D%E5%88%B0"><span class="nav-text">1.库找不到</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-%E8%BF%90%E8%A1%8Cexp%E6%97%B6%E5%9B%A0%E4%B8%BA%E5%BC%95%E5%85%A5%E4%BA%86proto%E8%BD%AC%E6%88%90%E7%9A%84python%E6%96%87%E4%BB%B6%E6%8A%A5%E9%94%99"><span class="nav-text">2.运行exp时因为引入了proto转成的python文件报错</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-%E9%80%86%E5%87%BA%E7%BB%93%E6%9E%84%E4%BD%93%E5%90%8Eprpto%E4%B8%80%E7%9B%B4%E6%97%A0%E6%B3%95%E6%AD%A3%E5%B8%B8%E8%A7%A3%E6%9E%90"><span class="nav-text">3.逆出结构体后prpto一直无法正常解析</span></a></li></ol></li></ol></li></ol></li></ol>
+		<div class="page-title">带符号调试-gdb脚本实现自动化加载</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD"><span class="nav-text">带符号调试-gdb脚本实现自动化加载</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E7%94%B1%E6%9D%A5"><span class="nav-text">问题由来</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">符号文件</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Build-ID"><span class="nav-text">Build ID</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%B8%BB%E8%A6%81%E7%94%A8%E9%80%94"><span class="nav-text">主要用途</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E6%96%B9%E5%BC%8F"><span class="nav-text">生成方式</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9F%A5%E7%9C%8B-ELF-%E6%96%87%E4%BB%B6%E7%9A%84-Build-ID"><span class="nav-text">查看 ELF 文件的 Build ID</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#debug"><span class="nav-text">.debug</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%89%8B%E5%8A%A8%E5%8A%A0%E8%BD%BD%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">手动加载符号文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%87%AA%E5%8A%A8%E5%8C%96%E8%BF%9B%E8%A1%8C%E9%99%84%E5%8A%A0%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">自动化进行附加符号文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%80%E8%88%AC%E6%8D%A2%E5%BA%93%E6%AD%A5%E9%AA%A4"><span class="nav-text">一般换库步骤</span></a></li></ol></li></ol></li></ol>
 
 	</div>
 </div>
