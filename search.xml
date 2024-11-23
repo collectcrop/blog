@@ -2,7 +2,7 @@
 <search>
   <entry>
     <title>Exploits under exception handling</title>
-    <url>/2024/09/21/Exploits-under-exception-handling/</url>
+    <url>/blog/2024/09/21/Exploits-under-exception-handling/</url>
     <content><![CDATA[<h4 id="引入"><a href="#引入" class="headerlink" title="引入"></a>引入</h4><p>在栈溢出漏洞中，程序没有控制或错误控制输入的大小导致了该漏洞的产生。那我们很自然会想到能不能用<code>try</code>  <code>throw</code> <code>catch</code>的异常机制来捕获栈溢出行为，从而能更直观的获取错误信息，也在一定程度上避免了一些奇怪的错误产生。但在c++的异常处理实现中，如果我们放任输入数据超过缓冲区大小，冀以异常机制来捕获栈溢出，结果将不尽如人意，甚至还会导致canary保护机制的绕过。</p>
 <h4 id="原理-题目分析"><a href="#原理-题目分析" class="headerlink" title="原理&amp;题目分析"></a>原理&amp;题目分析</h4><p>这里借助题目对其原理进行理解，其中加入了个人的一些推测和理解，有问题处希望师傅们批评指正。</p>
 <h5 id="2024-羊城杯-logger"><a href="#2024-羊城杯-logger" class="headerlink" title="[2024 羊城杯]logger"></a>[2024 羊城杯]logger</h5><img  
@@ -185,7 +185,7 @@
   </entry>
   <entry>
     <title>house_of_apple2利用手法浅析</title>
-    <url>/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/</url>
+    <url>/blog/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/</url>
     <content><![CDATA[<h2 id="house-of-apple2"><a href="#house-of-apple2" class="headerlink" title="house of apple2"></a>house of apple2</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><ul>
 <li>2.23——至今</li>
 </ul>
@@ -474,7 +474,7 @@
   </entry>
   <entry>
     <title>mips_pwn</title>
-    <url>/2024/09/21/mips-pwn/</url>
+    <url>/blog/2024/09/21/mips-pwn/</url>
     <content><![CDATA[<h4 id="一、mips架构概述"><a href="#一、mips架构概述" class="headerlink" title="一、mips架构概述"></a>一、mips架构概述</h4><h5 id="1-寄存器"><a href="#1-寄存器" class="headerlink" title="1.寄存器"></a>1.寄存器</h5><table>
 <thead>
 <tr>
@@ -960,7 +960,7 @@
   </entry>
   <entry>
     <title>gopwn初探</title>
-    <url>/2024/09/22/go-pwn/</url>
+    <url>/blog/2024/09/22/go-pwn/</url>
     <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
 <li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
 <li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
@@ -1172,7 +1172,7 @@
   </entry>
   <entry>
     <title>house_of_force</title>
-    <url>/2024/10/03/house-of-force/</url>
+    <url>/blog/2024/10/03/house-of-force/</url>
     <content><![CDATA[<h2 id="house-of-force"><a href="#house-of-force" class="headerlink" title="house_of_force"></a>house_of_force</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
 <h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
 <li>能控制top chunk的size域</li>
@@ -1295,7 +1295,7 @@
   </entry>
   <entry>
     <title>CVE-2024-2961</title>
-    <url>/2024/09/21/CVE-2024-2961/</url>
+    <url>/blog/2024/09/21/CVE-2024-2961/</url>
     <content><![CDATA[<h2 id="iconv-cve-2024-2961"><a href="#iconv-cve-2024-2961" class="headerlink" title="iconv-cve-2024-2961"></a>iconv-cve-2024-2961</h2><h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
 <h4 id="二、利用方式"><a href="#二、利用方式" class="headerlink" title="二、利用方式"></a>二、利用方式</h4><p>以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”、“峛“等特殊字符。这将导致1到3字节的溢出，其溢出内容如下：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">字符 |		溢出内容		|		原UTF-8表示</span><br><span class="line">劄  		$*H [24 2A 48]      	  \xe5\x8a\x84</span><br><span class="line">䂚  		$+J [24 2B 4A]			  \xe4\x82\x9a</span><br><span class="line">峛  		$*H [24 2A 48]			  \xe5\xb3\x9b</span><br></pre></td></tr></table></figure></div>
@@ -1425,7 +1425,7 @@
   </entry>
   <entry>
     <title>protobuf初探</title>
-    <url>/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/</url>
+    <url>/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/</url>
     <content><![CDATA[<h2 id="protobuf-pwn初探"><a href="#protobuf-pwn初探" class="headerlink" title="protobuf pwn初探"></a>protobuf pwn初探</h2><h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
 <ol>
 <li><strong>高效性</strong>：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。</li>
@@ -1570,7 +1570,7 @@
   </entry>
   <entry>
     <title>solidity&amp;blockchain初探</title>
-    <url>/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/</url>
+    <url>/blog/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/</url>
     <content><![CDATA[<p>solidity这个语言广泛运用与智能合约的编写，想要入门区块链就得先了解这个语言。该语言其实与c语言用法类似。在solidity语言中，标识执行账户是用地址实现的，比如我们MetaMask中创建的Account的地址或是某个合约的地址。</p>
 <h3 id="1-一些基本概念与工具站"><a href="#1-一些基本概念与工具站" class="headerlink" title="1.一些基本概念与工具站"></a>1.一些基本概念与工具站</h3><h4 id="1）账户"><a href="#1）账户" class="headerlink" title="1）账户"></a>1）账户</h4><p><strong>外部账户</strong></p>
 <p>外部账户是由人创建的，可以存储以太币，是由公钥和私钥控制的账户。每个外部账户拥有一对公私钥，这对密钥用于签署交易，它的地址由公钥决定。外部账户不能包含以太坊虚拟机（EVM）代码。</p>
@@ -1842,7 +1842,7 @@
   </entry>
   <entry>
     <title>self-made sandbox</title>
-    <url>/2024/09/21/self-made-sandbox/</url>
+    <url>/blog/2024/09/21/self-made-sandbox/</url>
     <content><![CDATA[<p>由于最近要打几场awd，一个一个漏洞改过来感觉有点麻烦，所以想到了上沙箱，但是一般好像比赛会禁止上通防，这里想试试看自己通过系统调用写一个沙箱出来，看看能不能瞒天过海。</p>
 <h3 id="一、c代码实现沙箱"><a href="#一、c代码实现沙箱" class="headerlink" title="一、c代码实现沙箱"></a>一、c代码实现沙箱</h3><p>不是很清楚沙箱具体用到的系统调用，所以先让gpt生成了一段正常用c语言实现的沙箱代码。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">//test.c</span></span><br><span class="line"><span class="comment">//gcc -g test.c -o test</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/seccomp.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/filter.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/prctl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stddef.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">install_seccomp</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sock_filter</span> <span class="title">filter</span>[] =</span> &#123;</span><br><span class="line">        <span class="comment">// 读取系统调用号</span></span><br><span class="line">        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(<span class="keyword">struct</span> seccomp_data, nr)),</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 检查是否为 execve 系统调用（编号 59）</span></span><br><span class="line">        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, <span class="number">59</span>, <span class="number">0</span>, <span class="number">1</span>), </span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 如果是 execve，则杀死进程</span></span><br><span class="line">        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 允许其他系统调用</span></span><br><span class="line">        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sock_fprog</span> <span class="title">prog</span> =</span> &#123;</span><br><span class="line">        .len = <span class="keyword">sizeof</span>(filter) / <span class="keyword">sizeof</span>(filter[<span class="number">0</span>]),</span><br><span class="line">        .filter = filter</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 启用 seccomp 过滤模式</span></span><br><span class="line">    <span class="keyword">if</span> (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != <span class="number">0</span>) &#123;</span><br><span class="line">        perror(<span class="string">&quot;prctl&quot;</span>);</span><br><span class="line">        _exit(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    install_seccomp();</span><br><span class="line">    <span class="comment">// 你可以在这里运行原来的程序逻辑</span></span><br><span class="line">    system(<span class="string">&quot;/bin/sh&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
@@ -2019,7 +2019,7 @@
   </entry>
   <entry>
     <title>非栈上格式化字符串一次利用</title>
-    <url>/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/</url>
+    <url>/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/</url>
     <content><![CDATA[<h2 id="单次非栈上格式化字符串漏洞利用"><a href="#单次非栈上格式化字符串漏洞利用" class="headerlink" title="单次非栈上格式化字符串漏洞利用"></a>单次非栈上格式化字符串漏洞利用</h2><h4 id="问题发展路径"><a href="#问题发展路径" class="headerlink" title="问题发展路径"></a>问题发展路径</h4><ul>
 <li>一开始最基本的格式化字符串漏洞任意地址写，没有什么限制</li>
 <li>进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。</li>
@@ -2190,7 +2190,7 @@
   </entry>
   <entry>
     <title>webpwn</title>
-    <url>/2024/09/21/webpwn/</url>
+    <url>/blog/2024/09/21/webpwn/</url>
     <content><![CDATA[<h2 id="一、web与pwn的联系"><a href="#一、web与pwn的联系" class="headerlink" title="一、web与pwn的联系"></a>一、web与pwn的联系</h2><p>在某些 Web 服务中，会通过调用二进制程序来处理特定请求，尤其是在涉及动态内容生成、脚本执行、数据处理等场景时。以下是一些常见的例子：</p>
 <h4 id="1-CGI-Common-Gateway-Interface"><a href="#1-CGI-Common-Gateway-Interface" class="headerlink" title="1. CGI (Common Gateway Interface)"></a>1. <strong>CGI (Common Gateway Interface)</strong></h4><ul>
 <li><strong>概述：</strong> CGI 是一种通用的接口标准，允许 Web 服务器调用外部的二进制程序或脚本来生成动态内容。</li>
