@@ -25,28 +25,28 @@
 <meta property="og:site_name" content="Collectcrop&#39;s Blog">
 <meta property="og:description" content="分析go语言编译出二进制文件的特点，探索其栈溢出漏洞的利用">
 <meta property="og:locale">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202642330.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202650340.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202702201.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202742958.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202759540.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202808837.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202821181.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202832431.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202844042.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202852228.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202922399.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202932191.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202943137.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202953894.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203005886.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203024108.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203039143.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203058314.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203113527.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203128877.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203145314.png">
-<meta property="og:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922203202348.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202642330.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202650340.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202702201.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202742958.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202759540.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202808837.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202821181.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202832431.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202844042.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202852228.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202922399.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202932191.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202943137.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202953894.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203005886.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203024108.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203039143.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203058314.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203113527.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203128877.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203145314.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922203202348.png">
 <meta property="article:published_time" content="2024-09-22T12:22:00.000Z">
 <meta property="article:modified_time" content="2024-09-22T12:35:28.762Z">
 <meta property="article:author" content="collectcrop">
@@ -54,7 +54,7 @@
 <meta property="article:tag" content="go">
 <meta property="article:tag" content="ciscn wp">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://collectcrop.github.io/2024/09/22/go-pwn/image-20240922202642330.png">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2024/09/22/go-pwn/image-20240922202642330.png">
     
     
     <!--- Icon Part-->
@@ -107,7 +107,7 @@
 
     <script id="hexo-configurations">
     window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"ch","path":"search.xml"};
-    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"simple","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"icon":"fa-solid fa-tags","path":"/tags/"},"Categories":{"icon":"fa-solid fa-folder","path":"/categories/"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":{"icon":"fa-solid fa-link","path":"/links/"}}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"simple","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"icon":"fa-solid fa-tags","path":"/tags/"},"Categories":{"icon":"fa-solid fa-folder","path":"/categories/"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":{"icon":"fa-solid fa-link","path":"/links/"}}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
     window.lang_ago = {"second":"%s seconds ago","minute":"%s minutes ago","hour":"%s hours ago","day":"%s days ago","week":"%s weeks ago","month":"%s months ago","year":"%s years ago"};
     window.data = {"masonry":false};
   </script>
@@ -703,14 +703,14 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202642330.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202650340.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
                       class=""
                 >
 
@@ -720,7 +720,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202702201.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
                       class=""
                 >
 
@@ -731,7 +731,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202742958.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
                       class=""
                 >
 
@@ -739,14 +739,14 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202759540.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202808837.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
                       class=""
                 >
 
@@ -754,7 +754,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202821181.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
                       class=""
                 >
 
@@ -763,7 +763,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202832431.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
                       class=""
                 >
 
@@ -771,7 +771,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202844042.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
                       class=""
                 >
 
@@ -779,7 +779,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202852228.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
                       class=""
                 >
 
@@ -792,7 +792,7 @@
 <h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202922399.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
                       class=""
                 >
 
@@ -800,7 +800,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202932191.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
                       class=""
                 >
 
@@ -808,21 +808,21 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202943137.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922202953894.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203005886.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
                       class=""
                 >
 
@@ -837,14 +837,14 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203024108.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203039143.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
                       class=""
                 >
 
@@ -852,7 +852,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203058314.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
                       class=""
                 >
 
@@ -860,7 +860,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203113527.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
                       class=""
                 >
 
@@ -868,14 +868,14 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203128877.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203145314.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
                       class=""
                 >
 
@@ -883,7 +883,7 @@
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/2024/09/22/go-pwn/image-20240922203202348.png"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
                       class=""
                 >
 
