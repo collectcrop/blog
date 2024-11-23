@@ -18,12 +18,12 @@
     <meta name="googlebot" content="index,follow">
     <meta name="revisit-after" content="1 days">
     
-        <meta name="description" content="带符号调试-gdb脚本实现自动化加载问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地">
+        <meta name="description" content="问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。     符号文件B">
 <meta property="og:type" content="article">
 <meta property="og:title" content="带符号调试-gdb脚本实现自动化加载">
 <meta property="og:url" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/index.html">
 <meta property="og:site_name" content="Collectcrop&#39;s Blog">
-<meta property="og:description" content="带符号调试-gdb脚本实现自动化加载问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地">
+<meta property="og:description" content="问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。     符号文件B">
 <meta property="og:locale">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103232492.png">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123103325230.png">
@@ -31,7 +31,7 @@
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123105847709.png">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/image-20241123121652093.png">
 <meta property="article:published_time" content="2024-11-23T11:31:26.000Z">
-<meta property="article:modified_time" content="2024-11-23T11:41:13.687Z">
+<meta property="article:modified_time" content="2024-11-23T11:44:52.824Z">
 <meta property="article:author" content="collectcrop">
 <meta property="article:tag" content="pwn">
 <meta property="article:tag" content="gdb">
@@ -308,7 +308,7 @@
                                    href="/blog/"
                                         >
                                     <i class="fa-regular fa-house fa-fw"></i>
-                                    ACCUEIL
+                                    HOME
                                     
                                 </a>
 
@@ -359,7 +359,7 @@
                                    href="/blog/categories/"
                                         >
                                     <i class="fa-solid fa-folder fa-fw"></i>
-                                    CATÉGORIES
+                                    CATEGORIES
                                     
                                 </a>
 
@@ -376,7 +376,7 @@
                                    href="#"
                                         onClick=&#34;return false;&#34;>
                                     <i class="fa-regular fa-user fa-fw"></i>
-                                    À PROPOS
+                                    ABOUT
                                     <i class="fa-solid fa-chevron-down fa-fw"></i>
                                 </a>
 
@@ -392,7 +392,7 @@
                                         
                                             <li>
                                                 <a href="/blog/%5Bobject%20Object%5D">
-                                                    AMIS
+                                                    FRIENDS
                                                 </a>
                                             </li>
                                         
@@ -426,7 +426,7 @@
                            href="/blog/"
                         >
                             <span>
-                                ACCUEIL
+                                HOME
                             </span>
                             
                                 <i class="fa-regular fa-house fa-sm fa-fw"></i>
@@ -486,7 +486,7 @@
                            href="/blog/categories/"
                         >
                             <span>
-                                CATÉGORIES
+                                CATEGORIES
                             </span>
                             
                                 <i class="fa-solid fa-folder fa-sm fa-fw"></i>
@@ -506,7 +506,7 @@
                              navbar-data-toggle="submenu-About"
                         >
                             <span>
-                                À PROPOS
+                                ABOUT
                             </span>
                             
                                 <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
@@ -524,7 +524,7 @@
                                 
                                     <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
                                         <a class=" text-third-text-color text-xl"
-                                           href="/blog/%5Bobject%20Object%5D">AMIS</a>
+                                           href="/blog/%5Bobject%20Object%5D">FRIENDS</a>
                                     </div>
                                 
                             </div>
@@ -548,7 +548,7 @@
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">3</div>
-        <div class="label text-third-text-color text-sm">Catégories</div>
+        <div class="label text-third-text-color text-sm">Categories</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">12</div>
@@ -597,14 +597,14 @@
         <i class="fa-regular fa-pen-fancy"></i>&nbsp;
         <span class="desktop">2024-11-23 19:31:26</span>
         <span class="mobile">2024-11-23 19:31:26</span>
-        <span class="hover-info">Créé</span>
+        <span class="hover-info">Created</span>
     </span>
     
         <span class="article-date article-meta-item">
             <i class="fa-regular fa-wrench"></i>&nbsp;
-            <span class="desktop">2024-11-23 19:41:13</span>
-            <span class="mobile">2024-11-23 19:41:13</span>
-            <span class="hover-info">Mis à jour</span>
+            <span class="desktop">2024-11-23 19:44:52</span>
+            <span class="mobile">2024-11-23 19:44:52</span>
+            <span class="hover-info">Updated</span>
         </span>
     
 
@@ -649,12 +649,12 @@
     
     
         <span class="article-wordcount article-meta-item">
-            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>1.2k Mots</span>
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>1.2k Words</span>
         </span>
     
     
         <span class="article-min2read article-meta-item">
-            <i class="fa-regular fa-clock"></i>&nbsp;<span>5 Min</span>
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>5 Mins</span>
         </span>
     
     
@@ -673,7 +673,7 @@
 
 
 		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
-			<h2 id="带符号调试-gdb脚本实现自动化加载"><a href="#带符号调试-gdb脚本实现自动化加载" class="headerlink" title="带符号调试-gdb脚本实现自动化加载"></a>带符号调试-gdb脚本实现自动化加载</h2><h4 id="问题由来"><a href="#问题由来" class="headerlink" title="问题由来"></a>问题由来</h4><p>在对于堆的<code>_IO_FILE</code>利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。</p>
+			<h4 id="问题由来"><a href="#问题由来" class="headerlink" title="问题由来"></a>问题由来</h4><p>在对于堆的<code>_IO_FILE</code>利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
@@ -751,27 +751,27 @@
 		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
 			<div class="article-copyright-info-container">
     <ul>
-        <li><strong>Titre:</strong> 带符号调试-gdb脚本实现自动化加载</li>
-        <li><strong>Auteur:</strong> collectcrop</li>
-        <li><strong>Créé à
+        <li><strong>Title:</strong> 带符号调试-gdb脚本实现自动化加载</li>
+        <li><strong>Author:</strong> collectcrop</li>
+        <li><strong>Created at
                 :</strong> 2024-11-23 19:31:26</li>
         
             <li>
-                <strong>Mis à jour à
-                    :</strong> 2024-11-23 19:41:13
+                <strong>Updated at
+                    :</strong> 2024-11-23 19:44:52
             </li>
         
         <li>
-            <strong>Lien:</strong> https://collectcrop.github.io/2024/11/23/带符号调试-gdb脚本实现自动化加载/
+            <strong>Link:</strong> https://collectcrop.github.io/2024/11/23/带符号调试-gdb脚本实现自动化加载/
         </li>
         <li>
             <strong>
-                Licence:
+                License:
             </strong>
             
 
             
-                Cette œuvre est sous licence <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a>.
+                This work is licensed under <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a>.
             
         </li>
     </ul>
@@ -837,7 +837,7 @@
 				<a class="next" rel="next" href="/blog/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/">
 					<span class="title flex justify-center items-center">
 						<span class="post-nav-title-item">protobuf初探</span>
-						<span class="post-nav-item">Articles suivants</span>
+						<span class="post-nav-item">Next posts</span>
 					</span>
 					<span class="right arrow-icon flex justify-center items-center">
 						<i class="fa-solid fa-chevron-right"></i>
@@ -856,9 +856,9 @@
 	<div class="toc-content-container">
 		<div class="post-toc-wrap">
 	<div class="post-toc">
-		<div class="toc-title">Sur cette page</div>
+		<div class="toc-title">On this page</div>
 		<div class="page-title">带符号调试-gdb脚本实现自动化加载</div>
-		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD"><span class="nav-text">带符号调试-gdb脚本实现自动化加载</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E7%94%B1%E6%9D%A5"><span class="nav-text">问题由来</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">符号文件</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Build-ID"><span class="nav-text">Build ID</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%B8%BB%E8%A6%81%E7%94%A8%E9%80%94"><span class="nav-text">主要用途</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E6%96%B9%E5%BC%8F"><span class="nav-text">生成方式</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9F%A5%E7%9C%8B-ELF-%E6%96%87%E4%BB%B6%E7%9A%84-Build-ID"><span class="nav-text">查看 ELF 文件的 Build ID</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#debug"><span class="nav-text">.debug</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%89%8B%E5%8A%A8%E5%8A%A0%E8%BD%BD%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">手动加载符号文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%87%AA%E5%8A%A8%E5%8C%96%E8%BF%9B%E8%A1%8C%E9%99%84%E5%8A%A0%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">自动化进行附加符号文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%80%E8%88%AC%E6%8D%A2%E5%BA%93%E6%AD%A5%E9%AA%A4"><span class="nav-text">一般换库步骤</span></a></li></ol></li></ol></li></ol>
+		<ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E7%94%B1%E6%9D%A5"><span class="nav-text">问题由来</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">符号文件</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Build-ID"><span class="nav-text">Build ID</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%B8%BB%E8%A6%81%E7%94%A8%E9%80%94"><span class="nav-text">主要用途</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E6%96%B9%E5%BC%8F"><span class="nav-text">生成方式</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9F%A5%E7%9C%8B-ELF-%E6%96%87%E4%BB%B6%E7%9A%84-Build-ID"><span class="nav-text">查看 ELF 文件的 Build ID</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#debug"><span class="nav-text">.debug</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%89%8B%E5%8A%A8%E5%8A%A0%E8%BD%BD%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">手动加载符号文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%87%AA%E5%8A%A8%E5%8C%96%E8%BF%9B%E8%A1%8C%E9%99%84%E5%8A%A0%E7%AC%A6%E5%8F%B7%E6%96%87%E4%BB%B6"><span class="nav-text">自动化进行附加符号文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%80%E8%88%AC%E6%8D%A2%E5%BA%93%E6%AD%A5%E9%AA%A4"><span class="nav-text">一般换库步骤</span></a></li></ol>
 
 	</div>
 </div>
@@ -885,11 +885,11 @@
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        12  posts au total
+                        12 posts in total
                     </span>
                     
                         <span>
-                            35.2k mots au total
+                            35.1k words in total
                         </span>
                     
                 </p>
@@ -900,13 +900,13 @@
             <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
                 
                     <span id="busuanzi_container_site_uv" class="lg:!block">
-                        <span class="text-sm">VISITEURS</span>
+                        <span class="text-sm">VISITOR COUNT</span>
                         <span id="busuanzi_value_site_uv"></span>
                     </span>
                 
                 
                     <span id="busuanzi_container_site_pv" class="lg:!block">
-                        <span class="text-sm">NOMBRE TOTAL DE PAGES VUES</span>
+                        <span class="text-sm">TOTAL PAGE VIEWS</span>
                         <span id="busuanzi_value_site_pv"></span>
                     </span>
                 
@@ -919,7 +919,7 @@
         
         
             <div>
-                Blog en ligne depuis <span class="odometer" id="runtime_days" ></span> Jours <span class="odometer" id="runtime_hours"></span> Hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
+                Blog up for <span class="odometer" id="runtime_days" ></span> days <span class="odometer" id="runtime_hours"></span> hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
             </div>
         
         
