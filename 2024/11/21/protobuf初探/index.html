@@ -1,207 +1,680 @@
-
 <!DOCTYPE html>
 <html lang="ch">
 <head>
-    <meta charset="utf-8" />
-    <title>protobuf初探 | Collectcrop&#39;s Blog</title>
-    <meta name="author" content="collectcrop" />
-    <meta name="description" content="" />
-    <meta name="keywords" content="" />
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
-    />
-    <link rel="icon" href="/images/avatar.jpg" />
-    <link rel="preconnect" href="https://s4.zstatic.net" />
-<script src="https://s4.zstatic.net/ajax/libs/vue/3.3.7/vue.global.prod.min.js"></script>
-<link rel="stylesheet" href="https://s4.zstatic.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-<link rel="preconnect" href="https://fonts.googleapis.cn" />
-<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin />
-<link
-    rel="stylesheet"
-    href="https://fonts.googleapis.cn/css2?family=Fira+Code:wght@400;500;600;700&family=Lexend:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&display=swap"
-/>
-<script> const mixins = {}; </script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-<script src="https://polyfill.alicdn.com/v3/polyfill.min.js?features=default"></script>
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/2024/11/21/protobuf初探/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="简要介绍什么是protobuf，如何使用protobuf以及如何在pwn中逆向protobuf。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="protobuf初探">
+<meta property="og:url" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="简要介绍什么是protobuf，如何使用protobuf以及如何在pwn中逆向protobuf。">
+<meta property="og:locale">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png">
+<meta property="og:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png">
+<meta property="article:published_time" content="2024-11-21T15:47:01.000Z">
+<meta property="article:modified_time" content="2024-11-23T08:20:47.024Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="pwn">
+<meta property="article:tag" content="protobuf">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            protobuf初探 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
 
 
-<script src="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="https://s4.zstatic.net/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
-<link
-    rel="stylesheet"
-    href="https://s4.zstatic.net/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
-/>
-<script src="/js/lib/highlight.js"></script>
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
 
 
+    
+        
+<link rel="stylesheet" href="/build/css/tailwind.css">
 
-<script src="/js/lib/preview.js"></script>
+    
 
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
 
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
 
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/build/js/libs/anime.min.js"></script>
 
+    
 
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/","language":"ch","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"simple","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"icon":"fa-solid fa-tags","path":"/tags/"},"Categories":{"icon":"fa-solid fa-folder","path":"/categories/"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/friends"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"auto","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s seconds ago","minute":"%s minutes ago","hour":"%s hours ago","day":"%s days ago","week":"%s weeks ago","month":"%s months ago","year":"%s years ago"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
 
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
 
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
 
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
 
-<link rel="stylesheet" href="/css/main.css" />
-
+    
+    
+    
+    
 <meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
 <body>
-    <div id="layout">
-        <transition name="fade">
-            <div id="loading" v-show="loading">
-                <div id="loading-circle">
-                    <h2>LOADING</h2>
-                    <p>加载过慢请开启缓存 浏览器默认开启</p>
-                    <img src="/images/loading.gif" />
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    HOME
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    ARCHIVES
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    TAGS
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    CATEGORIES
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    ABOUT
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/friends">
+                                                    FRIENDS
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
                 </div>
             </div>
-        </transition>
-        <div id="menu" :class="{ hidden: hiddenMenu, 'menu-color': menuColor}">
-    <nav id="desktop-menu">
-        <a class="title" href="/">
-            <span>COLLECTCROP&#39;S BLOG</span>
-        </a>
-        
-        <a href="/">
-            <i class="fa-solid fa-house fa-fw"></i>
-            <span>&ensp;Home</span>
-        </a>
-        
-        <a href="/about">
-            <i class="fa-solid fa-id-card fa-fw"></i>
-            <span>&ensp;About</span>
-        </a>
-        
-        <a href="/archives">
-            <i class="fa-solid fa-box-archive fa-fw"></i>
-            <span>&ensp;Archives</span>
-        </a>
-        
-        <a href="/categories">
-            <i class="fa-solid fa-bookmark fa-fw"></i>
-            <span>&ensp;Categories</span>
-        </a>
-        
-        <a href="/tags">
-            <i class="fa-solid fa-tags fa-fw"></i>
-            <span>&ensp;Tags</span>
-        </a>
-        
-    </nav>
-    <nav id="mobile-menu">
-        <div class="title" @click="showMenuItems = !showMenuItems">
-            <i class="fa-solid fa-bars fa-fw"></i>
-            <span>&emsp;COLLECTCROP&#39;S BLOG</span>
         </div>
-        <transition name="slide">
-            <div class="items" v-show="showMenuItems">
-                
-                <a href="/">
-                    <div class="item">
-                        <div style="min-width: 20px; max-width: 50px; width: 10%">
-                            <i class="fa-solid fa-house fa-fw"></i>
-                        </div>
-                        <div style="min-width: 100px; max-width: 150%; width: 20%">Home</div>
-                    </div>
-                </a>
-                
-                <a href="/about">
-                    <div class="item">
-                        <div style="min-width: 20px; max-width: 50px; width: 10%">
-                            <i class="fa-solid fa-id-card fa-fw"></i>
-                        </div>
-                        <div style="min-width: 100px; max-width: 150%; width: 20%">About</div>
-                    </div>
-                </a>
-                
-                <a href="/archives">
-                    <div class="item">
-                        <div style="min-width: 20px; max-width: 50px; width: 10%">
-                            <i class="fa-solid fa-box-archive fa-fw"></i>
-                        </div>
-                        <div style="min-width: 100px; max-width: 150%; width: 20%">Archives</div>
-                    </div>
-                </a>
-                
-                <a href="/categories">
-                    <div class="item">
-                        <div style="min-width: 20px; max-width: 50px; width: 10%">
-                            <i class="fa-solid fa-bookmark fa-fw"></i>
-                        </div>
-                        <div style="min-width: 100px; max-width: 150%; width: 20%">Categories</div>
-                    </div>
-                </a>
-                
-                <a href="/tags">
-                    <div class="item">
-                        <div style="min-width: 20px; max-width: 50px; width: 10%">
-                            <i class="fa-solid fa-tags fa-fw"></i>
-                        </div>
-                        <div style="min-width: 100px; max-width: 150%; width: 20%">Tags</div>
-                    </div>
-                </a>
-                
-            </div>
-        </transition>
-    </nav>
-</div>
-<transition name="fade">
-    <div id="menu-curtain" @click="showMenuItems = !showMenuItems" v-show="showMenuItems"></div>
-</transition>
+    </div>
 
-        <div id="main" :class="loading ? 'into-enter-from': 'into-enter-active'">
-            <div class="article">
-    <div>
-        <h1>protobuf初探</h1>
-    </div>
-    <div class="info">
-        <span class="date">
-            <span class="icon">
-                <i class="fa-solid fa-calendar fa-fw"></i>
-            </span>
-            2024/11/21
-        </span>
-        
-        <span class="category">
-            <a href="/categories/pwn/">
-                <span class="icon">
-                    <i class="fa-solid fa-bookmark fa-fw"></i>
-                </span>
-                pwn
-            </a>
-        </span>
-        
-        
-        <span class="tags">
-            <span class="icon">
-                <i class="fa-solid fa-tags fa-fw"></i>
-            </span>
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
             
-            
-            <span class="tag">
                 
-                <a href="/tags/pwn/" style="color: #00bcd4">
-                    pwn
-                </a>
-            </span>
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                HOME
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
             
-            <span class="tag">
                 
-                <a href="/tags/protobuf/" style="color: #03a9f4">
-                    protobuf
-                </a>
-            </span>
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/archives"
+                        >
+                            <span>
+                                ARCHIVES
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
             
-        </span>
-        
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/tags/"
+                        >
+                            <span>
+                                TAGS
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/categories/"
+                        >
+                            <span>
+                                CATEGORIES
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                ABOUT
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/friends">FRIENDS</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">14</div>
+        <div class="label text-third-text-color text-sm">Tags</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">2</div>
+        <div class="label text-third-text-color text-sm">Categories</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">11</div>
+        <div class="label text-third-text-color text-sm">Posts</div>
+    </a>
+</div>
     </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">protobuf初探</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2024-11-21 23:47:01</span>
+        <span class="mobile">2024-11-21 23:47:01</span>
+        <span class="hover-info">Created</span>
+    </span>
     
-    <div class="content" v-pre>
-        <h2 id="protobuf-pwn初探"><a href="#protobuf-pwn初探" class="headerlink" title="protobuf pwn初探"></a>protobuf pwn初探</h2><h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2024-11-23 16:20:47</span>
+            <span class="mobile">2024-11-23 16:20:47</span>
+            <span class="hover-info">Updated</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/pwn/">pwn</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/protobuf/">protobuf</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>1.5k Words</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>7 Mins</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h2 id="protobuf-pwn初探"><a href="#protobuf-pwn初探" class="headerlink" title="protobuf pwn初探"></a>protobuf pwn初探</h2><h4 id="protobuf简介"><a href="#protobuf简介" class="headerlink" title="protobuf简介"></a>protobuf简介</h4><p>Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：</p>
 <ol>
 <li><strong>高效性</strong>：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。</li>
 <li><strong>语言中立</strong>：支持多种编程语言，包括C++、Java、Python、Go等，使得跨平台的数据交换变得简单。</li>
@@ -226,7 +699,12 @@ sudo apt-get install -y protobuf-compiler libprotobuf-dev
 sudo apt-get install libprotobuf-c-dev protobuf-c-compiler
 </code></pre>
 <h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>protobuf这类题一般都会将输入转化成特殊的结构体，这就要求我们首先要</p>
-<h4 id="一些结构体定义"><a href="#一些结构体定义" class="headerlink" title="一些结构体定义"></a>一些结构体定义</h4><h6 id="ProtobufCFieldDescriptor"><a href="#ProtobufCFieldDescriptor" class="headerlink" title="ProtobufCFieldDescriptor"></a>ProtobufCFieldDescriptor</h6><img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png" class="">
+<h4 id="一些结构体定义"><a href="#一些结构体定义" class="headerlink" title="一些结构体定义"></a>一些结构体定义</h4><h6 id="ProtobufCFieldDescriptor"><a href="#ProtobufCFieldDescriptor" class="headerlink" title="ProtobufCFieldDescriptor"></a>ProtobufCFieldDescriptor</h6><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
+                      class=""
+                >
 
 <pre><code class="c">struct ProtobufCFieldDescriptor &#123;
     /** Name of the field as given in the .proto file. */
@@ -331,23 +809,63 @@ typedef enum &#123;
 &#125; ProtobufCType;
 </code></pre>
 <h4 id="定位结构体方式"><a href="#定位结构体方式" class="headerlink" title="定位结构体方式"></a>定位结构体方式</h4><h5 id="1-手动定位"><a href="#1-手动定位" class="headerlink" title="1.手动定位"></a>1.手动定位</h5><p>因为我们输入的内容会通过<code>protobuf_c_message_unpack</code>这个函数进行解析。所以我们可以对比链接库中的函数具体定义以及我们pwn的主程序中调用的传参。然后就能跳转到主程序中的具体descriptor中进行下一步分析。</p>
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144416901.png"
+                      class=""
+                >
 
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144538997.png"
+                      class=""
+                >
 
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144611512.png"
+                      class=""
+                >
 
 <p>首先要在主程序里找一个<code>message_descriptor</code>，一般在.data.rel.ro段，其开头的魔数(magic)是0x28AAEEF9，一般而言下面会直接解析出Protobuf结构体的名字，但也有IDA识别不出来的情况，我们可以手动将db类型转为dq类型，然后就会清晰很多。</p>
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026143624589.png"
+                      class=""
+                >
 
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144134084.png"
+                      class=""
+                >
 
 <p>我们的消息结构体名字就为<code>MyMessage</code>。接着我们可以往<code>my_message__field_descriptors</code>里看，里面就是具体的字段，也就是<code>ProtobufCFieldDescriptor</code>这个结构体。但是也都被IDA当作了db解析，我们可以按照下表结构体的字段分布进行修改，手动将其解析一下，主要看name，id，label，type，其他怎么改影响不大。一下子就清晰了不少，然后我们就可以对照着枚举表还原出protobuf了。</p>
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026151257848.png"
+                      class=""
+                >
 
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026144919768.png"
+                      class=""
+                >
 
-<img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png" class="">
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026150209780.png"
+                      class=""
+                >
 
 <pre><code class="c">//message.proto
 syntax = &quot;proto2&quot;;
@@ -383,12 +901,22 @@ p.sendline(payload)
 <h4 id="判别proto版本方式"><a href="#判别proto版本方式" class="headerlink" title="判别proto版本方式"></a>判别proto版本方式</h4><p>一般proto分为proto2和proto3两个版本，在写proto文件时要在开头指明<code>syntax=proto2/3</code>。</p>
 <p>在proto3中移除了require这个修饰符，如果有的label位为0（required），就说明用的是proto2语法。</p>
 <p>其实也可以都带进去试试，总共就两个版本，别的地方没分析错的话总有一个会通过的。</p>
-<h4 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h4><h5 id="1-库找不到"><a href="#1-库找不到" class="headerlink" title="1.库找不到"></a>1.库找不到</h5><img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png" class="">
+<h4 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h4><h5 id="1-库找不到"><a href="#1-库找不到" class="headerlink" title="1.库找不到"></a>1.库找不到</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026002833645.png"
+                      class=""
+                >
 
 <p>可以手动在&#x2F;usr&#x2F;lib下添加一个链接</p>
 <pre><code class="shell">sudo ln -s /mnt/e/ctf/2024shctf/pwn/shctf——challage_pwn_protobuf/libprotobuf-c.so.1 /usr/lib/libprotobuf-c.so.1
 </code></pre>
-<h5 id="2-运行exp时因为引入了proto转成的python文件报错"><a href="#2-运行exp时因为引入了proto转成的python文件报错" class="headerlink" title="2.运行exp时因为引入了proto转成的python文件报错"></a>2.运行exp时因为引入了proto转成的python文件报错</h5><img src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png" class="">
+<h5 id="2-运行exp时因为引入了proto转成的python文件报错"><a href="#2-运行exp时因为引入了proto转成的python文件报错" class="headerlink" title="2.运行exp时因为引入了proto转成的python文件报错"></a>2.运行exp时因为引入了proto转成的python文件报错</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/2024/11/21/protobuf%E5%88%9D%E6%8E%A2/image-20241026154314346.png"
+                      class=""
+                >
 
 <p>提高python库中protobuf的版本</p>
 <pre><code class="shell">pip3 uninstall protobuf
@@ -396,50 +924,384 @@ pip3 install protobuf==3.19.0
 </code></pre>
 <h5 id="3-逆出结构体后prpto一直无法正常解析"><a href="#3-逆出结构体后prpto一直无法正常解析" class="headerlink" title="3.逆出结构体后prpto一直无法正常解析"></a>3.逆出结构体后prpto一直无法正常解析</h5><p>可以尝试把<code>sendline</code>换成<code>send</code>，有时候多一个换行符就解析不出来了。</p>
 
-    </div>
-    
-    
-    
-    
-    
-    
-    
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>Title:</strong> protobuf初探</li>
+        <li><strong>Author:</strong> collectcrop</li>
+        <li><strong>Created at
+                :</strong> 2024-11-21 23:47:01</li>
+        
+            <li>
+                <strong>Updated at
+                    :</strong> 2024-11-23 16:20:47
+            </li>
+        
+        <li>
+            <strong>Link:</strong> https://collectcrop.github.io/2024/11/21/protobuf初探/
+        </li>
+        <li>
+            <strong>
+                License:
+            </strong>
+            
+
+            
+                This work is licensed under <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a>.
+            
+        </li>
+    </ul>
 </div>
 
-            <footer id="footer">
-    <div id="footer-wrap">
-        <div>
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/pwn/">#pwn</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/protobuf/">#protobuf</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/2024/10/02/非栈上格式化字符串一次利用/" title="非栈上格式化字符串一次利用" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="非栈上格式化字符串一次利用" class="!max-w-none">
+  <span class="title">非栈上格式化字符串一次利用</span>
+</a><a class="recommended-article-item" href="/2024/09/21/webpwn/" title="webpwn" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="webpwn" class="!max-w-none">
+  <span class="title">webpwn</span>
+</a><a class="recommended-article-item" href="/2024/09/21/mips-pwn/" title="mips_pwn" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="mips_pwn" class="!max-w-none">
+  <span class="title">mips_pwn</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/2024/10/02/非栈上格式化字符串一次利用/" title="非栈上格式化字符串一次利用" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="非栈上格式化字符串一次利用" class="!max-w-none">
+  <span class="title">非栈上格式化字符串一次利用</span>
+</a><a class="recommended-article-item" href="/2024/09/21/webpwn/" title="webpwn" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="webpwn" class="!max-w-none">
+  <span class="title">webpwn</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2024/11/10/house-of-apple2%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E6%B5%85%E6%9E%90/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">house_of_apple2利用手法浅析</span>
+						<span class="post-nav-item">Next posts</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">On this page</div>
+		<div class="page-title">protobuf初探</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#protobuf-pwn%E5%88%9D%E6%8E%A2"><span class="nav-text">protobuf pwn初探</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#protobuf%E7%AE%80%E4%BB%8B"><span class="nav-text">protobuf简介</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B7%A5%E5%85%B7%E9%9B%86%E5%AE%89%E8%A3%85"><span class="nav-text">工具集安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%9B%AE%E6%A0%87"><span class="nav-text">目标</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%80%E4%BA%9B%E7%BB%93%E6%9E%84%E4%BD%93%E5%AE%9A%E4%B9%89"><span class="nav-text">一些结构体定义</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#ProtobufCFieldDescriptor"><span class="nav-text">ProtobufCFieldDescriptor</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#label%E5%92%8Ctype"><span class="nav-text">label和type</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%9A%E4%BD%8D%E7%BB%93%E6%9E%84%E4%BD%93%E6%96%B9%E5%BC%8F"><span class="nav-text">定位结构体方式</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-%E6%89%8B%E5%8A%A8%E5%AE%9A%E4%BD%8D"><span class="nav-text">1.手动定位</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-%E8%87%AA%E5%8A%A8%E5%88%86%E6%9E%90"><span class="nav-text">2.自动分析</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%84%9A%E6%9C%AC%E7%BC%96%E5%86%99"><span class="nav-text">脚本编写</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%A4%E5%88%ABproto%E7%89%88%E6%9C%AC%E6%96%B9%E5%BC%8F"><span class="nav-text">判别proto版本方式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E8%A7%A3%E5%86%B3"><span class="nav-text">常见问题解决</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-%E5%BA%93%E6%89%BE%E4%B8%8D%E5%88%B0"><span class="nav-text">1.库找不到</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-%E8%BF%90%E8%A1%8Cexp%E6%97%B6%E5%9B%A0%E4%B8%BA%E5%BC%95%E5%85%A5%E4%BA%86proto%E8%BD%AC%E6%88%90%E7%9A%84python%E6%96%87%E4%BB%B6%E6%8A%A5%E9%94%99"><span class="nav-text">2.运行exp时因为引入了proto转成的python文件报错</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-%E9%80%86%E5%87%BA%E7%BB%93%E6%9E%84%E4%BD%93%E5%90%8Eprpto%E4%B8%80%E7%9B%B4%E6%97%A0%E6%B3%95%E6%AD%A3%E5%B8%B8%E8%A7%A3%E6%9E%90"><span class="nav-text">3.逆出结构体后prpto一直无法正常解析</span></a></li></ol></li></ol></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
             &copy;
-            2022 - 2024 Collectcrop&#39;s Blog
-            <span id="footer-icon">
-                <i class="fa-solid fa-font-awesome fa-fw"></i>
-            </span>
-            &commat;collectcrop
-        </div>
-        <div>
-            Based on the <a target="_blank" rel="noopener" href="https://hexo.io">Hexo Engine</a> &amp;
-            <a target="_blank" rel="noopener" href="https://github.com/theme-particlex/hexo-theme-particlex">ParticleX Theme</a>
+            
+              <span>2024</span>
+              -
+            
+            2024&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        11 posts in total
+                    </span>
+                    
+                        <span>
+                            34.1k words in total
+                        </span>
+                    
+                </p>
+            
         </div>
         
-    </div>
-</footer>
-
-        </div>
-        
-        <transition name="fade">
-            <div id="preview" ref="preview" v-show="previewShow">
-                <img id="preview-content" ref="previewContent" />
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">VISITOR COUNT</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">TOTAL PAGE VIEWS</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
             </div>
-        </transition>
         
-    </div>
-    <script src="/js/main.js"></script>
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">POWERED BY <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a></span>
+            <span class="text-sm lg:block">THEME&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                Blog up for <span class="odometer" id="runtime_days" ></span> days <span class="odometer" id="runtime_hours"></span> hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/build/js/libs/Swup.min.js"></script>
+
+<script src="/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/build/js/utils.js" type="module"></script>
+
+<script src="/build/js/main.js" type="module"></script>
+
+<script src="/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
     
-    
+<script src="/build/js/tools/codeBlock.js" type="module"></script>
 
 
 
 
     
+<script src="/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/build/js/tools/runtime.js"></script>
+
+    
+<script src="/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
 </body>
+
 </html>
