@@ -39,7 +39,7 @@
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/27/%E4%BA%91%E5%B4%BDbot%E5%9F%BA%E7%A1%80%E6%90%AD%E5%BB%BA%E8%BF%87%E7%A8%8B%E8%AE%B0%E5%BD%95/image-20241125144941477.png">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/11/27/%E4%BA%91%E5%B4%BDbot%E5%9F%BA%E7%A1%80%E6%90%AD%E5%BB%BA%E8%BF%87%E7%A8%8B%E8%AE%B0%E5%BD%95/image-20241125230821783.png">
 <meta property="article:published_time" content="2024-11-27T04:38:30.000Z">
-<meta property="article:modified_time" content="2024-11-27T04:43:09.086Z">
+<meta property="article:modified_time" content="2024-11-27T04:53:51.080Z">
 <meta property="article:author" content="collectcrop">
 <meta property="article:tag" content="yunzai">
 <meta property="article:tag" content="JS">
@@ -316,7 +316,7 @@
                                    href="/blog/"
                                         >
                                     <i class="fa-regular fa-house fa-fw"></i>
-                                    HOME
+                                    ACCUEIL
                                     
                                 </a>
 
@@ -367,7 +367,7 @@
                                    href="/blog/categories/"
                                         >
                                     <i class="fa-solid fa-folder fa-fw"></i>
-                                    CATEGORIES
+                                    CATÉGORIES
                                     
                                 </a>
 
@@ -384,7 +384,7 @@
                                    href="#"
                                         onClick=&#34;return false;&#34;>
                                     <i class="fa-regular fa-user fa-fw"></i>
-                                    ABOUT
+                                    À PROPOS
                                     <i class="fa-solid fa-chevron-down fa-fw"></i>
                                 </a>
 
@@ -400,7 +400,7 @@
                                         
                                             <li>
                                                 <a href="/blog/links">
-                                                    FRIENDS
+                                                    AMIS
                                                 </a>
                                             </li>
                                         
@@ -434,7 +434,7 @@
                            href="/blog/"
                         >
                             <span>
-                                HOME
+                                ACCUEIL
                             </span>
                             
                                 <i class="fa-regular fa-house fa-sm fa-fw"></i>
@@ -494,7 +494,7 @@
                            href="/blog/categories/"
                         >
                             <span>
-                                CATEGORIES
+                                CATÉGORIES
                             </span>
                             
                                 <i class="fa-solid fa-folder fa-sm fa-fw"></i>
@@ -514,7 +514,7 @@
                              navbar-data-toggle="submenu-About"
                         >
                             <span>
-                                ABOUT
+                                À PROPOS
                             </span>
                             
                                 <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
@@ -532,7 +532,7 @@
                                 
                                     <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
                                         <a class=" text-third-text-color text-xl"
-                                           href="/blog/links">FRIENDS</a>
+                                           href="/blog/links">AMIS</a>
                                     </div>
                                 
                             </div>
@@ -556,7 +556,7 @@
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">4</div>
-        <div class="label text-third-text-color text-sm">Categories</div>
+        <div class="label text-third-text-color text-sm">Catégories</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
         <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">13</div>
@@ -605,14 +605,14 @@
         <i class="fa-regular fa-pen-fancy"></i>&nbsp;
         <span class="desktop">2024-11-27 12:38:30</span>
         <span class="mobile">2024-11-27 12:38:30</span>
-        <span class="hover-info">Created</span>
+        <span class="hover-info">Créé</span>
     </span>
     
         <span class="article-date article-meta-item">
             <i class="fa-regular fa-wrench"></i>&nbsp;
-            <span class="desktop">2024-11-27 12:43:09</span>
-            <span class="mobile">2024-11-27 12:43:09</span>
-            <span class="hover-info">Updated</span>
+            <span class="desktop">2024-11-27 12:53:51</span>
+            <span class="mobile">2024-11-27 12:53:51</span>
+            <span class="hover-info">Mis à jour</span>
         </span>
     
 
@@ -657,12 +657,12 @@
     
     
         <span class="article-wordcount article-meta-item">
-            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>3.9k Words</span>
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>3.9k Mots</span>
         </span>
     
     
         <span class="article-min2read article-meta-item">
-            <i class="fa-regular fa-clock"></i>&nbsp;<span>18 Mins</span>
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>18 Min</span>
         </span>
     
     
@@ -898,9 +898,7 @@
 </ul>
 <hr>
 <h6 id="事件上下文管理"><a href="#事件上下文管理" class="headerlink" title="事件上下文管理"></a><strong>事件上下文管理</strong></h6><ul>
-<li><p><code>runtime</code></p>
-<p>: 插件运行时信息。</p>
-<ul>
+<li><code>runtime</code>: 插件运行时信息。<ul>
 <li><code>runtime.e</code>: 当前事件对象（即 <code>this.e</code> 本身）。</li>
 <li>其他属性用于管理事件处理流程。</li>
 </ul>
@@ -938,7 +936,7 @@
 </ul>
 <hr>
 <p><strong>引用消息 (<code>quote</code>)</strong></p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">javascript复制代码if (quote &amp;&amp; e.message_id) &#123;</span><br><span class="line">  if (Array.isArray(msg))</span><br><span class="line">    msg.unshift(segment.reply(e.message_id))</span><br><span class="line">  else</span><br><span class="line">    msg = [segment.reply(e.message_id), msg]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="Javascript"><figure class="iseeu highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (quote &amp;&amp; e.<span class="property">message_id</span>) &#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="title class_">Array</span>.<span class="title function_">isArray</span>(msg))</span><br><span class="line">    msg.<span class="title function_">unshift</span>(segment.<span class="title function_">reply</span>(e.<span class="property">message_id</span>))</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    msg = [segment.<span class="title function_">reply</span>(e.<span class="property">message_id</span>), msg]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
 
 <ul>
 <li><p>如果 <code>quote</code>为<code>true</code>且当前事件中有 <code>message_id</code>：</p>
@@ -987,27 +985,27 @@
 		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
 			<div class="article-copyright-info-container">
     <ul>
-        <li><strong>Title:</strong> 云崽bot基础搭建过程记录</li>
-        <li><strong>Author:</strong> collectcrop</li>
-        <li><strong>Created at
+        <li><strong>Titre:</strong> 云崽bot基础搭建过程记录</li>
+        <li><strong>Auteur:</strong> collectcrop</li>
+        <li><strong>Créé à
                 :</strong> 2024-11-27 12:38:30</li>
         
             <li>
-                <strong>Updated at
-                    :</strong> 2024-11-27 12:43:09
+                <strong>Mis à jour à
+                    :</strong> 2024-11-27 12:53:51
             </li>
         
         <li>
-            <strong>Link:</strong> https://collectcrop.github.io/2024/11/27/云崽bot基础搭建过程记录/
+            <strong>Lien:</strong> https://collectcrop.github.io/2024/11/27/云崽bot基础搭建过程记录/
         </li>
         <li>
             <strong>
-                License:
+                Licence:
             </strong>
             
 
             
-                This work is licensed under <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a>.
+                Cette œuvre est sous licence <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a>.
             
         </li>
     </ul>
@@ -1073,7 +1071,7 @@
 				<a class="next" rel="next" href="/blog/2024/11/23/%E5%B8%A6%E7%AC%A6%E5%8F%B7%E8%B0%83%E8%AF%95-gdb%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E8%87%AA%E5%8A%A8%E5%8C%96%E5%8A%A0%E8%BD%BD/">
 					<span class="title flex justify-center items-center">
 						<span class="post-nav-title-item">带符号调试-gdb脚本实现自动化加载</span>
-						<span class="post-nav-item">Next posts</span>
+						<span class="post-nav-item">Articles suivants</span>
 					</span>
 					<span class="right arrow-icon flex justify-center items-center">
 						<i class="fa-solid fa-chevron-right"></i>
@@ -1092,7 +1090,7 @@
 	<div class="toc-content-container">
 		<div class="post-toc-wrap">
 	<div class="post-toc">
-		<div class="toc-title">On this page</div>
+		<div class="toc-title">Sur cette page</div>
 		<div class="page-title">云崽bot基础搭建过程记录</div>
 		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%91%E5%B4%BDbot%E5%9F%BA%E7%A1%80%E6%90%AD%E5%BB%BA%E8%BF%87%E7%A8%8B%E8%AE%B0%E5%BD%95"><span class="nav-text">云崽bot基础搭建过程记录</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%89%E8%A3%85"><span class="nav-text">安装</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#redis%E5%AE%89%E8%A3%85"><span class="nav-text">redis安装</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#nodejs%E5%AE%89%E8%A3%85"><span class="nav-text">nodejs安装</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#git%E5%AE%89%E8%A3%85"><span class="nav-text">git安装</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#yunzai%E6%9C%AC%E4%BD%93%E5%AE%89%E8%A3%85"><span class="nav-text">yunzai本体安装</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8"><span class="nav-text">启动</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8%E5%8D%8F%E8%AE%AE%E7%AB%AF"><span class="nav-text">启动协议端</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B4%A6%E5%8F%B7%E7%BB%91%E5%AE%9A"><span class="nav-text">账号绑定</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8D%8F%E8%AE%AE%E7%AB%AF%E7%BB%91%E5%AE%9A"><span class="nav-text">协议端绑定</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE%E4%B8%BB%E4%BA%BA"><span class="nav-text">设置主人</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8F%92%E4%BB%B6%E5%AE%89%E8%A3%85"><span class="nav-text">插件安装</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%87%AA%E5%B8%A6%E6%8C%87%E4%BB%A4"><span class="nav-text">自带指令</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#curl"><span class="nav-text">curl</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E7%A1%80%E5%8A%9F%E8%83%BD%E6%B5%8B%E8%AF%95%E5%8F%8A%E7%BC%96%E5%86%99"><span class="nav-text">基础功能测试及编写</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#e%E5%AF%B9%E8%B1%A1%E7%BB%93%E6%9E%84"><span class="nav-text">e对象结构</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E4%BF%A1%E6%81%AF"><span class="nav-text">核心信息</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%89%A9%E5%B1%95%E4%BF%A1%E6%81%AF"><span class="nav-text">扩展信息</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BA%8B%E4%BB%B6%E4%B8%8A%E4%B8%8B%E6%96%87%E7%AE%A1%E7%90%86"><span class="nav-text">事件上下文管理</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#reply%E5%87%BD%E6%95%B0%E5%AE%9E%E7%8E%B0"><span class="nav-text">reply函数实现</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%87%BD%E6%95%B0%E5%8F%82%E6%95%B0"><span class="nav-text">函数参数</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#at-%E5%92%8C-quote-%E5%8A%9F%E8%83%BD%E7%9A%84%E5%A4%84%E7%90%86"><span class="nav-text">at 和 quote 功能的处理</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E5%8F%91%E9%80%81%E4%B8%8E%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86"><span class="nav-text">消息发送与异常处理</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E8%87%AA%E5%8A%A8%E6%92%A4%E5%9B%9E%E6%B6%88%E6%81%AF"><span class="nav-text">自动撤回消息</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%BB%9F%E8%AE%A1%E4%B8%8E%E8%BF%94%E5%9B%9E"><span class="nav-text">统计与返回</span></a></li></ol></li></ol></li></ol></li></ol></li></ol>
 
@@ -1121,11 +1119,11 @@
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        13 posts in total
+                        13  posts au total
                     </span>
                     
                         <span>
-                            39.1k words in total
+                            39.1k mots au total
                         </span>
                     
                 </p>
@@ -1136,13 +1134,13 @@
             <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
                 
                     <span id="busuanzi_container_site_uv" class="lg:!block">
-                        <span class="text-sm">VISITOR COUNT</span>
+                        <span class="text-sm">VISITEURS</span>
                         <span id="busuanzi_value_site_uv"></span>
                     </span>
                 
                 
                     <span id="busuanzi_container_site_pv" class="lg:!block">
-                        <span class="text-sm">TOTAL PAGE VIEWS</span>
+                        <span class="text-sm">NOMBRE TOTAL DE PAGES VUES</span>
                         <span id="busuanzi_value_site_pv"></span>
                     </span>
                 
@@ -1155,7 +1153,7 @@
         
         
             <div>
-                Blog up for <span class="odometer" id="runtime_days" ></span> days <span class="odometer" id="runtime_hours"></span> hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
+                Blog en ligne depuis <span class="odometer" id="runtime_days" ></span> Jours <span class="odometer" id="runtime_hours"></span> Hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
             </div>
         
         

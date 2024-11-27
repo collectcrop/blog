@@ -2761,9 +2761,7 @@
 </ul>
 <hr>
 <h6 id="事件上下文管理"><a href="#事件上下文管理" class="headerlink" title="事件上下文管理"></a><strong>事件上下文管理</strong></h6><ul>
-<li><p><code>runtime</code></p>
-<p>: 插件运行时信息。</p>
-<ul>
+<li><code>runtime</code>: 插件运行时信息。<ul>
 <li><code>runtime.e</code>: 当前事件对象（即 <code>this.e</code> 本身）。</li>
 <li>其他属性用于管理事件处理流程。</li>
 </ul>
@@ -2801,7 +2799,7 @@
 </ul>
 <hr>
 <p><strong>引用消息 (<code>quote</code>)</strong></p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">javascript复制代码if (quote &amp;&amp; e.message_id) &#123;</span><br><span class="line">  if (Array.isArray(msg))</span><br><span class="line">    msg.unshift(segment.reply(e.message_id))</span><br><span class="line">  else</span><br><span class="line">    msg = [segment.reply(e.message_id), msg]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="Javascript"><figure class="iseeu highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (quote &amp;&amp; e.<span class="property">message_id</span>) &#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="title class_">Array</span>.<span class="title function_">isArray</span>(msg))</span><br><span class="line">    msg.<span class="title function_">unshift</span>(segment.<span class="title function_">reply</span>(e.<span class="property">message_id</span>))</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    msg = [segment.<span class="title function_">reply</span>(e.<span class="property">message_id</span>), msg]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
 
 <ul>
 <li><p>如果 <code>quote</code>为<code>true</code>且当前事件中有 <code>message_id</code>：</p>
