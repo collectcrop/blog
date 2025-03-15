@@ -650,12 +650,12 @@
     
     
         <span class="article-wordcount article-meta-item">
-            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>25.5k 字</span>
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>25.4k 字</span>
         </span>
     
     
         <span class="article-min2read article-meta-item">
-            <i class="fa-regular fa-clock"></i>&nbsp;<span>100 分钟</span>
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>99 分钟</span>
         </span>
     
     
@@ -681,22 +681,18 @@
 <ol>
 <li><p><strong>预处理（Preprocessing）</strong><br>预处理阶段会展开宏（macros）、从头文件中引入源代码，并去除源代码中的注释。可以使用以下命令查看预处理后的代码：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -E source.c</span><br></pre></td></tr></table></figure></div>
-
 <p>这会将预处理后的源代码输出到标准输出（stdout）。</p>
 </li>
 <li><p><strong>编译（Compiling）</strong><br>编译器会解析源代码，检查语法错误，并将代码转换为中间表示（Intermediate Representation，IR）。在此过程中，它还会进行一些优化，并最终将 IR 翻译成汇编代码。可以使用以下命令生成汇编文件：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -S file.c</span><br></pre></td></tr></table></figure></div>
-
 <p>这将产生一个扩展名为 <code>.s</code> 的汇编代码文件。</p>
 </li>
 <li><p><strong>汇编（Assembly）</strong><br>这一阶段会将汇编代码转换为机器码（machine code）。需要注意的是，此时所有外部函数调用（如 <code>printf</code>）仍然是占位符，并未真正解析。可以使用以下命令进行汇编：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -c file.c</span><br></pre></td></tr></table></figure></div>
-
 <p>这会生成一个 <code>.o</code>（目标文件，Object File）。</p>
 </li>
 <li><p><strong>链接（Linking）</strong><br>最后，链接器会解析所有函数调用，并填充它们的真实地址，从而生成最终的可执行文件：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -o binary file.c</span><br></pre></td></tr></table></figure></div>
-
 <p>这将生成一个可执行的二进制文件 <code>binary</code>。</p>
 </li>
 </ol>
@@ -705,7 +701,7 @@
 <p>此外，它还允许代码以<strong>库（library）</strong>的形式分发，库可以是<strong>静态</strong>的，也可以是<strong>共享</strong>的：</p>
 <ul>
 <li><strong>静态库（Static Libraries）</strong><br>静态库就是一组<strong>预编译的目标文件（object files）</strong>的集合，编译器会将它们与其他源代码合并，最终生成一个<strong>单一的可执行文件</strong>，就像正常编译时那样。</li>
-<li><strong>动态库或共享库（Dynamic&#x2F;Shared Libraries）</strong><br>共享库是<strong>预编译的可执行文件</strong>，其中包含额外的元信息（meta-information），用于标识库中的<strong>可调用函数和数据</strong>。这些引用会在<strong>运行时（runtime）</strong>解析。正如其名称所示，这种方式允许多个程序<strong>共享</strong>已编译的二进制代码。</li>
+<li><strong>动态库或共享库（Dynamic/Shared Libraries）</strong><br>共享库是<strong>预编译的可执行文件</strong>，其中包含额外的元信息（meta-information），用于标识库中的<strong>可调用函数和数据</strong>。这些引用会在<strong>运行时（runtime）</strong>解析。正如其名称所示，这种方式允许多个程序<strong>共享</strong>已编译的二进制代码。</li>
 </ul>
 <p>使用<strong>静态库</strong>的主要优势是可以执行<strong>各种过程间优化（interprocedural optimizations）</strong>，这些优化需要比普通库函数签名更多的上下文信息，例如：</p>
 <ul>
@@ -714,9 +710,6 @@
 </ul>
 <p>要强制<strong>链接器（linker）</strong>仅查找和接受<strong>静态库</strong>，可以使用 <code>-static</code> 选项，例如：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc -static -o my_program my_program.c -lmylib</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h5 id="链接时优化（Link-Time-Optimization-LTO）"><a href="#链接时优化（Link-Time-Optimization-LTO）" class="headerlink" title="链接时优化（Link-Time Optimization, LTO）"></a><strong>链接时优化（Link-Time Optimization, LTO）</strong></h5><p>这一过程被称为<strong>链接时优化（LTO）</strong>。现代编译器在目标文件（object files）中<strong>存储了一种中间表示（intermediate representation, IR）</strong>，因此可以在整个程序的层面进行<strong>轻量级优化</strong>。</p>
 <p>此外，LTO 还允许在<strong>不同的编程语言</strong>之间进行优化——只要它们的编译器使用相同的中间表示，就可以进行跨语言优化。</p>
 <p>LTO 是一个<strong>相对较新的特性</strong>（GCC 直到<strong>2014 年左右</strong>才支持），但它仍然<strong>远未完善</strong>。在 C 和 C++ 中，为了确保<strong>不会因独立编译（separate compilation）损失性能</strong>，一种解决方案是<strong>创建仅包含头文件的库（header-only library）</strong>。</p>
@@ -727,9 +720,8 @@
 <li><strong>缺点</strong>是每次编译时<strong>都必须重新编译库的代码</strong>，但它确保了<strong>不会丢失性能</strong>，并且提供了更好的<strong>控制权</strong>。</li>
 </ul>
 <p><strong>1. 为什么需要 LTO？</strong></p>
-<p>通常，我们编译 C&#x2F;C++ 程序时是<strong>逐个文件</strong>进行编译，然后在链接时合并这些编译结果。但这样会有一个问题：<strong>编译器只能在单个源文件内进行优化</strong>，它无法跨文件进行全局优化。例如：</p>
+<p>通常，我们编译 C/C++ 程序时是<strong>逐个文件</strong>进行编译，然后在链接时合并这些编译结果。但这样会有一个问题：<strong>编译器只能在单个源文件内进行优化</strong>，它无法跨文件进行全局优化。例如：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// lib.c</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">add</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> a + b;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// main.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">extern</span> <span class="type">int</span> <span class="title function_">add</span><span class="params">(<span class="type">int</span>, <span class="type">int</span>)</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%d\n&quot;</span>, add(<span class="number">2</span>, <span class="number">3</span>));</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>在<strong>单文件编译</strong>时，编译 <code>main.c</code> 时无法看到 <code>add()</code> 的具体实现，因此它不会进行<strong>内联优化</strong>，而是必须生成<strong>函数调用</strong>指令。</p>
 <p>但是，<strong>LTO 允许编译器在链接阶段看到整个程序的代码</strong>，从而进行：</p>
 <ul>
@@ -738,6 +730,7 @@
 <li><strong>消除未使用的代码（Dead Code Elimination）</strong></li>
 </ul>
 <p><strong>2. 静态库 vs 共享库</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -746,7 +739,8 @@
 <th><strong>共享库（Shared Library）</strong></th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td>链接方式</td>
 <td><strong>编译时</strong>合并到可执行文件中</td>
 <td><strong>运行时</strong>动态加载</td>
@@ -771,7 +765,9 @@
 <td><strong>支持（可优化跨文件调用）</strong></td>
 <td><strong>不支持（只知道函数签名）</strong></td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p>对于<strong>性能敏感的程序</strong>（如游戏引擎、嵌入式系统），通常会选择<strong>静态库 + LTO</strong>，以最大化优化。<br> 对于<strong>需要动态更新的程序</strong>（如操作系统、应用程序），则更倾向于<strong>共享库</strong>，以减少存储占用并方便维护。</p>
 <p><strong>3. 头文件库（Header-Only Library）</strong></p>
 <p>头文件库是一种特殊的优化方式，它的<strong>优点</strong>是：</p>
@@ -786,6 +782,7 @@
 <li><strong>难以控制 ABI 兼容性</strong>，更新库时可能会影响已编译的代码。</li>
 </ul>
 <h5 id="优化级别"><a href="#优化级别" class="headerlink" title="优化级别"></a><strong>优化级别</strong></h5><p>GCC 主要提供 <strong>4.5 个主要的优化级别</strong>，用于 <strong>优化程序运行速度</strong>：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -793,7 +790,8 @@
 <th><strong>作用</strong></th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>-O0</code>（默认）</td>
 <td><strong>不进行优化</strong>（但实际上优化了 <strong>编译时间</strong>）。</td>
 </tr>
@@ -813,30 +811,27 @@
 <td><code>-Ofast</code></td>
 <td><strong>包含 <code>-O3</code> 的所有优化</strong>，再加上一些 <strong>可能违反标准但大多数情况下无害的优化</strong>（如 <strong>浮点运算重排</strong>，可能导致 <strong>少量精度丢失</strong>）。</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p>此外，GCC 还有 <strong>许多其他优化选项</strong>，但它们 <strong>过于特殊</strong>，默认情况下不会启用，甚至在某些情况下会 <strong>降低性能</strong>。在接下来的章节，我们会讨论其中的一些高级优化选项。</p>
 <p><strong>指定目标架构（Specifying Targets）</strong></p>
 <p>接下来，我们希望告诉编译器更多关于代码将在哪些计算机上运行的信息。<strong>支持的平台范围越小，优化效果越好</strong>。默认情况下，编译器会生成可以在 <strong>任何 2000 年以后发布的 x86 处理器</strong> 上运行的二进制文件。</p>
 <p><strong>最简单的方式</strong> 来缩小适用范围是使用 <code>-march</code> 选项来指定确切的微架构。例如：</p>
 <div class="highlight-container" data-rel="Sh"><figure class="iseeu highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-march=haswell  <span class="comment"># 生成适用于 Haswell 微架构的代码</span></span><br></pre></td></tr></table></figure></div>
-
 <p>如果你是在<strong>同一台将运行程序的计算机上进行编译</strong>，可以使用 <code>-march=native</code> 让编译器<strong>自动检测</strong>本机 CPU 并生成相应的优化代码。</p>
 <p>由于<strong>指令集通常是向后兼容的</strong>，因此通常只需要指定<strong>最老的微架构</strong>即可。例如，如果你的目标平台范围包括 <strong>Haswell 及更新的 CPU</strong>，使用 <code>-march=haswell</code> 就可以确保<strong>所有更老的 CPU 仍然可以运行</strong>。</p>
 <p>另一种更精细的方式是<strong>直接列出</strong> 你希望使用的<strong>特定指令集</strong>，例如：</p>
 <div class="highlight-container" data-rel="Sh"><figure class="iseeu highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">-mavx2  <span class="comment"># 启用 AVX2 指令集</span></span><br><span class="line">-mpopcnt  <span class="comment"># 启用 popcnt（人口计数）指令</span></span><br></pre></td></tr></table></figure></div>
-
 <p>如果你<strong>仅仅想针对某个 CPU 进行优化，但仍希望它可以在其他 CPU 上运行</strong>，可以使用 <code>-mtune</code> 选项，例如：</p>
 <div class="highlight-container" data-rel="Sh"><figure class="iseeu highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-mtune=haswell</span><br></pre></td></tr></table></figure></div>
-
-<p>与 <code>-march</code> 不同，**<code>-mtune</code> 只是优化，不会使用不兼容的指令<strong>，所以不会导致程序在不支持的 CPU 上崩溃。<br> （</strong>注意**：默认情况下，<code>-march=x</code> 也会隐含 <code>-mtune=x</code>，即自动优化目标 CPU。）</p>
+<p>与 <code>-march</code> 不同，<strong><code>-mtune</code> 只是优化，不会使用不兼容的指令</strong>，所以不会导致程序在不支持的 CPU 上崩溃。<br> （<strong>注意</strong>：默认情况下，<code>-march=x</code> 也会隐含 <code>-mtune=x</code>，即自动优化目标 CPU。）</p>
 <p><strong>除了在编译时传递这些参数，也可以直接在代码中使用 <code>#pragma</code> 指令</strong>：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">pragma</span> GCC optimize(<span class="string">&quot;O3&quot;</span>)   <span class="comment">// 仅优化本文件为 O3 级别</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> GCC target(<span class="string">&quot;avx2&quot;</span>)   <span class="comment">// 仅对本文件启用 AVX2 指令</span></span></span><br></pre></td></tr></table></figure></div>
-
 <p>这种方法适用于<strong>仅优化特定的高性能函数</strong>，也就是局部优化，而不影响整个项目的编译时间。</p>
 <p>有时候，你可能希望在<strong>同一个库</strong>中<strong>提供多个针对不同 CPU 架构优化的实现</strong>。</p>
 <p>我们可以使用<strong>基于 <code>__attribute__</code> 的语法</strong>，让编译器<strong>自动选择</strong>最合适的函数版本：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">__attribute__(( <span class="built_in">target</span>(<span class="string">&quot;default&quot;</span>) )) <span class="comment">// 默认回退实现</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">popcnt</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="type">int</span> s = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">32</span>; i++)</span><br><span class="line">        s += (x &gt;&gt; i &amp; <span class="number">1</span>); <span class="comment">// 逐位统计 1 的个数</span></span><br><span class="line">    <span class="keyword">return</span> s;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">__attribute__(( <span class="built_in">target</span>(<span class="string">&quot;popcnt&quot;</span>) )) <span class="comment">// 仅在 CPU 支持 popcnt 指令时使用</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">popcnt</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> __builtin_popcount(x); <span class="comment">// 内建 popcnt 指令</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>在 Clang 编译器中，<strong>不能</strong>使用 <code>#pragma</code> 直接在代码中设置目标架构和优化选项，<br> 但可以<strong>像 GCC 一样</strong>使用 <code>__attribute__</code> 来实现<strong>多版本函数</strong>。</p>
 <h4 id="条件优化"><a href="#条件优化" class="headerlink" title="条件优化"></a>条件优化</h4><p>条件优化<strong>不完全符合标准</strong>，而且<strong>对具体场景依赖性很强</strong>，需要程序员提供<strong>额外的信息</strong>来判断是否启用。所以即使开了<strong>O3</strong>优化编译器也不会默认采用这些优化方式。</p>
 <h5 id="循环展开"><a href="#循环展开" class="headerlink" title="循环展开"></a>循环展开</h5><p>循环展开是一种编译器优化技术，它<strong>减少循环控制的开销</strong>，通过复制循环体的代码来减少循环的迭代次数。这样可以减少 <code>cmp</code>（比较）、<code>jmp</code>（跳转）等指令的执行，提高 CPU 指令流水线的效率。</p>
@@ -848,7 +843,6 @@
 <p><strong>如何启用循环展开？</strong></p>
 <p><strong>（1）使用编译选项</strong></p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-funroll-loops</span><br></pre></td></tr></table></figure></div>
-
 <ul>
 <li>让编译器<strong>尝试展开所有已知迭代次数的循环</strong>（包括编译时可知和运行时进入循环时可知的）。</li>
 <li>但这会<strong>增加二进制文件大小</strong>，并不总是提高性能。</li>
@@ -856,29 +850,25 @@
 <p><strong>（2）使用 <code>#pragma</code> 控制单个循环</strong></p>
 <p>如果只想<strong>对某个特定循环</strong>展开，可以使用 <code>#pragma</code>：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">pragma</span> GCC unroll 4</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">    <span class="comment">// 代码块</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <ul>
 <li>这里 <code>#pragma GCC unroll 4</code> 告诉编译器<strong>展开 4 次迭代</strong>。</li>
 <li>适用于 <code>n</code> <strong>较大且无法静态确定</strong>的情况。</li>
 </ul>
 <h5 id="内联函数"><a href="#内联函数" class="headerlink" title="内联函数"></a>内联函数</h5><p>函数内联是一种优化技术，它<strong>将函数调用替换为函数体本身</strong>，从而减少函数调用的开销（如参数传递、栈操作等）。</p>
-<p>在 C&#x2F;C++ 中，可以使用 <code>inline</code> 关键字<strong>提示</strong>编译器进行内联：</p>
+<p>在 C/C++ 中，可以使用 <code>inline</code> 关键字<strong>提示</strong>编译器进行内联：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">int</span> <span class="title">square</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> x * x;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <ul>
-<li>**编译器可能会忽略 <code>inline</code>**，如果它认为内联后不会提高性能或代码膨胀太严重。</li>
+<li><strong>编译器可能会忽略 <code>inline</code></strong>，如果它认为内联后不会提高性能或代码膨胀太严重。</li>
 <li><strong>适用于短小、频繁调用的函数</strong>（例如 <code>math</code> 函数）。</li>
 </ul>
 <p>如果一定要让编译器<strong>强制内联</strong>，可以使用 <code>__attribute__((always_inline))</code>：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> FORCE_INLINE inline __attribute__((always_inline))</span></span><br><span class="line"></span><br><span class="line"><span class="function">FORCE_INLINE <span class="type">int</span> <span class="title">square</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> x * x;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <ul>
 <li>这会<strong>强制编译器内联</strong>，除非编译器优化级别不允许（如 <code>-O0</code>）。</li>
 <li>适用于<strong>性能关键代码</strong>（如高频调用的 <code>getter/setter</code>）。</li>
 </ul>
-<h5 id="分支可能性提示"><a href="#分支可能性提示" class="headerlink" title="分支可能性提示"></a>分支可能性提示</h5><p>从 C++20 开始，**<code>[[likely]]</code>** 和 <strong><code>[[unlikely]]</code></strong> 属性可以用来提示编译器某个分支是否更可能被执行。这对提高分支预测的准确性和优化性能非常有帮助。</p>
+<h5 id="分支可能性提示"><a href="#分支可能性提示" class="headerlink" title="分支可能性提示"></a>分支可能性提示</h5><p>从 C++20 开始，<strong><code>[[likely]]</code></strong> 和 <strong><code>[[unlikely]]</code></strong> 属性可以用来提示编译器某个分支是否更可能被执行。这对提高分支预测的准确性和优化性能非常有帮助。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">factorial</span><span class="params">(<span class="type">int</span> n)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (n &gt; <span class="number">1</span>) [[likely]]   <span class="comment">// 提示编译器这个分支更可能执行</span></span><br><span class="line">        <span class="keyword">return</span> n * <span class="built_in">factorial</span>(n - <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">else</span> [[unlikely]]       <span class="comment">// 提示编译器这个分支不太可能执行</span></span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <ul>
 <li><code>[[likely]]</code> 表示此分支更有可能发生。</li>
 <li><code>[[unlikely]]</code> 表示此分支不太可能发生。</li>
@@ -886,7 +876,6 @@
 <p>这告诉编译器如何生成更高效的代码，尤其是在有多个条件判断时。</p>
 <p>在 C++20 之前，<strong>GCC 提供了 <code>__builtin_expect</code></strong> 函数来告诉编译器分支的可能性：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">factorial</span><span class="params">(<span class="type">int</span> n)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (__builtin_expect(n &gt; <span class="number">1</span>, <span class="number">1</span>))  <span class="comment">// 告诉编译器 n &gt; 1 更可能为真</span></span><br><span class="line">        <span class="keyword">return</span> n * <span class="built_in">factorial</span>(n - <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p><code>__builtin_expect</code>函数的第二个参数表示“预测值”：</p>
 <ul>
 <li><code>1</code> 表示该分支“更可能发生”。</li>
@@ -902,12 +891,10 @@
 <p><strong>步骤 1：生成 Profiling 数据</strong></p>
 <p>使用 <code>-fprofile-generate</code> 标志，GCC 会在程序中插入 profiling 代码，生成能够跟踪执行情况的数据文件。假设你在编译源代码时使用如下命令：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">g++ -fprofile-generate [其他编译选项] source.cc -o binary</span><br></pre></td></tr></table></figure></div>
-
 <p>然后运行该程序，理想情况下使用与真实场景接近的数据输入，这样生成的数据才具有代表性。运行程序后，会生成 <code>.gcda</code> 文件，这些文件包含了测试运行期间的 profiling 数据。</p>
 <p><strong>步骤 2：基于 Profiling 数据优化编译</strong></p>
 <p>在第二次编译时，使用 <code>-fprofile-use</code> 标志，这样编译器就能使用第一次运行中收集到的 profiling 数据来进行优化：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">g++ -fprofile-use [其他编译选项] source.cc -o binary</span><br></pre></td></tr></table></figure></div>
-
 <p>这时，编译器能够利用收集到的信息做出更加精准的优化。PGO 可以显著提升程序的执行效率，尤其是在大型代码库中，通常可以带来 10-20% 的性能提升。由于这种优化是基于实际数据的，它能比传统的静态优化方法更有效。对于性能至关重要的项目，PGO 是一个常见的优化手段。</p>
 <h4 id="契约式编程"><a href="#契约式编程" class="headerlink" title="契约式编程"></a>契约式编程</h4><p>在 Java 和 Rust 这样的“安全”语言中，通常对每个可能的操作和输入都有明确的行为定义。有些细节（如哈希表的键顺序或 <code>std::vector</code> 的增长因子）可能会因实现不同而有所不同，但这些通常只是为了性能优化而留给实现的细节。</p>
 <p>相比之下，C 和 C++ 的 <strong>未定义行为（Undefined Behavior, UB）</strong> 概念则要极端得多。在这些语言中，某些操作不会在编译或运行时产生错误，但在标准中它们是不被允许的。这意味着程序员和编译器之间有一种契约：<strong>如果代码触发了未定义行为，编译器可以做任何事情</strong>，包括使显示器爆炸或格式化硬盘（虽然实际不会发生）。编译器工程师不会故意制造这些后果，而是利用未定义行为来消除边界情况（corner cases），从而进行更激进的优化。</p>
@@ -922,24 +909,21 @@
 <li><strong>访问未初始化的内存</strong></li>
 </ul>
 <p>与其让这些操作返回一个固定的回退值（如 0），不如让程序在测试时崩溃或表现出不可预测的行为，以便尽早发现错误。</p>
-<ol start="2">
+<ol>
 <li><strong>平台相关的行为</strong></li>
 </ol>
 <p>有些操作在不同的 CPU 架构上表现不同。例如：</p>
 <ul>
 <li><p><strong>整数左移超出位宽</strong></p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> x = <span class="number">1</span> &lt;&lt; <span class="number">32</span>;  <span class="comment">// UB</span></span><br></pre></td></tr></table></figure></div>
-
 <p>这个操作在 x86 和 ARM 上可能会产生不同的结果。如果 C++ 标准指定某种行为，那就意味着某些架构必须额外做一次检查，影响性能。因此，<strong>C++ 直接规定它是 UB，避免额外的运行时开销。</strong></p>
 </li>
 </ul>
 <p><strong>负数的右移</strong></p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> x = <span class="number">-42</span>;</span><br><span class="line">x &gt;&gt;= <span class="number">1</span>;</span><br></pre></td></tr></table></figure></div>
-
 <p>在某些架构上，右移负数会补 1（算术右移），在其他架构上可能会补 0（逻辑右移）。C++ 允许这种行为由实现决定，而不是设为 UB，因此它是 <strong>实现定义（implementation-defined）</strong> 而不是未定义行为。</p>
 <p>保留未定义行为有时候能够帮助编译器优化，比如实际在c++中，有符号整型（<strong>signed int</strong>）的溢出就是一个<strong>UB</strong>，但无符号整型（<strong>unsigned int</strong>）的溢出是被允许的，也就是说其实如果x为有符号整型，那么<code>(x + 1) &gt; x</code>这个条件就<strong>恒为true</strong>，体现在编译器的处理过程上，他可能会直接优化整个分支。比如有如下代码：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">foo</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (x + <span class="number">1</span> &lt; x) &#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;Overflow happened!\n&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="built_in">foo</span>(<span class="number">0x7fffffff</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>我们可能认为程序最后会打印<code>&quot;Overflow happened!&quot;</code>，但实际上我们用g++编译后拿IDA查看对应的代码，就会发现整个<strong>foo</strong>函数的分支就被优化掉了。而如果foo参数类型为<strong>unsigned int</strong>，编译器就会如我们所想，编译出实现对应分支的汇编。</p>
 <img  
                      lazyload
@@ -947,12 +931,10 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250312234659884.png"
                       class=""
                 >
-
 <p><strong>去除边界情况</strong></p>
 <p>“安全“的编程模式经常包括大量的边界检测，但这<strong>不一定会带来性能损失</strong>，因为编译器可能在编译阶段就能保证数据是在边界范围内的，由此可以直接安全的优化掉边界检测。</p>
 <p>我们也可以手动使用<code>__builtin_unreachable</code> 来消除边界检查，比如我们有如下代码：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;vector&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cassert&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">assume</span><span class="params">(<span class="type">bool</span> pred)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!pred)</span><br><span class="line">        __builtin_unreachable();  <span class="comment">// 告诉编译器这里不可能执行</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">safe_at</span><span class="params">(std::vector&lt;<span class="type">int</span>&gt;&amp; v, <span class="type">size_t</span> k)</span> </span>&#123;</span><br><span class="line">    <span class="built_in">assume</span>(k &lt; v.<span class="built_in">size</span>());  <span class="comment">// 假设 k 一定合法</span></span><br><span class="line">    <span class="keyword">return</span> v.<span class="built_in">at</span>(k);        <span class="comment">// 编译器现在可能会优化掉边界检查</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">(std::vector&lt;<span class="type">int</span>&gt;&amp; v)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; v.<span class="built_in">size</span>()<span class="number">+1</span>; i++) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="built_in">safe_at</span>(v,i) &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::vector&lt;<span class="type">int</span>&gt; v = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>&#125;;</span><br><span class="line">    <span class="built_in">test</span>(v);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这里我把循环次数设置为了<code>v.size()+1</code>，也就是刚好越界，之后我们进行编译测试一下会发现，当开启<strong>O2及以上</strong>优化时，编译器就会根据我们的提示，优化掉vector的at中的边界检测了。</p>
 <img  
                      lazyload
@@ -960,10 +942,8 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250313114341492.png"
                       class=""
                 >
-
 <p>我们还可以<strong>结合 <code>assert()</code> 进行 Debug</strong></p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;vector&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cassert&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">assume</span><span class="params">(<span class="type">bool</span> pred)</span> </span>&#123;</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> DEBUG</span></span><br><span class="line">    <span class="built_in">assert</span>(pred);  <span class="comment">// Debug 模式下检查假设</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">    <span class="keyword">if</span> (!pred)</span><br><span class="line">        __builtin_unreachable();  <span class="comment">// Release 模式下优化边界检查</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">safe_at</span><span class="params">(std::vector&lt;<span class="type">int</span>&gt;&amp; v, <span class="type">size_t</span> k)</span> </span>&#123;</span><br><span class="line">    <span class="built_in">assume</span>(k &lt; v.<span class="built_in">size</span>());</span><br><span class="line">    <span class="keyword">return</span> v[k];  <span class="comment">// 现在可以使用 `operator[]` 而不会触发未定义行为</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <ul>
 <li>Debug 版本：<code>assert(k &lt; v.size());</code> 可以在运行时捕捉错误。</li>
 <li>Release 版本：编译器会移除 <code>assume()</code>，并优化掉不必要的边界检查。</li>
@@ -978,19 +958,15 @@
 <p>但是，这种严格遵守会 <strong>阻碍优化</strong>。使用 <code>-ffast-math</code> 选项后，编译器可以 <strong>忽略一些 IEEE 754 规则</strong>，以换取更快的执行速度。</p>
 <p>然后我们考虑一下整数的情况，首先是无符号整型，比如有以下代码。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">unsigned</span> <span class="title function_">div_unsigned</span><span class="params">(<span class="type">unsigned</span> x)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> x / <span class="number">2</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>我们知道除法对应的指令开销是很大的，一种非常常用的优化就是改为移位运算<code>x &gt;&gt; 1</code>。也就是<code>shr eax</code>。</p>
 <p>但如果换成有符号整型，情况就有一点不同了。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">div_signed</span><span class="params">(<span class="type">int</span> x)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> x / <span class="number">2</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>如果x是负数，那么无论是算术右移位还是逻辑右移位，都会得到错误的结果。所以为了考虑到所有情况，需要用以下的汇编技巧实现：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mov  ebx, eax</span><br><span class="line">shr  ebx, 31    ; extract the sign bit</span><br><span class="line">add  eax, ebx   ; add 1 to the value if it is negative to ensure rounding towards zero</span><br><span class="line">sar  eax        ; this one shifts in sign bits</span><br></pre></td></tr></table></figure></div>
-
-<p>这样的技巧比起简单的<code>shr eax</code>开销大了不少，效率只有原来的1&#x2F;4，所以我们有时候如果<strong>认定x为正数</strong>，就可以用之前提到的<strong>assume</strong>方式来提示编译器优化掉边界条件的处理。</p>
+<p>这样的技巧比起简单的<code>shr eax</code>开销大了不少，效率只有原来的1/4，所以我们有时候如果<strong>认定x为正数</strong>，就可以用之前提到的<strong>assume</strong>方式来提示编译器优化掉边界条件的处理。</p>
 <p>编译器在优化涉及<strong>内存读写</strong>的操作时通常比较困难，因为它们可能无法确定不同指针是否指向<strong>相同的内存区域</strong>。这会影响 <strong>指令重排、向量化（SIMD）、并行执行</strong> 等优化策略。</p>
 <p>考虑如下代码：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">add</span><span class="params">(<span class="type">int</span> *a, <span class="type">int</span> *b, <span class="type">int</span> n)</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">        a[i] += b[i];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>编译器的视角</strong>：</p>
 <ul>
 <li>在每次 <code>a[i] += b[i]</code> 操作中，<code>a[i]</code> 依赖于 <code>b[i]</code> 的值。</li>
@@ -1003,7 +979,6 @@
 </blockquote>
 <p>优化后的代码：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">add</span><span class="params">(<span class="type">int</span> * __restrict__ a, <span class="type">const</span> <span class="type">int</span> * __restrict__ b, <span class="type">int</span> n)</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">        a[i] += b[i];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>这样做的好处</strong>：</p>
 <ul>
 <li><strong>保证 <code>a</code> 和 <code>b</code> 不会指向重叠内存</strong>，编译器可以自由优化。</li>
@@ -1019,7 +994,6 @@
 <p><strong>常量表达式（Constant Expressions）</strong></p>
 <p>为了解决预计算的不确定性，C++ 允许显式指定某些函数为 <code>constexpr</code>，这样编译器<strong>必须</strong>在编译期计算它们的值（如果参数是常量）。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">constexpr</span> <span class="type">int</span> <span class="title">fibonacci</span><span class="params">(<span class="type">int</span> n)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (n &lt;= <span class="number">2</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">fibonacci</span>(n - <span class="number">1</span>) + <span class="built_in">fibonacci</span>(n - <span class="number">2</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; <span class="built_in">fibonacci</span>(<span class="number">10</span>) &lt;&lt; endl;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>在这个例子中<code>fibonacci(10)</code> 会在<strong>编译时计算</strong>并被替换成 <code>55</code>，而不会出现在运行时计算中。比如我们开O2优化后，就能看到已经不存在<strong>fibonacci</strong>函数，而是直接硬编码55输出了。</p>
 <img  
                      lazyload
@@ -1027,20 +1001,17 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250313133854264.png"
                       class=""
                 >
-
 <p><code>constexpr</code> 关键字带有一定限制：</p>
 <ul>
 <li>只能调用<strong>其他 <code>constexpr</code> 函数</strong>。</li>
 <li><strong>不能进行动态内存分配</strong>（如 <code>new</code>）。</li>
-<li>不能有<strong>运行时不可预测的行为</strong>（如读取文件、I&#x2F;O 操作等）。</li>
+<li>不能有<strong>运行时不可预测的行为</strong>（如读取文件、I/O 操作等）。</li>
 </ul>
 <p>但随着 C++ 标准的演进，这些限制逐渐减少。由于<strong>递归版本效率低</strong>，C++17 允许 <code>constexpr</code> 函数使用 <strong>循环</strong>，提高计算效率：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">constexpr</span> <span class="type">int</span> <span class="title">fibonacci</span><span class="params">(<span class="type">int</span> n)</span> </span>&#123;</span><br><span class="line">    <span class="type">int</span> a = <span class="number">1</span>, b = <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (n--) &#123;</span><br><span class="line">        <span class="type">int</span> c = a + b;</span><br><span class="line">        a = b;</span><br><span class="line">        b = c;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> b;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这样 <code>fibonacci(100)</code> 之类的计算在编译期就能高效完成。</p>
 <p>C++17 之后，可以使用 <code>constexpr</code> 构造<strong>静态查找表</strong>，这对于<strong>预计算平方根、对数等复杂数学运算</strong>特别有用。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">Precalc</span> &#123;</span><br><span class="line">    <span class="type">int</span> isqrt[<span class="number">1000</span>];</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">constexpr</span> <span class="title">Precalc</span><span class="params">()</span> : isqrt&#123;</span>&#125; &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++)</span><br><span class="line">            isqrt[i] = <span class="built_in">int</span>(<span class="built_in">sqrt</span>(i));  <span class="comment">// 预计算整数平方根</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">constexpr</span> Precalc P;</span><br><span class="line"></span><br><span class="line"><span class="built_in">static_assert</span>(P.isqrt[<span class="number">42</span>] == <span class="number">6</span>);  <span class="comment">// 在编译期检查</span></span><br></pre></td></tr></table></figure></div>
-
 <p>在这个例子中：</p>
 <ul>
 <li><code>Precalc</code> 结构体在<strong>编译期</strong>计算 <code>isqrt</code> 数组，并存储所有 <code>0~999</code> 的整数平方根。</li>
@@ -1057,10 +1028,8 @@
 </ul>
 <h4 id="插桩分析（Instrumentation）"><a href="#插桩分析（Instrumentation）" class="headerlink" title="插桩分析（Instrumentation）"></a>插桩分析（Instrumentation）</h4><h5 id="计时"><a href="#计时" class="headerlink" title="计时"></a>计时</h5><p>用于测量代码执行时间，找到需要优化的部分。基本方法是使用 <code>clock()</code> 记录起始时间，执行函数后计算时间差。例如：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">clock_t</span> start = <span class="built_in">clock</span>();</span><br><span class="line"><span class="built_in">do_something</span>();</span><br><span class="line"><span class="type">float</span> seconds = <span class="built_in">float</span>(<span class="built_in">clock</span>() - start) / CLOCKS_PER_SEC;</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;do_something() took %.4f seconds\n&quot;</span>, seconds);</span><br></pre></td></tr></table></figure></div>
-
 <p>由于 <code>clock()</code> 本身精度有限（微秒级），如果函数执行时间很短，单次测量会受到较大误差的影响。改进的方法是在循环中<strong>多次执行函数</strong>，然后计算平均时间：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">int</span> N = <span class="number">1e6</span>;</span><br><span class="line"><span class="type">clock_t</span> start = <span class="built_in">clock</span>();</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++) </span><br><span class="line">    <span class="built_in">clock</span>(); <span class="comment">// 这里是测量 `clock()` 函数自身的开销</span></span><br><span class="line"><span class="type">float</span> duration = <span class="built_in">float</span>(<span class="built_in">clock</span>() - start) / CLOCKS_PER_SEC;</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%.2f ns per iteration\n&quot;</span>, <span class="number">1e9</span> * duration / N);</span><br></pre></td></tr></table></figure></div>
-
 <p>这种方法能够降低误差，但仍需注意缓存、编译器优化等影响。</p>
 <h5 id="事件采样"><a href="#事件采样" class="headerlink" title="事件采样"></a>事件采样</h5><p>用于统计特定算法的特征，例如：</p>
 <ul>
@@ -1070,27 +1039,20 @@
 </ul>
 <p><strong>基本方法</strong>是直接在代码中<strong>插入计数器</strong>：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">query</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="type">static</span> <span class="type">int</span> count = <span class="number">0</span>;</span><br><span class="line">    count++; <span class="comment">// 统计调用次数</span></span><br><span class="line">    <span class="comment">// 执行核心逻辑</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>缺点是如果调用次数过多，这会带来额外的性能开销。实际上看似这里的count++也增加不了多少花销，但如果统计数据的存储需要：</p>
 <ul>
 <li><strong>存入数组</strong> → 可能导致 <strong>CPU 缓存失效</strong>，因为 <code>count++</code> 会不断写入一个变量，而采样写入的次数更少；</li>
-<li><strong>写入日志&#x2F;文件</strong> → 频繁写入磁盘 I&#x2F;O 代价极高，减少存储次数有利于性能；</li>
+<li><strong>写入日志/文件</strong> → 频繁写入磁盘 I/O 代价极高，减少存储次数有利于性能；</li>
 <li><strong>存入数据库</strong> → 频繁更新数据库可能导致事务开销增加。</li>
 </ul>
 <p>比如<code>query()</code> 被调用 <strong>10 亿次</strong>，那么 <code>stats</code> 可能占用 <strong>多个 GB 内存</strong>，并且 CPU 可能会因为缓存未命中导致性能下降。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 直接计数，每次都写入数组</span></span><br><span class="line"><span class="type">int</span> stats[<span class="number">1000000000</span>]; <span class="comment">// 占用大量内存</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">query</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    stats[query_id++] = some_value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>在这些情况下，<strong>随机采样可以降低存储和 I&#x2F;O 开销</strong>。显著提高缓存命中率、减少 I&#x2F;O 压力。</p>
+<p>在这些情况下，<strong>随机采样可以降低存储和 I/O 开销</strong>。显著提高缓存命中率、减少 I/O 压力。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">query</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">rand</span>() % <span class="number">100</span> == <span class="number">0</span>) &#123;</span><br><span class="line">        sampled_stats[sample_id++] = some_value; <span class="comment">// 只存储 1% 的数据</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>不过上述随机采样实现方式也存在问题，如果我们要执行10亿次query，那就要调用10亿次rand函数。这里我们可以转用<strong>几何分布</strong>来进行随机抽样。<strong>几何分布的本质</strong>：它描述了<strong>成功事件（采样事件）发生之前的失败次数</strong>。假设我们仍然希望以 <strong>1% 的概率进行采样</strong>（即 <code>p = 0.01</code>），几何分布会<strong>直接生成下一个成功事件之前的失败次数</strong>。比如<code>geometric_distribution(0.01)</code> 可能返回 <strong>87</strong>，表示<strong>前 87 次都不会采样，第 88 次才会采样</strong>。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">query</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="type">static</span> <span class="type">int</span> next_sample = <span class="built_in">geometric_distribution</span>(sample_rate);</span><br><span class="line">    <span class="keyword">if</span> (--next_sample == <span class="number">0</span>) &#123;  <span class="comment">// 只有当 next_sample 递减到 0 才采样</span></span><br><span class="line">        next_sample = <span class="built_in">geometric_distribution</span>(sample_rate);  <span class="comment">// 生成新的采样间隔</span></span><br><span class="line">        <span class="comment">// 更新统计数据</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 执行核心逻辑</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>比如我们用如下代码进行实验，最后就会输出10个左右的不同抽样值：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;random&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;chrono&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="type">int</span> count = <span class="number">0</span>;</span><br><span class="line"><span class="type">double</span> sample_rate = <span class="number">0.01</span>;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">query</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 用时间作为种子，避免伪随机</span></span><br><span class="line">    <span class="function"><span class="type">static</span> default_random_engine <span class="title">generator</span><span class="params">(chrono::steady_clock::now().time_since_epoch().count())</span></span>;</span><br><span class="line">    <span class="function"><span class="type">static</span> geometric_distribution&lt;<span class="type">int</span>&gt; <span class="title">dist</span><span class="params">(sample_rate)</span></span>;</span><br><span class="line">    <span class="type">static</span> <span class="type">int</span> next_sample = <span class="built_in">dist</span>(generator);</span><br><span class="line">    <span class="keyword">if</span> (--next_sample == <span class="number">0</span>) &#123;  <span class="comment">// 只有当 next_sample 递减到 0 才采样</span></span><br><span class="line">        next_sample = <span class="built_in">dist</span>(generator);  <span class="comment">// 生成新的采样间隔</span></span><br><span class="line">        <span class="comment">// 更新统计数据</span></span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;count: &quot;</span> &lt;&lt; count &lt;&lt; endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 执行核心逻辑</span></span><br><span class="line">    count++;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000</span>; ++i) &#123;</span><br><span class="line">        <span class="built_in">query</span>();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h4 id="统计分析（Statistical-Profiling）"><a href="#统计分析（Statistical-Profiling）" class="headerlink" title="统计分析（Statistical Profiling）"></a>统计分析（Statistical Profiling）</h4><p>在程序性能分析中，<strong>Instrumentation</strong>（插桩）方法虽然有效，但通常过于繁琐且容易带来额外开销。如果你需要分析程序中的多个小部分，或者需要较为细粒度的统计信息，Instrumentation的效果并不理想。<strong>Statistical Profiling</strong>（统计分析）则提供了一个更轻量且高效的方法。</p>
 <p><strong>Statistical Profiling的工作原理</strong></p>
 <p>统计分析通过在随机时间间隔中暂停程序的执行，并查看程序计数器指向的位置来进行性能分析。每次暂停时，程序的<strong>指令指针</strong>（Instruction Pointer，IP）会显示当前执行到的代码位置。通过在不同的函数块中进行暂停，可以得出一个大致的统计，反映出各个函数所消耗的执行时间。</p>
@@ -1103,10 +1065,8 @@
 <p>与插桩方法相比，统计分析方法更加轻量，不会在每个函数调用时引入额外的开销，避免了程序执行的显著干扰。通过增加采样频率可以提高分析的准确性，但过高的采样频率可能会引起性能下降，从而影响统计数据的真实性。因此，通常需要较长时间的运行来获得更精确的统计数据。</p>
 <h5 id="分析工具"><a href="#分析工具" class="headerlink" title="分析工具"></a>分析工具</h5><p>在linux系统上，主要使用 <strong>perf</strong> 进行分析，而在别的系统上，可以使用 <a class="link"   target="_blank" rel="noopener" href="https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html#gs.cuc0ks" >VTune<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a> 实现类似功能。这里我在wsl环境下进行实验，也可以尝试用<code>sudo apt install linux-tools-common</code>进行安装，但是会一直显示内核环境不匹配。那我们可以去github下载源码手动编译。</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install elfutils libunwind-dev libperl-dev liblzma-dev libzstd-dev libcap-dev libnuma-dev libbabeltrace-dev libpfm4-dev libtraceevent-dev </span><br><span class="line"></span><br><span class="line">git <span class="built_in">clone</span> https://github.com/microsoft/WSL2-Linux-Kernel --depth 1</span><br><span class="line"><span class="built_in">cd</span> WSL2-Linux-Kernel/tools/perf</span><br><span class="line">make -j8</span><br><span class="line"><span class="built_in">sudo</span> <span class="built_in">cp</span> perf /usr/local/bin</span><br></pre></td></tr></table></figure></div>
-
 <p>然后我们准备一个cpp程序：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// g++ -O3 -march=native ./test.cpp -o test</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;random&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;chrono&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;algorithm&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> n = <span class="number">10000000</span>;</span><br><span class="line"><span class="type">int</span> a[<span class="number">10000000</span>];</span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">binary_search</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="type">int</span> l = <span class="number">0</span>, r = n - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (l &lt; r) &#123;</span><br><span class="line">        <span class="type">int</span> m = (l + r) / <span class="number">2</span>;</span><br><span class="line">        <span class="keyword">if</span> (a[m] &gt;= x)</span><br><span class="line">            r = m;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">            l = m + <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> l;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">setup</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">        a[i] = <span class="built_in">rand</span>();</span><br><span class="line">    <span class="built_in">sort</span>(a, a + n);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">query</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">        <span class="type">int</span> idx = <span class="built_in">binary_search</span>(a, a + n, <span class="built_in">rand</span>());</span><br><span class="line">        checksum += idx;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> checksum;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="built_in">srand</span>(chrono::steady_clock::<span class="built_in">now</span>().<span class="built_in">time_since_epoch</span>().<span class="built_in">count</span>());</span><br><span class="line">    <span class="built_in">setup</span>();</span><br><span class="line">    cout &lt;&lt; <span class="built_in">query</span>() &lt;&lt; endl;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>然后我们可以<code>perf stat ./test</code> 进行测试。但发现如上perf会显示如下错误，能够获取的信息很有限。之后看了<a class="link"   target="_blank" rel="noopener" href="https://www.scicoding.com/how-to-perform-perf-profiling-in-wsl2/" >这篇文章<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>发现可能wsl2就是不支持硬件计数器的，所以最好我们还是用vm中的完整linux系统来进行模拟。</p>
 <img  
                      lazyload
@@ -1114,23 +1074,19 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250313195628873.png"
                       class=""
                 >
-
 <p>有时候会出现如下错误：</p>
 <div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">Error:</span><br><span class="line">Access to performance monitoring and observability operations is limited.</span><br><span class="line">Consider adjusting /proc/sys/kernel/perf_event_paranoid setting to open</span><br><span class="line">access to performance monitoring and observability operations for processes</span><br><span class="line">without CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN Linux capability.</span><br><span class="line">More information can be found at &#x27;Perf events and tool security&#x27; document:</span><br><span class="line">https://www.kernel.org/doc/html/latest/admin-guide/perf-security.html</span><br><span class="line">perf_event_paranoid setting is 4:</span><br><span class="line">  -1: Allow use of (almost) all events by all users</span><br><span class="line">      Ignore mlock limit after perf_event_mlock_kb without CAP_IPC_LOCK</span><br><span class="line">&gt;= 0: Disallow raw and ftrace function tracepoint access</span><br><span class="line">&gt;= 1: Disallow CPU event access</span><br><span class="line">&gt;= 2: Disallow kernel profiling</span><br><span class="line">To make the adjusted perf_event_paranoid setting permanent preserve it</span><br><span class="line">in /etc/sysctl.conf (e.g. kernel.perf_event_paranoid = &lt;setting&gt;)</span><br></pre></td></tr></table></figure></div>
-
 <p>这是因为 <code>perf_event_paranoid</code> 级别过高，限制了非特权用户的访问。我们可以降低 <code>perf_event_paranoid</code> 级别来解决这个问题。</p>
 <p><strong>1. 临时调整权限（仅对当前会话有效）</strong></p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> -1 | <span class="built_in">sudo</span> <span class="built_in">tee</span> /proc/sys/kernel/perf_event_paranoid</span><br></pre></td></tr></table></figure></div>
-
 <p>解释：</p>
 <ul>
 <li><code>-1</code> 允许所有用户访问几乎所有性能事件。</li>
 <li>该设置 <strong>仅对当前会话有效</strong>，重启后会恢复默认值。</li>
 </ul>
 <p><strong>2. 永久修改 <code>perf_event_paranoid</code> 设置</strong></p>
-<p>如果你希望每次启动系统时 <code>perf</code> 都能正常工作，可以修改 **<code>/etc/sysctl.conf</code>**：</p>
+<p>如果你希望每次启动系统时 <code>perf</code> 都能正常工作，可以修改 <strong><code>/etc/sysctl.conf</code></strong>：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&quot;kernel.perf_event_paranoid = -1&quot;</span> | <span class="built_in">sudo</span> <span class="built_in">tee</span> -a /etc/sysctl.conf</span><br><span class="line"><span class="built_in">sudo</span> sysctl -p  <span class="comment"># 立即生效</span></span><br></pre></td></tr></table></figure></div>
-
 <p>这样每次重启后，<code>perf_event_paranoid</code> 都会自动设置为 <code>-1</code>。</p>
 <p>正常的执行结果如下：</p>
 <img  
@@ -1139,7 +1095,6 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250313203855345.png"
                       class=""
                 >
-
 <p>还可以用<code>perf stat -e cache-references,cache-misses ./test</code>来查看缓存的引用数以及不命中率。更多的可查看的事件可以通过<code>perf list</code>列出来。常用的还有<code>perf record -g binary</code>记录数据，<code>perf report</code>查看数据。</p>
 <img  
                      lazyload
@@ -1147,7 +1102,6 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250313210543942.png"
                       class=""
                 >
-
 <p>还能够跟进具体的函数查看哪个指令花费的时间最多。从下图可发现我们的程序大部分时间都在等待比较结果并跳转。</p>
 <img  
                      lazyload
@@ -1155,7 +1109,6 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250313210218141.png"
                       class=""
                 >
-
 <h4 id="程序模拟（Program-Simulation）"><a href="#程序模拟（Program-Simulation）" class="headerlink" title="程序模拟（Program Simulation）"></a>程序模拟（Program Simulation）</h4><p>这类分析工具有许多不同的子类别，它们在模拟计算的不同方面有所区别。我们将重点关注<strong>缓存（caching）</strong>和<strong>分支预测（branch prediction）</strong>，并使用 <strong>Cachegrind</strong> 进行分析。Cachegrind 是 <strong>Valgrind</strong> 的一个专门用于性能分析的组件，而 <strong>Valgrind</strong> 本身是一个广泛用于<strong>内存泄漏检测</strong>和<strong>内存调试</strong>的工具。我们可以通过这个工具清晰的看出缓存的命中率以及分支预测成功率。</p>
 <img  
                      lazyload
@@ -1163,31 +1116,22 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/image-20250313212257762.png"
                       class=""
                 >
-
 <p><code>Cachegrind</code> 只模拟了第一个（D1 数据缓存，I1 指令缓存）和最后一个（LL，统一缓存）级别的缓存，这些特性是从系统中推断出来的。它并不限制你使用，可以通过命令行设置它们，例如，要模拟 <strong>L2 缓存</strong>，可以使用：<code>--LL=&lt;size&gt;,&lt;associativity&gt;,&lt;line size&gt;</code>。</p>
 <p>到目前为止，似乎它只是让程序变慢了，并没有提供比 <code>perf stat</code> 更多的信息。为了从中获得更多信息，我们可以检查它默认输出的包含分析信息的特殊文件，该文件通常会以 <code>cachegrind.out.&lt;pid&gt;</code> 的形式保存在同一目录中。它是可读的，但应该通过 <code>cg_annotate</code> 命令来读取：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cg_annotate cachegrind.out.4159404 --show=Dr,D1mr,DLmr,Bc,Bcm</span><br></pre></td></tr></table></figure></div>
-
 <p><code>Dr</code> 代表数据读取，<code>D1mr</code> 代表 D1 缓存未命中，<code>DLmr</code> 代表 LL 缓存未命中，<code>Bc</code> 代表分支计数，<code>Bcm</code> 代表分支误预测计数。</p>
 <p>首先会展示出缓存系统的一些参数：</p>
 <div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">I1 cache:         32768 B, 64 B, 8-way associative</span><br><span class="line">D1 cache:         49152 B, 64 B, 12-way associative</span><br><span class="line">LL cache:         25165824 B, 64 B, 12-way associative</span><br></pre></td></tr></table></figure></div>
-
 <p>接下来，它会输出一个类似 <code>perf report</code> 的每个函数的摘要：</p>
 <div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">Dr                   D1mr                 DLmr               Bc                   Bcm                   file:function</span><br><span class="line">--------------------------------------------------------------------------------</span><br><span class="line">233,222,628 (24.19%) 120,907,934 (93.42%) 9,088,287 (88.93%) 476,445,256 (46.38%) 126,804,147 (55.30%)  /usr/include/c++/11/bits/stl_algobase.h:query()</span><br><span class="line">  2,974,063 ( 0.31%)         545 ( 0.00%)         1 ( 0.00%) 294,308,292 (28.65%)  90,370,039 (39.41%)  /usr/include/c++/11/bits/stl_algo.h:void std::__introsort_loop&lt;int*, long, __gnu_cxx::__ops::_Iter_less_iter&gt;(int*, int*, long, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0]</span><br><span class="line">160,000,000 (16.59%)          30 ( 0.00%)        22 ( 0.00%)  99,354,839 ( 9.67%)   1,290,334 ( 0.56%)  ./stdlib/./stdlib/random_r.c:random_r</span><br><span class="line">160,000,000 (16.59%)           2 ( 0.00%)         2 ( 0.00%)  80,000,000 ( 7.79%)           3 ( 0.00%)  ./stdlib/./stdlib/random.c:random</span><br><span class="line">290,352,982 (30.11%)   7,876,199 ( 6.09%)   890,954 ( 8.72%)           0                    0           /usr/include/c++/11/bits/predefined_ops.h:void std::__introsort_loop&lt;int*, long, __gnu_cxx::__ops::_Iter_less_iter&gt;(int*, int*, long, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0]</span><br><span class="line">          0                    0                  0                    0                    0           /usr/include/c++/11/bits/stl_iterator_base_funcs.h:query()</span><br><span class="line">  9,999,999 ( 1.04%)     624,243 ( 0.48%)   231,812 ( 2.27%)  46,870,617 ( 4.56%)  10,811,473 ( 4.72%)  /usr/include/c++/11/bits/stl_algo.h:setup()</span><br><span class="line"> 20,000,004 ( 2.07%)           2 ( 0.00%)         2 ( 0.00%)  10,000,001 ( 0.97%)           9 ( 0.00%)  /mnt/d/code/C++/./test.cpp:query()</span><br><span class="line"> 20,000,000 ( 2.07%)           0                  0                    0                    0           ./stdlib/./stdlib/rand.c:rand</span><br><span class="line">          0                    0                  0                    0                    0           /usr/include/c++/11/bits/move.h:void std::__introsort_loop&lt;int*, long, __gnu_cxx::__ops::_Iter_less_iter&gt;(int*, int*, long, __gnu_cxx::__ops::_Iter_less_iter) [clone .isra.0]</span><br><span class="line"> 10,000,008 ( 1.04%)           3 ( 0.00%)         2 ( 0.00%)  10,000,001 ( 0.97%)           7 ( 0.00%)  /mnt/d/code/C++/./test.cpp:setup()</span><br><span class="line"> 36,870,615 ( 3.82%)           0                  0                    0                    0           /usr/include/c++/11/bits/predefined_ops.h:setup()</span><br><span class="line"> 20,001,490 ( 2.07%)         155 ( 0.00%)        45 ( 0.00%)         162 ( 0.00%)          46 ( 0.00%)  ???:???</span><br><span class="line">          0                    0                  0           10,000,000 ( 0.97%)           3 ( 0.00%)  /usr/include/c++/11/bits/stl_algo.h:query()</span><br></pre></td></tr></table></figure></div>
-
 <p>这样我们就可以分析是在什么阶段出了很多 <strong>L1 缓存未命中</strong> 和 <strong>分支误预测</strong>。这是<strong>perf</strong>不具有的功能。</p>
 <p><code>Cachegrind</code> 还有一个非常好的特性是对源代码的逐行注解。为此，你需要用调试信息（<code>-g</code>）编译程序，并且显式告诉 <code>cg_annotate</code> 需要注解哪些源文件，或者直接使用 <code>--auto=yes</code> 选项，让它自动注解所有它能访问到的文件（包括标准库的源代码）。</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">g++ -O3 -march=native ./test.cpp -g -o <span class="built_in">test</span></span><br><span class="line">valgrind --tool=cachegrind --branch-sim=<span class="built_in">yes</span> --cachegrind-out-file=cachegrind.out ./test</span><br><span class="line">cg_annotate cachegrind.out --auto=<span class="built_in">yes</span> --show=Dr,D1mr,DLmr,Bc,Bcm</span><br></pre></td></tr></table></figure></div>
-
-
-
 <p>不幸的是，<code>Cachegrind</code> 只追踪内存访问和分支。当瓶颈是由其他因素引起时，我们需要使用其他模拟工具进行分析。</p>
 <h4 id="机器码分析"><a href="#机器码分析" class="headerlink" title="机器码分析"></a>机器码分析</h4><p>主要用的工具是<code>llvm-mca</code>，我们将以数组求和作为简单的例子进行分析：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">loop:</span><br><span class="line">    addl (%rax), %edx</span><br><span class="line">    addq $4, %rax</span><br><span class="line">    cmpq %rcx, %rax</span><br><span class="line">    jne loop</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>llvm-mca 的分析结果（以 Skylake 微架构为例）</strong></p>
 <div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Iterations:        100</span><br><span class="line">Instructions:      400</span><br><span class="line">Total Cycles:      108</span><br><span class="line">Total uOps:        500</span><br><span class="line"></span><br><span class="line">Dispatch Width:    6</span><br><span class="line">uOps Per Cycle:    4.63</span><br><span class="line">IPC:               3.70</span><br><span class="line">Block RThroughput: 0.8</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>运行信息：</strong></p>
 <ul>
 <li><code>llvm-mca</code> 模拟执行了 100 次循环，总共执行了 400 条指令，用时 108 个周期。</li>
@@ -1200,18 +1144,16 @@
 <li>每条指令的细节信息，包括它分解成的微操作数（uOps）、延迟、吞吐量等：</li>
 </ul>
 <div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[1]    [2]    [3]    [4]    [5]    [6]    Instructions:</span><br><span class="line">2      6     0.50    *                   addl    (%rax), %edx</span><br><span class="line">1      1     0.25                        addq    $4, %rax</span><br><span class="line">1      1     0.25                        cmpq    %rcx, %rax</span><br><span class="line">1      1     0.50                        jne     -11</span><br></pre></td></tr></table></figure></div>
-
 <p>每条指令有：</p>
 <ul>
 <li><strong>uOps</strong>：指令分解成的微操作数。</li>
 <li><strong>延迟</strong>：执行该指令所需的周期数。</li>
 <li><strong>吞吐量</strong>：指令在多个副本可以同时执行时的平均周期数。</li>
 </ul>
-<ol start="3">
+<ol>
 <li><strong>资源压力图：</strong> <code>llvm-mca</code> 还会输出每条指令使用的CPU资源的压力情况。如下所示：</li>
 </ol>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Resource pressure by instruction:</span><br><span class="line">[0]    [1]    [2]    [3]    [4]    [5]    [6]    [7]    [8]    [9]    Instructions:</span><br><span class="line">-      -     0.01   0.98   0.50   0.50    -      -     0.01    -     addl (%rax), %edx</span><br><span class="line">-      -      -      -      -      -      -     0.01   0.99    -     addq $4, %rax</span><br><span class="line">-      -      -     0.01    -      -      -     0.99    -      -     cmpq %rcx, %rax</span><br><span class="line">-      -     0.99    -      -      -      -      -     0.01    -     jne -11</span><br></pre></td></tr></table></figure></div>
-
 <ul>
 <li>该图显示了每条指令在不同执行端口上的资源使用情况。</li>
 <li>通过查看这些统计信息，可以诊断出哪些指令在执行过程中遇到了瓶颈，通常是由于资源争用导致的结构性危害。</li>
@@ -1225,33 +1167,26 @@
 <p>编写基准测试代码有几种方法。可能最常见的方法是将要比较的多种同语言实现放在同一个文件中，在 <code>main</code> 函数中分别调用它们，并在同一个源文件中计算你想要的所有度量指标。</p>
 <p>这种方法的缺点是你需要编写大量的样板代码，并且为每个实现重复这些代码，但可以通过元编程来部分消除这一点。例如，当你正在基准测试多个 <code>gcd</code> 实现时，可以通过这个高阶函数大大减少基准测试代码：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">int</span> N = <span class="number">1e6</span>, T = <span class="number">1e9</span> / N;</span><br><span class="line"><span class="type">int</span> a[N], b[N];</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">timeit</span><span class="params">(<span class="type">int</span> (*f)(<span class="type">int</span>, <span class="type">int</span>))</span> </span>&#123;</span><br><span class="line">    <span class="type">clock_t</span> start = <span class="built_in">clock</span>();</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; T; t++)</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">            checksum ^= <span class="built_in">f</span>(a[i], b[i]);</span><br><span class="line">    </span><br><span class="line">    <span class="type">float</span> seconds = <span class="built_in">float</span>(<span class="built_in">clock</span>() - start) / CLOCKS_PER_SEC;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;checksum: %d\n&quot;</span>, checksum);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%.2f ns per call\n&quot;</span>, <span class="number">1e9</span> * seconds / N / T);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">        a[i] = <span class="built_in">rand</span>(), b[i] = <span class="built_in">rand</span>();</span><br><span class="line">    </span><br><span class="line">    <span class="built_in">timeit</span>(std::gcd);</span><br><span class="line">    <span class="built_in">timeit</span>(my_gcd);</span><br><span class="line">    <span class="built_in">timeit</span>(my_another_gcd);</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这种方法具有非常低的开销，可以让你运行更多的实验并从中获得更准确的结果。你仍然需要执行一些重复的操作，但它们可以通过框架自动化，Google 的 <code>benchmark</code> 库是 C++ 中最流行的选择。一些编程语言也提供了方便的内置基准工具，例如 Python 的 <code>timeit</code> 函数和 Julia 的 <code>@benchmark</code> 宏。</p>
-<h5 id="分离实现代码"><a href="#分离实现代码" class="headerlink" title="分离实现代码"></a>分离实现代码</h5><p>在 C&#x2F;C++ 中，通常可以通过创建一个单一的头文件（例如 <code>gcd.hh</code>）来定义算法接口，并将所有的基准测试代码放在 <code>main</code> 函数中。这种做法的基本结构如下：</p>
+<h5 id="分离实现代码"><a href="#分离实现代码" class="headerlink" title="分离实现代码"></a>分离实现代码</h5><p>在 C/C++ 中，通常可以通过创建一个单一的头文件（例如 <code>gcd.hh</code>）来定义算法接口，并将所有的基准测试代码放在 <code>main</code> 函数中。这种做法的基本结构如下：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// gcd.hh</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span></span>; <span class="comment">// 需要实现</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// main.cpp</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;gcd.hh&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="type">const</span> <span class="type">int</span> N = <span class="number">1e6</span>, T = <span class="number">1e9</span> / N;</span><br><span class="line">    <span class="type">int</span> a[N], b[N];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">        a[i] = <span class="built_in">rand</span>(), b[i] = <span class="built_in">rand</span>();</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">clock_t</span> start = <span class="built_in">clock</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; T; t++)</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">            checksum += <span class="built_in">gcd</span>(a[i], b[i]);</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> seconds = <span class="built_in">float</span>(<span class="built_in">clock</span>() - start) / CLOCKS_PER_SEC;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%d\n&quot;</span>, checksum);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%.2f ns per call\n&quot;</span>, <span class="number">1e9</span> * seconds / N / T);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>在上面的代码中，<code>gcd.hh</code> 头文件只声明了 <code>gcd</code> 函数，而其具体实现被写在不同的源文件中。这样可以让你在不修改主代码的情况下，测试不同版本的 <code>gcd</code> 算法。</p>
 <p><strong>不同版本的实现</strong></p>
 <p>每个算法版本的实现（例如，<code>v1.cc</code>、<code>v2.cc</code> 等）都可以包含这个头文件，并根据需要实现 <code>gcd</code> 函数。例如：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// v1.cc</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;gcd.hh&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">gcd</span><span class="params">(<span class="type">int</span> a, <span class="type">int</span> b)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (b == <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> a;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">gcd</span>(b, a % b);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这种方法使得你可以在命令行中指定某个版本的算法进行基准测试，而无需修改任何源代码。你只需在不同的实现文件之间切换或通过编译时参数选择实现版本。</p>
 <p><strong>动态调整参数</strong></p>
 <p>为了提高灵活性，可以通过命令行参数来传递运行时的参数。例如，你可以根据命令行参数设置数据集大小：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.cpp</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span>* argv[])</span> </span>&#123;</span><br><span class="line">    <span class="type">int</span> N = (argc &gt; <span class="number">1</span> ? <span class="built_in">atoi</span>(argv[<span class="number">1</span>]) : <span class="number">1e6</span>);  <span class="comment">// 通过命令行参数设置 N 的值</span></span><br><span class="line">    <span class="type">const</span> <span class="type">int</span> T = <span class="number">1e9</span> / N;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 基准测试代码...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这样，你就能够在不同的实验中灵活地调整输入数据的规模而无需重新编写代码。</p>
 <p><strong>使用编译时常量</strong></p>
 <p>另一种方法是使用 C 风格的全局宏定义，并通过编译时的 <code>-D</code> 标志来传递参数。例如，设置 <code>N</code> 的值：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// gcd.hh</span><br><span class="line"><span class="comment">#ifndef N</span></span><br><span class="line"><span class="comment">#define N 1000000</span></span><br><span class="line"><span class="comment">#endif</span></span><br><span class="line"></span><br><span class="line">const int T = 1e9 / N;</span><br></pre></td></tr></table></figure></div>
-
 <p>然后在编译时使用 <code>-D N=2000000</code> 来设置 <code>N</code> 的值：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">g++ -D N=2000000 -o main main.cpp v1.cc</span><br></pre></td></tr></table></figure></div>
-
 <p>这种方法的优势是能够利用编译时常量，这对于某些算法的性能优化非常有帮助。然而，缺点是每次更改参数时需要重新编译程序，这可能会增加收集多个参数值的度量数据所需的时间。</p>
 <h5 id="Makefile使用"><a href="#Makefile使用" class="headerlink" title="Makefile使用"></a>Makefile使用</h5><p>为了提高编译速度，可以将源文件拆分，并使用像Make这样的缓存构建系统。Make是一个强大的工具，可以通过自动化编译过程来加速构建和测试循环。以下是一个常用的Makefile示例，适用于C++项目的构建：</p>
 <div class="highlight-container" data-rel="Makefile"><figure class="iseeu highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">compile = g++ -std=c++17 -O3 -march=native -Wall</span><br><span class="line"></span><br><span class="line"><span class="section">%: %.cc gcd.hh</span></span><br><span class="line">	<span class="variable">$(compile)</span> <span class="variable">$&lt;</span> -o <span class="variable">$@</span> </span><br><span class="line"></span><br><span class="line"><span class="section">%.s: %.cc gcd.hh</span></span><br><span class="line">	<span class="variable">$(compile)</span> -S -fverbose-asm <span class="variable">$&lt;</span> -o <span class="variable">$@</span>  <span class="comment"># 生成汇编文件</span></span><br><span class="line"></span><br><span class="line"><span class="section">%.run: %  # 运行文件</span></span><br><span class="line">	@./<span class="variable">$&lt;</span></span><br><span class="line"></span><br><span class="line"><span class="meta"><span class="keyword">.PHONY</span>: %.run  # 声明run为伪目标</span></span><br></pre></td></tr></table></figure></div>
-
 <p><strong>解释</strong></p>
 <ul>
 <li><code>compile</code>: 定义了一个编译命令，使用 <code>g++</code> 编译器，启用了C++17标准，开启了最大优化 <code>-O3</code>，指定了本地体系结构优化 <code>-march=native</code>，并显示警告信息 <code>-Wall</code>。</li>
@@ -1262,45 +1197,29 @@
 </ul>
 <p>使用这个Makefile，你可以通过简单的命令来编译和运行程序，例如：</p>
 <div class="highlight-container" data-rel="Makefile"><figure class="iseeu highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">make example      <span class="comment"># 编译example.cc为可执行文件</span></span><br><span class="line">make example.run  <span class="comment"># 运行example</span></span><br></pre></td></tr></table></figure></div>
-
 <p><strong>与性能分析结合</strong></p>
 <p>你还可以在Makefile中加入性能分析的脚本。例如，通过 <code>perf stat</code> 来自动化性能剖析：</p>
 <div class="highlight-container" data-rel="Makefile"><figure class="iseeu highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">%.perf: %</span></span><br><span class="line">	@perf stat ./<span class="variable">$&lt;</span></span><br></pre></td></tr></table></figure></div>
-
 <p>这样，你就可以运行 <code>make example.perf</code> 来获取运行的性能统计数据。</p>
 <h5 id="Jupyter-Notebooks使用"><a href="#Jupyter-Notebooks使用" class="headerlink" title="Jupyter Notebooks使用"></a>Jupyter Notebooks使用</h5><p>为了进一步加速高层次的分析，你可以在Jupyter Notebook中整理你的脚本并生成图表。可以通过编写一个基准测试函数来自动化测试不同算法实现的性能：</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">bench</span>(<span class="params">source, n=<span class="number">2</span>**<span class="number">20</span></span>):</span><br><span class="line">    !make -s &#123;source&#125;</span><br><span class="line">    <span class="keyword">if</span> _exit_code != <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">raise</span> Exception(<span class="string">&quot;Compilation failed&quot;</span>)</span><br><span class="line">    res = !./&#123;source&#125; &#123;n&#125;</span><br><span class="line">    duration = <span class="built_in">float</span>(res[<span class="number">0</span>].split()[<span class="number">0</span>])</span><br><span class="line">    <span class="keyword">return</span> duration</span><br></pre></td></tr></table></figure></div>
-
 <p>在这个函数中，<code>make -s &#123;source&#125;</code> 会编译源代码并生成目标文件。如果编译失败，它会抛出异常。然后，使用 <code>!./&#123;source&#125; &#123;n&#125;</code> 运行编译后的程序并返回执行时间。</p>
 <p>一旦有了基准测试的函数，你就可以轻松地编写清晰的分析代码：</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ns = <span class="built_in">list</span>(<span class="built_in">int</span>(<span class="number">1.17</span>**k) <span class="keyword">for</span> k <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">30</span>, <span class="number">60</span>))</span><br><span class="line">baseline = [bench(<span class="string">&#x27;std_lower_bound&#x27;</span>, n=n) <span class="keyword">for</span> n <span class="keyword">in</span> ns]</span><br><span class="line">results = [bench(<span class="string">&#x27;my_binary_search&#x27;</span>, n=n) <span class="keyword">for</span> n <span class="keyword">in</span> ns]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 绘制不同数组大小下的相对加速图</span></span><br><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"></span><br><span class="line">plt.plot(ns, [x / y <span class="keyword">for</span> x, y <span class="keyword">in</span> <span class="built_in">zip</span>(baseline, results)])</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h4 id="获取准确的结果"><a href="#获取准确的结果" class="headerlink" title="获取准确的结果"></a>获取准确的结果</h4><p>为了使测试的结果更加准确，我们需要考虑如下的几个点：</p>
 <p><strong>1.不同的数据集</strong></p>
 <p>由于很多算法的效率很大程度上受数据分布的影响，我们需要选取尽可能贴近实际使用的数据分布来进行测试。例如如下的有序数据集，会使分支很容易预测。而随机打乱的数据集就会让cpu难以通过执行的历史预测之后的分支取向。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// don&#x27;t do this</span></span><br><span class="line"><span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> a = <span class="number">0</span>; a &lt; <span class="number">1000</span>; a++)</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> b = <span class="number">0</span>; b &lt; <span class="number">1000</span>; b++)</span><br><span class="line">        checksum ^= gcd(a, b);</span><br><span class="line"></span><br><span class="line"><span class="comment">// do things such as this</span></span><br><span class="line"><span class="type">int</span> a[<span class="number">1000</span>], b[<span class="number">1000</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++)</span><br><span class="line">    a[i] = rand() % <span class="number">1000</span>, b[i] = rand() % <span class="number">1000</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> t = <span class="number">0</span>; t &lt; <span class="number">1000</span>; t++)</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++)</span><br><span class="line">        checksum += gcd(a[i], b[i]);</span><br></pre></td></tr></table></figure></div>
-
-
-
 <p><strong>2.多个优化目标</strong></p>
 <p>如哈希表，可能需要在内存占用、查询时间等多个维度进行权衡。</p>
 <p><strong>3.吞吐量 vs 延迟</strong></p>
 <p>在现代 CPU 上，指令并不会<strong>严格顺序执行</strong>，而是可以 <strong>乱序执行</strong> 和 <strong>流水线并行处理</strong>。因此，如果一个任务<strong>可以与其他任务同时进行</strong>，那么它的<strong>吞吐量</strong>可能比<strong>单个操作的真实延迟更低</strong>。所以下面的代码只能测试吞吐量。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    q[i] = rand();  <span class="comment">// 生成随机查询</span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    checksum ^= lower_bound(q[i]);  <span class="comment">// 查找 q[i] 并计算 checksum</span></span><br></pre></td></tr></table></figure></div>
-
 <p>为了测试真实的延迟，我们需要手动引入数据依赖，这样子<strong>CPU 无法并行执行多个查询</strong>，每个 <code>lower_bound</code> <strong>必须等待前一个完全结束</strong>，流水线和乱序执行的优化作用变小。测得的时间更接近单个查询的真实执行时间。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    checksum ^= lower_bound(checksum ^ q[i]);  </span><br></pre></td></tr></table></figure></div>
-
-
-
 <p><strong>4.冷缓存</strong></p>
 <p>当数据最初不在 CPU 缓存（cache）中时，内存读取的时间会更长。在开始正式测量之前，<strong>先运行一次预热（warm-up）</strong>，这样数据就会被加载到缓存中，避免缓存未命中的影响：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 预热运行（warm-up run）</span></span><br><span class="line"><span class="keyword">volatile</span> checksum = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    checksum ^= <span class="built_in">lower_bound</span>(q[i]);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 正式运行（actual run）</span></span><br><span class="line"><span class="type">clock_t</span> start = <span class="built_in">clock</span>();</span><br><span class="line">checksum = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    checksum ^= <span class="built_in">lower_bound</span>(q[i]);</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h4 id="过度优化（Over-Optimization）"><a href="#过度优化（Over-Optimization）" class="headerlink" title="过度优化（Over-Optimization）"></a><strong>过度优化（Over-Optimization）</strong></h4><p>有时<strong>基准测试（benchmark）本身是不正确的</strong>，因为编译器可能<strong>直接优化掉</strong>被测试的代码，导致测量结果没有意义。</p>
 <p><strong>如何防止编译器优化掉基准测试？</strong></p>
 <ol>
@@ -1308,13 +1227,11 @@
 <p>在测试代码中使用 <code>checksum</code> 变量，并在最后输出，<strong>避免编译器省略计算</strong>。</p>
 <p>例如：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    checksum ^= <span class="built_in">lower_bound</span>(q[i]);</span><br><span class="line"></span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;checksum: %d\n&quot;</span>, checksum); <span class="comment">// 防止优化</span></span><br></pre></td></tr></table></figure></div>
-
 <p>如果 <code>lower_bound(q[i])</code> 的计算结果没有影响最终程序逻辑，编译器可能会认为它是<strong>无效计算</strong>并移除，导致错误的测量结果。</p>
 </li>
 <li><p><strong>使用 <code>volatile</code> 限定符</strong></p>
 <p><code>volatile</code>关键字告诉编译器不要优化该变量的访问，确保它在每次循环迭代时都被真正计算：</p>
   <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">volatile</span> <span class="type">int</span> checksum = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    checksum ^= <span class="built_in">lower_bound</span>(q[i]);</span><br></pre></td></tr></table></figure></div>
-
 <p>作用：</p>
 <ul>
 <li><p><strong>防止编译器优化掉整个计算过程</strong>。</p>
@@ -1324,7 +1241,7 @@
 </ul>
 </li>
 </ol>
-<h4 id="减少噪音"><a href="#减少噪音" class="headerlink" title="减少噪音"></a>减少噪音</h4><p>在基准测试（benchmarking）中，除了<strong>偏差（bias）</strong>，还有<strong>噪声（noise）**会影响测量结果。偏差通常会**系统性地**使某个算法占优，而噪声则会导致</strong>随机波动**，增加测试的方差（variance），使结果不稳定。</p>
+<h4 id="减少噪音"><a href="#减少噪音" class="headerlink" title="减少噪音"></a>减少噪音</h4><p>在基准测试（benchmarking）中，除了<strong>偏差（bias）</strong>，还有<strong>噪声（noise）\</strong>会影响测量结果。偏差通常会*<em>系统性地<strong>使某个算法占优，而噪声则会导致</strong>随机波动*</em>，增加测试的方差（variance），使结果不稳定。</p>
 <p><strong>噪声的来源</strong></p>
 <ol>
 <li><p><strong>外部干扰（Side Effects &amp; External Noise）</strong></p>
@@ -1344,10 +1261,8 @@
 <ul>
 <li><p>CPU 可能会根据负载自动调整频率，这会导致每次运行基准测试的结果不同，因此需要手动锁定频率：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> cpupower frequency-set -g performance  <span class="comment"># 设置为最高性能模式</span></span><br></pre></td></tr></table></figure></div>
-
 <p>或者：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> cpupower frequency-set -g powersave  <span class="comment"># 限制 CPU 频率最低</span></span><br></pre></td></tr></table></figure></div>
-
 <p>这样可以确保 CPU 频率不会在测试过程中波动。</p>
 </li>
 <li><p><strong>关闭超线程（Hyper-Threading）</strong></p>
@@ -1357,7 +1272,7 @@
 <li><p>关闭超线程的方法：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> off | <span class="built_in">sudo</span> <span class="built_in">tee</span> /sys/devices/system/cpu/smt/control</span><br></pre></td></tr></table></figure></div>
 </li>
-<li><p>或者在 BIOS&#x2F;UEFI 中手动禁用超线程。</p>
+<li><p>或者在 BIOS/UEFI 中手动禁用超线程。</p>
 </li>
 </ul>
 </li>
@@ -1396,8 +1311,8 @@
 <li>如果你看到 <strong>+1%</strong> 的性能提升，不要立刻下结论，而是<strong>运行足够多次，计算方差和 p-value</strong>，确保统计显著性（statistical significance）。</li>
 </ul>
 </li>
-<li><strong>使用 A&#x2F;B 测试方法</strong><ul>
-<li>和 A&#x2F;B 测试一样，要<strong>多次运行并比较</strong>两个版本的性能，不要只跑一次就下结论。</li>
+<li><strong>使用 A/B 测试方法</strong><ul>
+<li>和 A/B 测试一样，要<strong>多次运行并比较</strong>两个版本的性能，不要只跑一次就下结论。</li>
 <li>计算<strong>均值、方差、p 值</strong>，确保你的优化方案确实带来了可测量的提升。</li>
 </ul>
 </li>
@@ -1406,7 +1321,6 @@
 <p>在正式介绍浮点数规则之前，我们可以先来看一下一些其它的可能的解决方案。</p>
 <h5 id="符号表达式"><a href="#符号表达式" class="headerlink" title="符号表达式"></a>符号表达式</h5><p>第一种也是最繁琐的方法是<strong>存储产生结果的代数表达式</strong>，而不是直接存储计算后的数值。在某些应用（如计算几何）中，除了加、减、乘运算之外，还需要执行<strong>不带舍入的除法</strong>，即使用两个整数的<strong>比值</strong>（即有理数）来精确表示结果。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">r</span> &#123;</span><br><span class="line">    <span class="type">int</span> x, y;	<span class="comment">// x存分子，y存分母</span></span><br><span class="line">    <span class="comment">// 保持最简分数</span></span><br><span class="line">    <span class="built_in">r</span>(<span class="type">int</span> x, <span class="type">int</span> y) : <span class="built_in">x</span>(x), <span class="built_in">y</span>(y) &#123;</span><br><span class="line">        <span class="keyword">if</span> (y &lt; <span class="number">0</span>)  <span class="comment">// 规范化，使分母始终为正</span></span><br><span class="line">            x = -x, y = -y;</span><br><span class="line">        <span class="type">int</span> g = <span class="built_in">gcd</span>(x, y); <span class="comment">// 计算最大公约数</span></span><br><span class="line">        x /= g;</span><br><span class="line">        y /= g;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义一些基本运算</span></span><br><span class="line">r <span class="keyword">operator</span>+(r a, r b) &#123; <span class="keyword">return</span> &#123;a.x * b.y + a.y * b.x, a.y * b.y&#125;; &#125;</span><br><span class="line">r <span class="keyword">operator</span>*(r a, r b) &#123; <span class="keyword">return</span> &#123;a.x * b.x, a.y * b.y&#125;; &#125;</span><br><span class="line">r <span class="keyword">operator</span>/(r a, r b) &#123; <span class="keyword">return</span> &#123;a.x * b.x, a.y * b.y&#125;; &#125;</span><br><span class="line"><span class="type">bool</span> <span class="keyword">operator</span>&lt;(r a, r b) &#123; <span class="keyword">return</span> a.x * b.y &lt; b.x * a.y; &#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这种方法可以<strong>保持绝对精度</strong>，不会因浮点运算误差导致结果不准确。但它的<strong>计算代价</strong>很高：</p>
 <ol>
 <li>计算机需要存储每一步计算的<strong>历史操作</strong>，而不是简单存储最终数值。</li>
@@ -1421,33 +1335,43 @@
 <p>但在一般数值计算中，由于其高昂的<strong>存储和计算成本</strong>，往往采用<strong>浮点数近似计算</strong>来提高效率。</p>
 <h5 id="定点数"><a href="#定点数" class="headerlink" title="定点数"></a>定点数</h5><p>定点数是一种<strong>仅使用整数</strong>但<strong>隐式表示小数</strong>的方法，本质上就是把数值<strong>乘以一个固定的比例因子</strong>（通常是某个 10 的幂或 2 的幂）。</p>
 <p>这种方法类似于<strong>更改测量单位</strong>，让所有运算都在放大后的整数范围内进行。</p>
-<p>金融软件通常使用<strong>固定精度</strong>来存储货币值，例如 <strong>NASDAQ 股票交易所</strong>使用 <strong>1&#x2F;10000 美元</strong>作为最小单位，即所有金额精确到<strong>小数点后 4 位</strong>。</p>
+<p>金融软件通常使用<strong>固定精度</strong>来存储货币值，例如 <strong>NASDAQ 股票交易所</strong>使用 <strong>1/10000 美元</strong>作为最小单位，即所有金额精确到<strong>小数点后 4 位</strong>。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">money</span> &#123;</span><br><span class="line">    uint v; <span class="comment">// 以 1/10000 美元为单位存储金额</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function">std::string <span class="title">to_string</span><span class="params">(money m)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> std::format(<span class="string">&quot;$&#123;&#125;.&#123;:04d&#125;&quot;</span>, m.v / <span class="number">10000</span>, m.v % <span class="number">10000</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">money <span class="keyword">operator</span>*(money x, money y) &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;x.v * y.v / <span class="number">10000</span>&#125;; <span class="comment">// 乘法需要缩放回正确的单位</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-<p>定点数的一个重大问题是<strong>比例因子选得不合适</strong>时，可能会导致<strong>整数溢出</strong>或<strong>精度损失</strong>。定点数不适用于大范围数值计算。比如考虑爱因斯坦质能方程：$E&#x3D;mc^2$。质量 <code>m</code> 大约是 <strong>1.67 × 10⁻²⁷ kg</strong>。光速 <code>c</code> 约为 <strong>3 × 10⁹ m&#x2F;s</strong>。</p>
+<p>定点数的一个重大问题是<strong>比例因子选得不合适</strong>时，可能会导致<strong>整数溢出</strong>或<strong>精度损失</strong>。定点数不适用于大范围数值计算。比如考虑爱因斯坦质能方程：$E=mc^2$。质量 <code>m</code> 大约是 <strong>1.67 × 10⁻²⁷ kg</strong>。光速 <code>c</code> 约为 <strong>3 × 10⁹ m/s</strong>。</p>
 <p>在这种场景下：</p>
 <ul>
 <li><strong>如果比例因子太大</strong>，那么 <code>m</code> 可能会被舍入到 <code>0</code>，导致能量计算错误。</li>
 <li><strong>如果比例因子太小</strong>，那么 <code>E</code> 可能会溢出，导致计算无法进行。</li>
 </ul>
-<h5 id="浮点数-1"><a href="#浮点数-1" class="headerlink" title="浮点数"></a>浮点数</h5><p>在实际的应用场景中，我们主要关注数据的相对误差。我们通常希望计算结果的误差不超过**0.01%**。我们关心的是这个误差相对于数值本身的比例，而不关心它的绝对大小。</p>
+<h5 id="浮点数-1"><a href="#浮点数-1" class="headerlink" title="浮点数"></a>浮点数</h5><p>在实际的应用场景中，我们主要关注数据的相对误差。我们通常希望计算结果的误差不超过<strong>0.01%</strong>。我们关心的是这个误差相对于数值本身的比例，而不关心它的绝对大小。</p>
 <p>为了满足这个需求，<strong>浮点数</strong>使用了一种特殊的存储方式，它存储一个数字的<strong>有效数字</strong>（又称<strong>尾数</strong>或<strong>manitssa</strong>），并通过一个<strong>指数</strong>（exponent）进行缩放。在计算机中，数值是用<strong>固定长度的二进制字</strong>来存储的，因此我们希望设计一种<strong>固定长度的二进制浮点格式</strong>，其中部分比特用于存储尾数（以提供更高的精度），而另一部分比特用于存储指数（以提供更大的数值范围）。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">fp</span> &#123;</span></span><br><span class="line">    <span class="type">bool</span> s;     <span class="comment">// sign: &quot;0&quot; for &quot;+&quot;, &quot;1&quot; for &quot;-&quot; </span></span><br><span class="line">    <span class="type">unsigned</span> m; <span class="comment">// mantissa</span></span><br><span class="line">    <span class="type">int</span> e;      <span class="comment">// exponent</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
-<p>这样，一个浮点数可以表示为：<br>$$<br>\pm (1+m) \times 2^e<br>$$<br>其中，$m$ 和 $e$ 都是整数（可能为负数）。这种表示方式的一个特点是，它的<strong>分布非常不均匀</strong>——在区间 $[0,1)$ 内的数与 $[1, +\infty)$ 内的数的数量大致相同。</p>
-<p>这里的定义是m作为小数点后的尾数，并且这是因为浮点数的表示并<strong>不是唯一的</strong>。例如，数字 1 可以表示为：<br>$$<br>1 \times 2^0 &#x3D; 2 \times 2^{-1} &#x3D; 256 \times 2^{-8}<br>$$<br>同样的数可以有<strong>多种不同的表示方式</strong>，在某些应用（如<strong>比较或哈希计算</strong>）中，这可能会带来问题。为了解决这个问题，我们可以使用<strong>标准化（Normalization）</strong>，即强制遵循某种约定。在十进制中，我们通常把小数点放在第一个非零数字之后（如<strong>6.022e23</strong>），在二进制中，我们也可以做类似的标准化：<br>$$<br>42 &#x3D; 101010_2 &#x3D; 1.0101_2 \times 2^5<br>$$<br>观察这个表示方式后，我们发现二进制数的<strong>最高位始终是 1</strong>。这意味着我们<strong>不需要显式存储这一位</strong>，只需要存储剩下的部分，即一个介于 $[0,1)$ 之间的数。这样，我们的可表示数的集合变成了：<br>$$<br>{\pm (1 + m) \times 2^e \mid m &#x3D; \frac{x}{2^{32}}, x \in [0, 2^{32})}<br>$$<br>这里的<strong>m</strong>在存的时候是一个无符号整型，公式中将m的范围看作[0,1)只是一个逻辑映射，在数学上这个<strong>m</strong>就代表小数点后的内容。</p>
-<p>然后我们看这个自定义的浮点数的乘法运算符合的规律：<br>$$<br>c &#x3D; a<em>b\<br>&#x3D;(s_a</em>(1+m_a)<em>2^{e_a})</em>(s_b*(1+m_b)<em>2^{e_b})\<br>&#x3D;s_a</em>s_b*(1+m_a+m_b+m_a<em>m_b)<em>2^{e_a+e_b}\<br>s_c&#x3D;s_a</em>s_b\ ;m_c&#x3D;m_a+m_b+m_a</em>m_b\ ;e_c&#x3D;e_a+e_b<br>$$<br>这里有两个问题需要进行解决：</p>
+<p>这样，一个浮点数可以表示为：</p>
+<script type="math/tex; mode=display">
+\pm (1+m) \times 2^e</script><p>其中，$m$ 和 $e$ 都是整数（可能为负数）。这种表示方式的一个特点是，它的<strong>分布非常不均匀</strong>——在区间 $[0,1)$ 内的数与 $[1, +\infty)$ 内的数的数量大致相同。</p>
+<p>这里的定义是m作为小数点后的尾数，并且这是因为浮点数的表示并<strong>不是唯一的</strong>。例如，数字 1 可以表示为：</p>
+<script type="math/tex; mode=display">
+1 \times 2^0 = 2 \times 2^{-1} = 256 \times 2^{-8}</script><p>同样的数可以有<strong>多种不同的表示方式</strong>，在某些应用（如<strong>比较或哈希计算</strong>）中，这可能会带来问题。为了解决这个问题，我们可以使用<strong>标准化（Normalization）</strong>，即强制遵循某种约定。在十进制中，我们通常把小数点放在第一个非零数字之后（如<strong>6.022e23</strong>），在二进制中，我们也可以做类似的标准化：</p>
+<script type="math/tex; mode=display">
+42 = 101010_2 = 1.0101_2 \times 2^5</script><p>观察这个表示方式后，我们发现二进制数的<strong>最高位始终是 1</strong>。这意味着我们<strong>不需要显式存储这一位</strong>，只需要存储剩下的部分，即一个介于 $[0,1)$ 之间的数。这样，我们的可表示数的集合变成了：</p>
+<script type="math/tex; mode=display">
+\{\pm (1 + m) \times 2^e \mid m = \frac{x}{2^{32}}, x \in [0, 2^{32})\}</script><p>这里的<strong>m</strong>在存的时候是一个无符号整型，公式中将m的范围看作[0,1)只是一个逻辑映射，在数学上这个<strong>m</strong>就代表小数点后的内容。</p>
+<p>然后我们看这个自定义的浮点数的乘法运算符合的规律：</p>
+<script type="math/tex; mode=display">
+c = a*b\\
+=(s_a*(1+m_a)*2^{e_a})*(s_b*(1+m_b)*2^{e_b})\\
+=s_a*s_b*(1+m_a+m_b+m_a*m_b)*2^{e_a+e_b}\\
+s_c=s_a*s_b\ ;m_c=m_a+m_b+m_a*m_b\ ;e_c=e_a+e_b</script><p>这里有两个问题需要进行解决：</p>
 <ul>
 <li>乘法运算之后m的值域成了 $[0,3)$ 我们需要进行处理将其归为标准的 $[0,1)$ ，采用的公式如下：</li>
 </ul>
-<p>$$<br>1+m &#x3D; (1+1) + (m-1)&#x3D;(1+\frac{m-1}{2})*2<br>$$</p>
-<p>这样我们通过提取一个系数2增加了e，又能够成功将m的值域变回 $[0,1)$。</p>
+<script type="math/tex; mode=display">
+1+m = (1+1) + (m-1)=(1+\frac{m-1}{2})*2</script><p>这样我们通过提取一个系数2增加了e，又能够成功将m的值域变回 $[0,1)$。</p>
 <ul>
 <li><strong>可能因为精度不够而无法对结果进行表示</strong>，因为 <code>m_a * m_b</code> 可能会超过可表示的范围。我们能够做的就是进行四舍五入。</li>
 </ul>
 <p>完整的乘法实现如下，由于计算 <code>m_a * m_b</code> 需要<strong>额外的精度</strong>，我们使用 64 位整数进行中间计算，并进行标准化处理：：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">fp operator*(fp a, fp b) &#123;</span><br><span class="line">    fp c;</span><br><span class="line">    c.s = a.s ^ b.s;	<span class="comment">// 计算符号位</span></span><br><span class="line">    c.e = a.e + b.e;	<span class="comment">// 计算指数</span></span><br><span class="line">    </span><br><span class="line">    <span class="type">uint64_t</span> x = a.m, y = b.m; <span class="comment">// 转换为 64 位整数进行计算</span></span><br><span class="line">    <span class="type">uint64_t</span> m = (x &lt;&lt; <span class="number">31</span>) + (y &lt;&lt; <span class="number">31</span>) + x * y; <span class="comment">// 计算 62 或 63 位的中间结果</span></span><br><span class="line">    <span class="keyword">if</span> (m &amp; (<span class="number">1</span>&lt;&lt;<span class="number">62</span>)) &#123; 			<span class="comment">// 检查是否溢出</span></span><br><span class="line">        m -= (<span class="number">1</span>&lt;&lt;<span class="number">62</span>); 			<span class="comment">// m -= 1;</span></span><br><span class="line">        m &gt;&gt;= <span class="number">1</span>;</span><br><span class="line">        c.e++;		<span class="comment">// 指数加 1</span></span><br><span class="line">    &#125;</span><br><span class="line">    m += (<span class="number">1</span>&lt;&lt;<span class="number">30</span>); 	<span class="comment">// 进行四舍五入（加 0.5）</span></span><br><span class="line">    c.m = m &gt;&gt; <span class="number">31</span>;	<span class="comment">// 舍入并截取尾数</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> c;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <h5 id="硬件浮点运算"><a href="#硬件浮点运算" class="headerlink" title="硬件浮点运算"></a><strong>硬件浮点运算</strong></h5><p>在某些应用中，我们需要<strong>更高的精度</strong>，这时候可以使用<strong>软件浮点运算</strong>（如 <code>fp</code> 结构体实现的方式）。但是，软件浮点计算的<strong>效率很低</strong>，因为它需要执行多个指令。</p>
 <p>为了提高效率，<strong>现代 CPU 使用专门的硬件单元</strong>（如 x86 的<strong>浮点运算单元 FPU</strong>，又称 x87）。这些单元提供：</p>
 <ul>
@@ -1483,22 +1407,24 @@
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/float.svg"
                       class=""
                 >
-
 <p>采用这个存储顺序的原因之一是便于比较和排序。<br>在硬件中，我们可以直接使用<strong>无符号整数比较器</strong>来比较浮点数，仅在负数情况下对部分位进行翻转，以确保比较的正确性。</p>
 <p><strong>指数的偏移量（Bias）</strong></p>
-<p>为了表示小于 1 的值（负指数），IEEE 754 <strong>对指数值进行了偏移</strong>：<br> 实际的指数值 &#x3D; <strong>存储的指数值 - 偏移量（Bias）</strong></p>
+<p>为了表示小于 1 的值（负指数），IEEE 754 <strong>对指数值进行了偏移</strong>：<br> 实际的指数值 = <strong>存储的指数值 - 偏移量（Bias）</strong></p>
 <ul>
-<li>对于 <strong>单精度浮点数（float）</strong>，偏移量是 <strong>127</strong>，即： $e_{\text{real}} &#x3D; e_{\text{stored}} - 127$</li>
-<li>对于 <strong>双精度浮点数（double）</strong>，偏移量是 <strong>1023</strong>，即： $e_{\text{real}} &#x3D; e_{\text{stored}} - 1023$</li>
+<li>对于 <strong>单精度浮点数（float）</strong>，偏移量是 <strong>127</strong>，即： $e<em>{\text{real}} = e</em>{\text{stored}} - 127$</li>
+<li>对于 <strong>双精度浮点数（double）</strong>，偏移量是 <strong>1023</strong>，即： $e<em>{\text{real}} = e</em>{\text{stored}} - 1023$</li>
 </ul>
-<p>假设上图为 IEEE 754 <strong>单精度浮点数</strong>：<br>$$<br>(-1)^{0} \times 2^{(01111100)_2 - 127} \times (1 + 2^{-2})<br>$$<br>解读步骤：</p>
+<p>假设上图为 IEEE 754 <strong>单精度浮点数</strong>：</p>
+<script type="math/tex; mode=display">
+(-1)^{0} \times 2^{(01111100)_2 - 127} \times (1 + 2^{-2})</script><p>解读步骤：</p>
 <ol>
 <li><strong>符号位 0</strong>，表示正数。</li>
-<li><strong>指数部分 01111100₂ &#x3D; 124</strong>，计算真实指数： $124 - 127 &#x3D; -3$</li>
-<li>尾数部分 IEEE 754 规定<strong>隐含的 1</strong>，即： $1 + 2^{-2} &#x3D; 1.25$</li>
-<li><strong>计算结果</strong>： $2^{-3} \times 1.25 &#x3D; \frac{1.25}{8} &#x3D; 0.15625$</li>
+<li><strong>指数部分 01111100₂ = 124</strong>，计算真实指数： $124 - 127 = -3$</li>
+<li>尾数部分 IEEE 754 规定<strong>隐含的 1</strong>，即： $1 + 2^{-2} = 1.25$</li>
+<li><strong>计算结果</strong>： $2^{-3} \times 1.25 = \frac{1.25}{8} = 0.15625$</li>
 </ol>
 <p>IEEE 754 标准定义了多个不同的浮点数格式，常见的有：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1510,7 +1436,8 @@
 <th>约等于十进制精度</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><strong>单精度（float）</strong></td>
 <td>1</td>
 <td>8</td>
@@ -1558,7 +1485,9 @@
 <td>16</td>
 <td>~2.3 位</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p><strong>不同格式的应用</strong></p>
 <ul>
 <li><strong>单精度（float）和双精度（double）</strong>：大多数 CPU 都支持，C 语言中的 <code>float</code> 和 <code>double</code> 对应这两种格式。</li>
@@ -1586,7 +1515,8 @@
 </li>
 </ol>
 <p>硬件中断虽然可以优雅地处理异常，但<strong>速度很慢</strong>，不适合<strong>实时系统</strong>（如火箭导航）。</p>
-<h5 id="NaNs、零和无穷大"><a href="#NaNs、零和无穷大" class="headerlink" title="NaNs、零和无穷大"></a>NaNs、零和无穷大</h5><table>
+<h5 id="NaNs、零和无穷大"><a href="#NaNs、零和无穷大" class="headerlink" title="NaNs、零和无穷大"></a>NaNs、零和无穷大</h5><div class="table-container">
+<table>
 <thead>
 <tr>
 <th><strong>类型</strong></th>
@@ -1595,28 +1525,29 @@
 <th><strong>二进制表示</strong></th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><strong>无穷大（Infinity）</strong></td>
 <td>由于数值溢出产生</td>
-<td>$\infty + x &#x3D; \infty$，$x &#x2F; \infty &#x3D; 0$</td>
+<td>$\infty + x = \infty$，$x / \infty = 0$</td>
 <td><strong>指数全 1，尾数全 0</strong></td>
 </tr>
 <tr>
 <td><strong>正零（+0.0）</strong></td>
 <td>可能导致优化问题</td>
-<td>$1&#x2F;+0 &#x3D; +\infty$</td>
+<td>$1/+0 = +\infty$</td>
 <td><strong>所有位为 0</strong></td>
 </tr>
 <tr>
 <td><strong>负零（-0.0）</strong></td>
 <td>更适合作为初始化值</td>
-<td>$1 &#x2F; -0 &#x3D; -\infty$</td>
+<td>$1 / -0 = -\infty$</td>
 <td><strong>符号位 1，其余 0</strong></td>
 </tr>
 <tr>
 <td><strong>NaN（非数）</strong></td>
 <td>计算非法数学运算时出现</td>
-<td>$\infty - \infty$, $0 \times \infty$, $0 &#x2F; 0$</td>
+<td>$\infty - \infty$, $0 \times \infty$, $0 / 0$</td>
 <td><strong>指数全 1，尾数非 0</strong></td>
 </tr>
 <tr>
@@ -1631,26 +1562,38 @@
 <td>结果仍然是 NaN</td>
 <td><strong>指数全 1，尾数部分非 0</strong></td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <h4 id="舍入误差"><a href="#舍入误差" class="headerlink" title="舍入误差"></a>舍入误差</h4><p>硬件浮点数的舍入方式非常简单：<strong>只有当运算结果无法精确表示时才会发生舍入</strong>，默认情况下<strong>向最接近的可表示数舍入</strong>（如果有两个同样接近的候选值，则<strong>优先选择以 0 结尾的那个</strong>）。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">float</span> x = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; (<span class="number">1</span> &lt;&lt; <span class="number">25</span>); i++)</span><br><span class="line">    x++;</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%f\n&quot;</span>, x);</span><br></pre></td></tr></table></figure></div>
-
-<p><strong>预期数学结果</strong>：<br>$$<br>2^{25} &#x3D; 33554432<br>$$<br>但实际输出的是：<br>$$<br>2^{24} &#x3D; 16777216<br>$$<br>浮点数的<strong>精度有限</strong>，当 <code>x</code> 变得足够大时，<code>x + 1</code> 可能无法被精确表示，导致<strong>舍入误差</strong>。</p>
+<p><strong>预期数学结果</strong>：</p>
+<script type="math/tex; mode=display">
+2^{25} = 33554432</script><p>但实际输出的是：</p>
+<script type="math/tex; mode=display">
+2^{24} = 16777216</script><p>浮点数的<strong>精度有限</strong>，当 <code>x</code> 变得足够大时，<code>x + 1</code> 可能无法被精确表示，导致<strong>舍入误差</strong>。</p>
 <p>具体来说：</p>
 <ul>
-<li>32 位 <code>float</code> 使用 **23 位尾数 **，有效的精度为 <strong>24 位二进制位</strong>。</li>
+<li>32 位 <code>float</code> 使用 <strong>23 位尾数 </strong>，有效的精度为 <strong>24 位二进制位</strong>。</li>
 <li>当 <code>x = 2^&#123;24&#125; = 16777216</code> 时：<ul>
 <li>计算 <code>x + 1 = 16777217</code>，由于 <code>16777217</code> 无法在 <code>float</code> 精度范围内精确表示，它会<strong>被舍入回 16777216</strong>（因为 <code>16777217</code> 与 <code>16777216</code> 距离相等，按“以 0 结尾优先”的规则，舍入回 <code>16777216</code>）。</li>
 </ul>
 </li>
 <li>由于 <code>x</code> 不再发生变化，循环继续执行但 <code>x</code> 不再增长，最终 <code>x</code> 仍然停留在 <code>16777216</code>。</li>
 </ul>
-<p>在 <code>2^24</code> 之前，<code>x + 1</code> <strong>可以被精确表示</strong>，所以加 1 没有舍入误差，一直到 <code>x = 2^24</code> 才开始丢失精度。比如当 <code>x = 2^&#123;24&#125;</code> 时，它的二进制表示如下，注意到为了与24的指数对齐（每乘一个2相当于小数点右移一位），下面的表示有24位的尾数，实际上最后的一位0是不存在的：<br>$$<br>1.000000000000000000000000 × 2^{24}<br>$$</p>
-<p>这时，如果我们 加 1（即 x + 1），结果是：<br>$$<br>1.000000000000000000000001 × 2^{24}<br>$$<br>但由于尾数只有23位，所以需要进行舍入，默认是<strong>最接近偶数舍入</strong>，也就是舍入后最后一位为0，在这里就相当于向下舍入了，所以<code>x + 1</code>被舍入回<code>x</code>。</p>
+<p>在 <code>2^24</code> 之前，<code>x + 1</code> <strong>可以被精确表示</strong>，所以加 1 没有舍入误差，一直到 <code>x = 2^24</code> 才开始丢失精度。比如当 <code>x = 2^&#123;24&#125;</code> 时，它的二进制表示如下，注意到为了与24的指数对齐（每乘一个2相当于小数点右移一位），下面的表示有24位的尾数，实际上最后的一位0是不存在的：</p>
+<script type="math/tex; mode=display">
+1.000000000000000000000000 × 2^{24}</script><p>这时，如果我们 加 1（即 x + 1），结果是：</p>
+<script type="math/tex; mode=display">
+1.000000000000000000000001 × 2^{24}</script><p>但由于尾数只有23位，所以需要进行舍入，默认是<strong>最接近偶数舍入</strong>，也就是舍入后最后一位为0，在这里就相当于向下舍入了，所以<code>x + 1</code>被舍入回<code>x</code>。</p>
 <p><strong>浮点运算顺序影响结果</strong></p>
 <p>浮点运算的结果<strong>可能取决于计算顺序</strong>，即使它们在数学上是等价的。</p>
-<p>在数学上，加法和乘法满足：<br>$$<br>(x + y) + z &#x3D; x + (y + z)<br>$$<br>但在浮点计算中，由于舍入误差：<br>$$<br>(x + y) + z \neq x + (y + z)<br>$$<br>在某些情况下，这些计算顺序的不同可能导致不同的最终结果。</p>
-<p>通常，编译器不会随意调整计算顺序，以保证符合 IEEE 754 规范。但如果开启 <strong><code>-ffast-math</code><strong>（GCC&#x2F;Clang），编译器会</strong>忽略一些浮点计算的精度规则</strong>，可能会：</p>
+<p>在数学上，加法和乘法满足：</p>
+<script type="math/tex; mode=display">
+(x + y) + z = x + (y + z)</script><p>但在浮点计算中，由于舍入误差：</p>
+<script type="math/tex; mode=display">
+(x + y) + z \neq x + (y + z)</script><p>在某些情况下，这些计算顺序的不同可能导致不同的最终结果。</p>
+<p>通常，编译器不会随意调整计算顺序，以保证符合 IEEE 754 规范。但如果开启 <strong><code>-ffast-math</code></strong>（GCC/Clang），编译器会<strong>忽略一些浮点计算的精度规则</strong>，可能会：</p>
 <ul>
 <li>重新排序运算，提高性能</li>
 <li>产生不同的浮点计算结果</li>
@@ -1658,6 +1601,7 @@
 <p>如果在上面的 <code>x++</code> 循环代码中开启 <code>-ffast-math</code>，程序可能会<strong>跳过中间精度检查</strong>，从而最终得到 <strong>33554432</strong>，但这也可能带来更大的舍入误差。</p>
 <p><strong>不同的舍入模式</strong></p>
 <p>除了默认的<strong>向偶数舍入（Banker’s Rounding）</strong>，IEEE 754 还提供了 <strong>4 种舍入模式</strong>：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1665,7 +1609,8 @@
 <th><strong>描述</strong></th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><strong>Round to Nearest (默认)</strong></td>
 <td>取最近的可表示值，在两边距离相等时取偶数</td>
 </tr>
@@ -1681,10 +1626,11 @@
 <td><strong>Round Toward Zero (<code>FE_TOWARDZERO</code>)</strong></td>
 <td>直接截断，不做四舍五入</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p><strong>示例：</strong></p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fenv.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="built_in">fesetround</span>(FE_UPWARD);  <span class="comment">// 设置为向上舍入</span></span><br><span class="line">    <span class="type">float</span> x = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; (<span class="number">1</span> &lt;&lt; <span class="number">25</span>); i++)</span><br><span class="line">        x++;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%f\n&quot;</span>, x);  <span class="comment">// 输出 2^26 = 67108864</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>解释</strong></p>
 <ul>
 <li>在 <code>2^24</code> 之后，每次 <code>x + 1</code> 被舍入到 <code>x + 2</code>，因此增长速度<strong>翻倍</strong>。</li>
@@ -1702,7 +1648,9 @@
 </li>
 <li><p><strong>相对误差</strong></p>
 <ul>
-<li><p>计算公式：<br>$$<br>\frac{| v - v’ |}{| v |}<br>$$<br>其中，$v$ 是 <strong>理论值</strong>，$v’$ 是 <strong>浮点运算后的值</strong>。</p>
+<li><p>计算公式：</p>
+<script type="math/tex; mode=display">
+\frac{| v - v' |}{| v |}</script><p>其中，$v$ 是 <strong>理论值</strong>，$v’$ 是 <strong>浮点运算后的值</strong>。</p>
 </li>
 <li><p>数值分析中，更关心 <strong>相对误差</strong>，因为它衡量了结果的 <strong>比例误差</strong>，而不仅仅是绝对误差。</p>
 </li>
@@ -1710,109 +1658,158 @@
 </li>
 </ol>
 <p><strong>机器精度（Machine Epsilon, ϵ）</strong></p>
-<p>机器精度 $\epsilon$ 定义为：<br>$$<br>\epsilon &#x3D; \text{下一个可表示的数} - 1<br>$$<br>对于 <strong>IEEE 754 单精度浮点数（float, 32-bit）</strong>：</p>
+<p>机器精度 $\epsilon$ 定义为：</p>
+<script type="math/tex; mode=display">
+\epsilon = \text{下一个可表示的数} - 1</script><p>对于 <strong>IEEE 754 单精度浮点数（float, 32-bit）</strong>：</p>
 <ul>
-<li><p>有 <strong>23 位尾数</strong>，所以：<br>$$<br>\epsilon &#x3D; 2^{-23} \approx 1.19 \times 10^{-7}<br>$$</p>
-</li>
-<li><p>这意味着，**最小可区分的数大约是 $1.19 \times 10^{-7}$**。</p>
+<li><p>有 <strong>23 位尾数</strong>，所以：</p>
+<script type="math/tex; mode=display">
+\epsilon = 2^{-23} \approx 1.19 \times 10^{-7}</script></li>
+<li><p>这意味着，<strong>最小可区分的数大约是 $1.19 \times 10^{-7}$</strong>。</p>
 </li>
 </ul>
 <p>对于 <strong>IEEE 754 双精度浮点数（double, 64-bit）</strong>：</p>
 <ul>
-<li>有 <strong>52 位尾数</strong>，所以：<br>$$<br>\epsilon &#x3D; 2^{-52} \approx 2.22 \times 10^{-16}<br>$$</li>
+<li>有 <strong>52 位尾数</strong>，所以：<script type="math/tex; mode=display">
+\epsilon = 2^{-52} \approx 2.22 \times 10^{-16}</script></li>
 </ul>
 <p><strong>误差范围估计</strong></p>
-<p>假设执行单次浮点运算后，得到结果 $x$，那么实际值 $x_{\text{真实}}$ 可能在范围：<br>$$<br>[x \cdot (1 - \epsilon), x \cdot (1 + \epsilon)]<br>$$</p>
-<p><strong>浮点数比较</strong></p>
+<p>假设执行单次浮点运算后，得到结果 $x$，那么实际值 $x_{\text{真实}}$ 可能在范围：</p>
+<script type="math/tex; mode=display">
+[x \cdot (1 - \epsilon), x \cdot (1 + \epsilon)]</script><p><strong>浮点数比较</strong></p>
 <p>由于浮点数存在精度误差，<strong>直接比较 <code>a == b</code> 可能不可靠</strong>，所以通常采用 <strong>“误差范围判断”</strong>：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;cmath&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;limits&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">const</span> <span class="type">float</span> eps = std::numeric_limits&lt;<span class="type">float</span>&gt;::<span class="built_in">epsilon</span>(); <span class="comment">// 约 2^(-23)</span></span><br><span class="line"><span class="function"><span class="type">bool</span> <span class="title">eq</span><span class="params">(<span class="type">float</span> a, <span class="type">float</span> b)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> std::<span class="built_in">abs</span>(a - b) &lt;= eps;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <ul>
 <li>如果 <code>a</code> 和 <code>b</code> 相差小于机器精度 <code>eps</code>，就认为它们相等。</li>
 <li>但这种方法 <strong>只适用于单次运算误差</strong>，多个计算累积误差后可能需要更大的 <code>eps</code> 进行容忍。</li>
 </ul>
-<h5 id="浮点误差的累积"><a href="#浮点误差的累积" class="headerlink" title="浮点误差的累积"></a>浮点误差的累积</h5><p>如果进行 <strong>n 次</strong> 乘法运算，每次的误差上界约为 $(1 + \epsilon)$，那么累积误差大致为：<br>$$<br>(1+\epsilon)^n \approx 1 + n\epsilon + O(\epsilon^2)<br>$$<br>这意味着<strong>误差会随着运算次数线性增长</strong>。在大多数情况下，如果 $n \ll 1&#x2F;\epsilon$，误差增长仍然是可接受的。</p>
+<h5 id="浮点误差的累积"><a href="#浮点误差的累积" class="headerlink" title="浮点误差的累积"></a>浮点误差的累积</h5><p>如果进行 <strong>n 次</strong> 乘法运算，每次的误差上界约为 $(1 + \epsilon)$，那么累积误差大致为：</p>
+<script type="math/tex; mode=display">
+(1+\epsilon)^n \approx 1 + n\epsilon + O(\epsilon^2)</script><p>这意味着<strong>误差会随着运算次数线性增长</strong>。在大多数情况下，如果 $n \ll 1/\epsilon$，误差增长仍然是可接受的。</p>
 <h5 id="数值不稳定性与避免方法"><a href="#数值不稳定性与避免方法" class="headerlink" title="数值不稳定性与避免方法"></a>数值不稳定性与避免方法</h5><p>某些计算方式会<strong>放大浮点误差</strong>，导致数值不稳定。例如：</p>
-<h5 id="不稳定计算"><a href="#不稳定计算" class="headerlink" title="不稳定计算"></a><strong>不稳定计算</strong></h5><p>$$<br>f(x, y) &#x3D; x^2 - y^2<br>$$</p>
-<p>计算误差分析：<br>$$<br>f’(x, y) &#x3D; x^2(1+\epsilon) - y^2(1-\epsilon) - (x^2 - y^2) &#x3D; (x^2 + y^2) \cdot \epsilon<br>$$<br>相对误差：<br>$$<br>\frac{(x^2 + y^2) \cdot \epsilon}{x^2 - y^2}<br>$$<br>当 $x \approx y$ 时，分母趋近于 0，误差会急剧放大。</p>
-<p><strong>稳定计算方式</strong><br>$$<br>f(x, y) &#x3D; (x + y) \cdot (x - y)<br>$$<br>其误差上界为：<br>$$<br>\epsilon \cdot |x - y|<br>$$<br>显然，新的计算方式避免了数值放大问题，并且只需要 <strong>2 次加法和 1 次乘法</strong>，比原来的 <strong>1 次减法和 2 次乘法</strong> 更高效。</p>
+<h5 id="不稳定计算"><a href="#不稳定计算" class="headerlink" title="不稳定计算"></a><strong>不稳定计算</strong></h5><script type="math/tex; mode=display">
+f(x, y) = x^2 - y^2</script><p>计算误差分析：</p>
+<script type="math/tex; mode=display">
+f'(x, y) = x^2(1+\epsilon) - y^2(1-\epsilon) - (x^2 - y^2) = (x^2 + y^2) \cdot \epsilon</script><p>相对误差：</p>
+<script type="math/tex; mode=display">
+\frac{(x^2 + y^2) \cdot \epsilon}{x^2 - y^2}</script><p>当 $x \approx y$ 时，分母趋近于 0，误差会急剧放大。</p>
+<p><strong>稳定计算方式</strong></p>
+<script type="math/tex; mode=display">
+f(x, y) = (x + y) \cdot (x - y)</script><p>其误差上界为：</p>
+<script type="math/tex; mode=display">
+\epsilon \cdot |x - y|</script><p>显然，新的计算方式避免了数值放大问题，并且只需要 <strong>2 次加法和 1 次乘法</strong>，比原来的 <strong>1 次减法和 2 次乘法</strong> 更高效。</p>
 <h5 id="Kahan-求和算法"><a href="#Kahan-求和算法" class="headerlink" title="Kahan 求和算法"></a>Kahan 求和算法</h5><p>标准的浮点数求和算法如下：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">float</span> s = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">    s += a[i];</span><br></pre></td></tr></table></figure></div>
-
 <p>如果数值的数量级不同（特别是存在非常大的数和非常小的数），则相对误差不再仅仅是 $O(n\epsilon)$，而是 <strong>严重依赖输入数据</strong>。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">int</span> n = (<span class="number">1</span>&lt;&lt;<span class="number">24</span>);</span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%d\n&quot;</span>, n);  <span class="comment">// 打印 16777216</span></span><br><span class="line"></span><br><span class="line"><span class="type">float</span> s = n;  <span class="comment">// 2^24</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">    s += <span class="number">1.0</span>;</span><br><span class="line"></span><br><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%f\n&quot;</span>, s);  <span class="comment">// 仍然是 16777216.000000</span></span><br></pre></td></tr></table></figure></div>
-
 <p>这里 $2^{24} + 1$ 超出了 <code>float</code> 的 <strong>23 位尾数（mantissa）</strong> 所能精确表示的范围，因此所有的 <code>+1.0</code> 操作 <strong>都会被舍入掉</strong>，导致最终的计算结果没有变化。</p>
 <p>这种情况表明，<strong>绝对误差</strong> 为 $O(n\epsilon)$，而不是 <strong>相对误差</strong>，这意味着即使 <code>n</code> 变大，错误也不会自动被归一化，而是会无限增长。</p>
 <p><strong>Kahan 求和算法核心思想</strong></p>
 <p>为了减少舍入误差，我们可以将 <strong>未被累加的部分存储起来</strong>，并在后续计算中补偿它：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">float</span> s = <span class="number">0</span>, c = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">    <span class="type">float</span> y = a[i] - c;  <span class="comment">// 计算当前值减去累积误差</span></span><br><span class="line">    <span class="type">float</span> t = s + y;     <span class="comment">// 计算新的和</span></span><br><span class="line">    c = (t - s) - y;     <span class="comment">// 计算新的误差</span></span><br><span class="line">    s = t;               <span class="comment">// 更新和</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <ol>
 <li><code>y = a[i] - c</code> ：提取 $a[i]$ 的 <strong>低精度部分</strong>。</li>
 <li><code>t = s + y</code> ：执行加法，但 <code>y</code> 可能过小以至于无法准确表示。</li>
 <li><code>c = (t - s) - y</code> ：从计算结果 <code>t</code> 中恢复被丢弃的低精度部分，并存入 <code>c</code> 进行下一轮补偿。</li>
 </ol>
-<p>Kahan 求和的 <strong>相对误差上界</strong> 为：<br>$$<br>2\epsilon + O(n\epsilon^2)<br>$$<br>相比于普通加法的 $O(n\epsilon)$ 误差，这个改进显著降低了精度损失。</p>
-<p>如果需要进一步提高精度，可以使用 <strong>double-double 算术</strong>，即用两个 <code>double</code> 变量存储一个高精度数：<br>$$<br>a + b<br>$$<br>其中：</p>
+<p>Kahan 求和的 <strong>相对误差上界</strong> 为：</p>
+<script type="math/tex; mode=display">
+2\epsilon + O(n\epsilon^2)</script><p>相比于普通加法的 $O(n\epsilon)$ 误差，这个改进显著降低了精度损失。</p>
+<p>如果需要进一步提高精度，可以使用 <strong>double-double 算术</strong>，即用两个 <code>double</code> 变量存储一个高精度数：</p>
+<script type="math/tex; mode=display">
+a + b</script><p>其中：</p>
 <ul>
 <li><code>a</code> 存储高位部分（高精度）</li>
 <li><code>b</code> 存储低位部分（误差修正）</li>
 </ul>
 <p>这种方法可以推广到 <strong>四精度（quad-double）</strong>，甚至更高精度的算术运算。</p>
-<h4 id="牛顿法"><a href="#牛顿法" class="headerlink" title="牛顿法"></a>牛顿法</h4><p>牛顿法是一个简单而强大的算法，用于寻找实值函数的近似根，也就是解决以下通用方程的根：<br>$$<br>f(x) &#x3D; 0<br>$$<br>牛顿法的假设条件是：至少存在一个根，且函数 $f(x)$ 在搜索区间上是连续且可导的。虽然存在一些特殊的边界情况，但它们在实际应用中几乎不会发生。</p>
-<p>牛顿法的基本思想是：从某个初始的近似值 $x_0$ 开始，然后通过迭代方法不断改进该值。每次迭代时，我们会在 $x &#x3D; x_i$ 处画出该函数的切线，并让下一个近似值 $x_{i+1}$ 等于切线与 $x$-轴的交点的横坐标。直观上，如果函数 $f(x)$ 是“良好的”且 $x_i$ 已经足够接近根，那么 $x_{i+1}$ 会比 $x_i$ 更接近根。</p>
+<h4 id="牛顿法"><a href="#牛顿法" class="headerlink" title="牛顿法"></a>牛顿法</h4><p>牛顿法是一个简单而强大的算法，用于寻找实值函数的近似根，也就是解决以下通用方程的根：</p>
+<script type="math/tex; mode=display">
+f(x) = 0</script><p>牛顿法的假设条件是：至少存在一个根，且函数 $f(x)$ 在搜索区间上是连续且可导的。虽然存在一些特殊的边界情况，但它们在实际应用中几乎不会发生。</p>
+<p>牛顿法的基本思想是：从某个初始的近似值 $x<em>0$ 开始，然后通过迭代方法不断改进该值。每次迭代时，我们会在 $x = x_i$ 处画出该函数的切线，并让下一个近似值 $x</em>{i+1}$ 等于切线与 $x$-轴的交点的横坐标。直观上，如果函数 $f(x)$ 是“良好的”且 $x<em>i$ 已经足够接近根，那么 $x</em>{i+1}$ 会比 $x_i$ 更接近根。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/newton.png"
                       class=""
                 >
-
-<p>为了得到交点 $x_{i+1}$，我们需要将切线函数设为零：<br>$$<br>0 &#x3D; f(x_i) + (x_{i+1} - x_i) f’(x_i)<br>$$<br>从中我们可以推导出牛顿法的迭代公式：<br>$$<br>x_{i+1} &#x3D; x_i - \frac{f(x_i)}{f’(x_i)}<br>$$<br>牛顿法非常重要，它是许多科学与工程中的优化求解器的基础。</p>
-<h5 id="平方根的牛顿法求解"><a href="#平方根的牛顿法求解" class="headerlink" title="平方根的牛顿法求解"></a>平方根的牛顿法求解</h5><p>首先，假设我们要解的是方程：<br>$$<br>x &#x3D; \sqrt{n} \iff x^2 &#x3D; n \iff f(x) &#x3D; x^2 - n &#x3D; 0<br>$$<br>我们将 $f(x) &#x3D; x^2 - n$ 代入牛顿法的迭代公式中，可以得到以下的更新规则：<br>$$<br>x_{i+1} &#x3D; x_i - \frac{f(x_i)}{f’(x_i)} &#x3D; x_i - \frac{x_i^2 - n}{2x_i}<br>$$<br>经过整理，可以得到：<br>$$<br>x_{i+1} &#x3D; \frac{x_i + \frac{n}{x_i}}{2}<br>$$<br>这个公式就是用来求平方根的迭代公式。每次通过更新 $x_i$ 来逼近 $\sqrt{n}$。</p>
+<p>为了得到交点 $x_{i+1}$，我们需要将切线函数设为零：</p>
+<script type="math/tex; mode=display">
+0 = f(x_i) + (x_{i+1} - x_i) f'(x_i)</script><p>从中我们可以推导出牛顿法的迭代公式：</p>
+<script type="math/tex; mode=display">
+x_{i+1} = x_i - \frac{f(x_i)}{f'(x_i)}</script><p>牛顿法非常重要，它是许多科学与工程中的优化求解器的基础。</p>
+<h5 id="平方根的牛顿法求解"><a href="#平方根的牛顿法求解" class="headerlink" title="平方根的牛顿法求解"></a>平方根的牛顿法求解</h5><p>首先，假设我们要解的是方程：</p>
+<script type="math/tex; mode=display">
+x = \sqrt{n} \iff x^2 = n \iff f(x) = x^2 - n = 0</script><p>我们将 $f(x) = x^2 - n$ 代入牛顿法的迭代公式中，可以得到以下的更新规则：</p>
+<script type="math/tex; mode=display">
+x_{i+1} = x_i - \frac{f(x_i)}{f'(x_i)} = x_i - \frac{x_i^2 - n}{2x_i}</script><p>经过整理，可以得到：</p>
+<script type="math/tex; mode=display">
+x_{i+1} = \frac{x_i + \frac{n}{x_i}}{2}</script><p>这个公式就是用来求平方根的迭代公式。每次通过更新 $x_i$ 来逼近 $\sqrt{n}$。</p>
 <p>在实际应用中，我们希望在结果足够接近真实值时停止迭代。可以通过检查每次迭代后的结果差距是否小于某个阈值来实现这一点。以下是用代码实现的例子：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">double</span> EPS = <span class="number">1e-9</span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">double</span> <span class="title">sqrt</span><span class="params">(<span class="type">double</span> n)</span> </span>&#123;</span><br><span class="line">    <span class="type">double</span> x = <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (<span class="built_in">abs</span>(x * x - n) &gt; EPS)</span><br><span class="line">        x = (x + n / x) / <span class="number">2</span>;</span><br><span class="line">    <span class="keyword">return</span> x;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>该算法对于许多函数都是收敛的，但它只对某些特定类型的函数（如凸函数）能可靠地收敛。另一个问题是收敛的速度，若收敛发生，它的速度如何？对于平方根的求解，牛顿法通常表现得非常快。</p>
-<h5 id="收敛速度分析"><a href="#收敛速度分析" class="headerlink" title="收敛速度分析"></a>收敛速度分析</h5><p>以求 $\sqrt{2}$，从初始值 $x_0 &#x3D; 1$ 开始为例：</p>
+<h5 id="收敛速度分析"><a href="#收敛速度分析" class="headerlink" title="收敛速度分析"></a>收敛速度分析</h5><p>以求 $\sqrt{2}$，从初始值 $x_0 = 1$ 开始为例：</p>
 <div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">1.0000000000000000000000000000000000000000000000000000000000000</span><br><span class="line">1.5000000000000000000000000000000000000000000000000000000000000</span><br><span class="line">1.4166666666666666666666666666666666666666666666666666666666675</span><br><span class="line">1.4142156862745098039215686274509803921568627450980392156862745</span><br><span class="line">1.4142135623746899106262955788901349101165596221157440445849057</span><br><span class="line">1.4142135623730950488016896235025302436149819257761974284982890</span><br><span class="line">1.4142135623730950488016887242096980785696718753772340015610125</span><br><span class="line">1.4142135623730950488016887242096980785696718753769480731766796</span><br></pre></td></tr></table></figure></div>
-
 <p>仔细观察，我们可以看到每次迭代后正确的数字位数大约是翻倍的。这种惊人的收敛速度并非偶然。</p>
 <p><strong>定量分析收敛速度</strong></p>
-<p>为了定量地分析收敛速度，我们需要考虑第 $i$ 次迭代的相对误差 $\delta_i$，并确定下一次迭代后误差 $\delta_{i+1}$ 会减少多少。</p>
-<p>我们可以表达 $x_i$ 为 $x \cdot (1 + \delta_i)$。将其代入牛顿法的迭代公式，经过推导得到：<br>$$<br>1 + \delta_{i+1} &#x3D; \frac{1}{2} \left( 1 + \frac{1 + \delta_i}{1 + \delta_i} \right) &#x3D; 1 + \frac{\delta_i^2}{2} + o(\delta_i^2)<br>$$<br>这表示误差大约在每次迭代时平方并减半。</p>
+<p>为了定量地分析收敛速度，我们需要考虑第 $i$ 次迭代的相对误差 $\delta<em>i$，并确定下一次迭代后误差 $\delta</em>{i+1}$ 会减少多少。</p>
+<p>我们可以表达 $x_i$ 为 $x \cdot (1 + \delta_i)$。将其代入牛顿法的迭代公式，经过推导得到：</p>
+<script type="math/tex; mode=display">
+1 + \delta_{i+1} = \frac{1}{2} \left( 1 + \frac{1 + \delta_i}{1 + \delta_i} \right) = 1 + \frac{\delta_i^2}{2} + o(\delta_i^2)</script><p>这表示误差大约在每次迭代时平方并减半。</p>
 <p><strong>误差的平方</strong></p>
-<p>从上面的公式可以得出：<br>$$<br>\delta_{i+1} &#x3D; \frac{\delta_i^2}{2} + o(\delta_i^2)<br>$$<br>这意味着每次迭代时误差大致是上一轮误差的平方。也就是说，当我们接近解决方案时，误差的大小减少得非常快，接近于平方的收敛速度。</p>
+<p>从上面的公式可以得出：</p>
+<script type="math/tex; mode=display">
+\delta_{i+1} = \frac{\delta_i^2}{2} + o(\delta_i^2)</script><p>这意味着每次迭代时误差大致是上一轮误差的平方。也就是说，当我们接近解决方案时，误差的大小减少得非常快，接近于平方的收敛速度。</p>
 <p><strong>对数与准确位数</strong></p>
 <p>由于 $-\log_{10} \delta_i$ 大致等于答案 $x_i$ 的有效数字的位数，误差的平方恰好对应着有效数字的位数翻倍。因此，牛顿法表现出的是<strong>二次收敛</strong>（Quadratic Convergence）特性。</p>
 <p><strong>一般性的二次收敛</strong></p>
 <p>事实上，这种二次收敛不仅限于求平方根的问题。根据详细的证明可以证明，一般来说，对于任何合适的函数，牛顿法的误差会以二次速度收敛。假设函数的导数 $f’(x) \neq 0$ 且二阶导数 $f’’(x)$ 连续，则牛顿法至少能保证二次收敛。</p>
-<p>具体公式如下：<br>$$<br>|\delta_{i+1}| &#x3D; \frac{2 \cdot |f’(x_n)|}{|f’’(x_i)|} \cdot \delta_i^2<br>$$<br>这就是牛顿法的二次收敛特性，它使得每次迭代都能显著提高结果的精度。</p>
+<p>具体公式如下：</p>
+<script type="math/tex; mode=display">
+|\delta_{i+1}| = \frac{2 \cdot |f'(x_n)|}{|f''(x_i)|} \cdot \delta_i^2</script><p>这就是牛顿法的二次收敛特性，它使得每次迭代都能显著提高结果的精度。</p>
 <h4 id="平方根倒数速算法"><a href="#平方根倒数速算法" class="headerlink" title="平方根倒数速算法"></a>平方根倒数速算法</h4><p>倒数平方根是浮点数的一个重要计算，广泛应用于计算归一化向量，而归一化向量又在各种模拟场景中得到广泛应用，例如计算机图形学（例如，用于确定入射角和反射角来模拟光照）。</p>
-<p>归一化向量的计算公式如下：<br>$$<br>\hat{v} &#x3D; \frac{v}{\sqrt{v_x^2 + v_y^2 + v_z^2}}<br>$$<br>其中，$v_x$, $v_y$, $v_z$ 分别是向量 $v$ 在 $x$, $y$, 和 $z$ 方向上的分量。</p>
+<p>归一化向量的计算公式如下：</p>
+<script type="math/tex; mode=display">
+\hat{v} = \frac{v}{\sqrt{v_x^2 + v_y^2 + v_z^2}}</script><p>其中，$v_x$, $v_y$, $v_z$ 分别是向量 $v$ 在 $x$, $y$, 和 $z$ 方向上的分量。</p>
 <p>直接计算倒数平方根的方法，即先计算平方根再求倒数，速度非常慢，因为这两项操作虽然在硬件中实现，但仍然非常耗时。</p>
 <p>然而，存在一种非常高效的近似算法，它利用了浮点数在内存中的存储方式。事实上，这个算法非常优秀，以至于它被直接实现到硬件中，因此它对软件开发者来说不再那么重要。然而，考虑到它的内在美和教育价值，仍然值得我们深入探讨。</p>
-<h5 id="近似对数的计算"><a href="#近似对数的计算" class="headerlink" title="近似对数的计算"></a>近似对数的计算</h5><p>根据对数的性质，有如下恒等式：<br>$$<br>\log_2 \frac{1}{\sqrt{x}} &#x3D; -\frac{1}{2} \log_2 x<br>$$<br>快速倒数平方根正是基于这个恒等式，有了x关于2的对数后，我们就可以反查对数表得到$\frac{1}{\sqrt{x}}$的值，因此它需要<strong>非常快速地计算 $x$ 的对数</strong>。事实证明，我们可以通过将32位浮点数重新解释为整数来近似计算对数。</p>
-<p>回顾浮点数的表示方式，它按顺序存储符号位（对正数来说为0）、指数 $e_x$ 和尾数 $m_x$，因此浮点数 $x$ 的表示可以写成（B为偏置）：<br>$$<br>x &#x3D; (-1)^s \times 2^{e_x-B} \times (1 + m_x)<br>$$<br>其对数为：<br>$$<br>\log_2 x &#x3D; e_x + \log_2(1 + m_x)<br>$$<br>由于 $m_x \in [0, 1)$，因此右侧的对数可以近似为：<br>$$<br>\log_2(1 + m_x) \approx m_x<br>$$<br>这个近似在区间的两端是精确的，但为了考虑平均情况，我们需要用一个小常数 $\sigma$ 来调整它，因此：<br>$$<br>\log_2 x &#x3D; e_x + \log_2(1 + m_x) \approx e_x + m_x + \sigma<br>$$</p>
-<h5 id="重新解释浮点数"><a href="#重新解释浮点数" class="headerlink" title="重新解释浮点数"></a>重新解释浮点数</h5><p>现在，基于这个近似，我们定义 $L &#x3D; 2^{23}$（浮点数的尾数位数）和 $B &#x3D; 127$（指数偏置），当我们将 $x$ 的位模式重新解释为整数 $I_x$ 时（符号位仍保留），可以得到：<br>$$<br>I_x &#x3D; L \times (e_x + B + m_x) &#x3D; L \times (e_x + m_x + \sigma + B - \sigma) \approx L \times \log_2 x + L \times (B - \sigma)<br>$$<br>乘L相当于向左移23位。通过调节 $\sigma$，可以使得这个近似非常精确。</p>
+<h5 id="近似对数的计算"><a href="#近似对数的计算" class="headerlink" title="近似对数的计算"></a>近似对数的计算</h5><p>根据对数的性质，有如下恒等式：</p>
+<script type="math/tex; mode=display">
+\log_2 \frac{1}{\sqrt{x}} = -\frac{1}{2} \log_2 x</script><p>快速倒数平方根正是基于这个恒等式，有了x关于2的对数后，我们就可以反查对数表得到$\frac{1}{\sqrt{x}}$的值，因此它需要<strong>非常快速地计算 $x$ 的对数</strong>。事实证明，我们可以通过将32位浮点数重新解释为整数来近似计算对数。</p>
+<p>回顾浮点数的表示方式，它按顺序存储符号位（对正数来说为0）、指数 $e_x$ 和尾数 $m_x$，因此浮点数 $x$ 的表示可以写成（B为偏置）：</p>
+<script type="math/tex; mode=display">
+x = (-1)^s \times 2^{e_x-B} \times (1 + m_x)</script><p>其对数为：</p>
+<script type="math/tex; mode=display">
+\log_2 x = e_x + \log_2(1 + m_x)</script><p>由于 $m_x \in [0, 1)$，因此右侧的对数可以近似为：</p>
+<script type="math/tex; mode=display">
+\log_2(1 + m_x) \approx m_x</script><p>这个近似在区间的两端是精确的，但为了考虑平均情况，我们需要用一个小常数 $\sigma$ 来调整它，因此：</p>
+<script type="math/tex; mode=display">
+\log_2 x = e_x + \log_2(1 + m_x) \approx e_x + m_x + \sigma</script><h5 id="重新解释浮点数"><a href="#重新解释浮点数" class="headerlink" title="重新解释浮点数"></a>重新解释浮点数</h5><p>现在，基于这个近似，我们定义 $L = 2^{23}$（浮点数的尾数位数）和 $B = 127$（指数偏置），当我们将 $x$ 的位模式重新解释为整数 $I_x$ 时（符号位仍保留），可以得到：</p>
+<script type="math/tex; mode=display">
+I_x = L \times (e_x + B + m_x) = L \times (e_x + m_x + \sigma + B - \sigma) \approx L \times \log_2 x + L \times (B - \sigma)</script><p>乘L相当于向左移23位。通过调节 $\sigma$，可以使得这个近似非常精确。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/03/15/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%952/approx.svg"
                       class=""
                 >
-
-<p>从上述公式我们可以反解出$\log_2x$<br>$$<br>\log_2x≈ \frac{I_x}{L}-(B-\sigma)<br>$$<br>现在我们已经在数学上证明了这个快速的算法，我们还可以进一步推导，设 $y &#x3D; \frac{1}{\sqrt{x}}$，我们可以代入上述推导出来的公式中：<br>$$<br>\frac{I_y}{L} - (B - \sigma) \approx -\frac{1}{2} \left( \frac{I_x}{L} - (B - \sigma) \right)<br>$$<br>解出 $I_y$ 得到：<br>$$<br>I_y \approx \frac{3}{2} L (B - \sigma) - \frac{1}{2} I_x<br>$$<br>这意味着我们不需要首先计算对数，以上公式实际上只需要常数 $\frac{3}{2} L (B - \sigma)$ 减去浮点数 $x$ 的整数表示的二分之一。代码中实现如下：</p>
+<p>从上述公式我们可以反解出$\log_2x$</p>
+<script type="math/tex; mode=display">
+\log_2x≈ \frac{I_x}{L}-(B-\sigma)</script><p>现在我们已经在数学上证明了这个快速的算法，我们还可以进一步推导，设 $y = \frac{1}{\sqrt{x}}$，我们可以代入上述推导出来的公式中：</p>
+<script type="math/tex; mode=display">
+\frac{I_y}{L} - (B - \sigma) \approx -\frac{1}{2} \left( \frac{I_x}{L} - (B - \sigma) \right)</script><p>解出 $I_y$ 得到：</p>
+<script type="math/tex; mode=display">
+I_y \approx \frac{3}{2} L (B - \sigma) - \frac{1}{2} I_x</script><p>这意味着我们不需要首先计算对数，以上公式实际上只需要常数 $\frac{3}{2} L (B - \sigma)$ 减去浮点数 $x$ 的整数表示的二分之一。代码中实现如下：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">i = * ( <span class="type">long</span> * ) &amp;y;</span><br><span class="line">i = <span class="number">0x5f3759df</span> - ( i &gt;&gt; <span class="number">1</span> );</span><br></pre></td></tr></table></figure></div>
-
-<h5 id="与牛顿法结合"><a href="#与牛顿法结合" class="headerlink" title="与牛顿法结合"></a>与牛顿法结合</h5><p>然后我们求$x$的平方根倒数就可以用这个$f(y)&#x3D;\frac{1}{y^2}-x$。然后代入牛顿法的迭代公式，能够得到如下结果：<br>$$<br>f’(y) &#x3D; -\frac{2}{y^3} \quad \Rightarrow \quad y_{i+1} &#x3D; y_i \left( \frac{3}{2} - \frac{x}{2y_i^2} \right) &#x3D; y_i \left( \frac{3 - x y_i^2}{2} \right)<br>$$<br>代码中实现如下：</p>
+<h5 id="与牛顿法结合"><a href="#与牛顿法结合" class="headerlink" title="与牛顿法结合"></a>与牛顿法结合</h5><p>然后我们求$x$的平方根倒数就可以用这个$f(y)=\frac{1}{y^2}-x$。然后代入牛顿法的迭代公式，能够得到如下结果：</p>
+<script type="math/tex; mode=display">
+f'(y) = -\frac{2}{y^3} \quad \Rightarrow \quad y_{i+1} = y_i \left( \frac{3}{2} - \frac{x}{2y_i^2} \right) = y_i \left( \frac{3 - x y_i^2}{2} \right)</script><p>代码中实现如下：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">x2 = number * <span class="number">0.5F</span>;</span><br><span class="line">y  = y * ( threehalfs - ( x2 * y * y ) );</span><br></pre></td></tr></table></figure></div>
-
 <p>这样我们用<strong>平方根倒数速算法</strong>得到的初始值就比较接近真实值，第一次迭代后，结果已经精确到正确答案的99.8%，并且可以通过多次迭代进一步提高精度——这就是硬件中的实现方式：x86指令进行几次迭代，确保相对误差不超过 $1.5 \times 2^{-12}$。</p>
 <h4 id="整数运算"><a href="#整数运算" class="headerlink" title="整数运算"></a>整数运算</h4><p>虽然整数的表示形式相对简单，但它的简洁性使得很多操作可以通过其他操作来表达。而浮点数的表示形式复杂，以至于许多操作都需要硬件实现。而高效处理整数运算需要在指令集上更加巧妙的应用。关于无符号整型以及有符号整型等的表示方法这里不在赘述。</p>
 <p><strong>整数类型</strong></p>
 <p>整数有不同的大小，但它们的基本操作方式大致相同。以下是常见的整数类型及其对应的字节和C语言数据类型：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1823,7 +1820,8 @@
 <th>汇编</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td>8</td>
 <td>1</td>
 <td>signed char</td>
@@ -1851,11 +1849,13 @@
 <td>unsigned long long</td>
 <td>qword</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p><strong>字节顺序</strong>（Endianness）</p>
 <p>整数的字节存储顺序存在两种可能性：</p>
 <ol>
-<li><strong>小端（Little-endian）</strong>：低位字节存储在前。例如，42<sub>10</sub> &#x3D; 101010<sub>2</sub> 会存储为 010101。</li>
+<li><strong>小端（Little-endian）</strong>：低位字节存储在前。例如，42<sub>10</sub> = 101010<sub>2</sub> 会存储为 010101。</li>
 <li><strong>大端（Big-endian）</strong>：高位字节存储在前。所有前面的例子都采用了大端。</li>
 </ol>
 <p>小端有一个优势是，转换数据类型时（如将64位整数转换为32位整数），可以通过加载较少的字节（几乎不需要额外操作）来实现类型转换。而大端则有助于提升某些操作的效率，比如比较和打印。</p>
@@ -1863,14 +1863,11 @@
 <p>有时我们需要将两个64位整数相乘，得到一个128位整数。由于没有128位寄存器来存储这个结果，乘法指令通常会将结果分为两个部分：低64位和高64位。</p>
 <p>例如：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">; 输入：64位整数a和b，存储在rsi和rdi寄存器中</span><br><span class="line">; 输出：128位乘积a * b，存储在rax（低64位）和rdx（高64位）</span><br><span class="line">mov     rax, rdi</span><br><span class="line">mov     r8, rdx</span><br><span class="line">imul    rsi</span><br></pre></td></tr></table></figure></div>
-
 <p>有些编译器提供了对128位整数的支持。例如，在GCC和Clang中，提供了<code>__int128</code>类型。</p>
 <p>例如：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">prod</span><span class="params">(<span class="type">int64_t</span> a, <span class="type">int64_t</span> b, __int128 *c)</span> &#123;</span><br><span class="line">    *c = a * (__int128) b;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>128位整数的典型使用场景：</strong> 在没有直接支持128位整数的系统中，这些大整数通常会被分成两个64位寄存器。当需要存储两个64位整数相乘的结果时，结果将是一个128位的数字。由于没有128位寄存器，这个结果会被存储在两个独立的64位寄存器中——一个存储低64位，另一个存储高64位。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">__int128_t</span> x = <span class="number">1</span>;</span><br><span class="line"><span class="type">int64_t</span> hi = x &gt;&gt; <span class="number">64</span>;    <span class="comment">// 提取高64位</span></span><br><span class="line"><span class="type">int64_t</span> lo = (<span class="type">int64_t</span>) x;  <span class="comment">// 提取低64位，截断高位</span></span><br></pre></td></tr></table></figure></div>
-
 <p>在上面的例子中：</p>
 <ul>
 <li>通过将<code>x</code>右移64位，提取出128位值的高64位。</li>
@@ -1878,10 +1875,8 @@
 </ul>
 <p><strong>128位整数的限制：</strong> 除了乘法运算，128位整数通常作为两个独立的64位寄存器进行处理。因此，在大多数情况下，使用一个完整的128位类型并不实际，因此对其的支持通常仅限于诸如乘法之类的操作。以下是一个简单的128位整数加法函数的例子，它使用了两个64位寄存器：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">__int128_t</span> <span class="title function_">add</span><span class="params">(<span class="type">__int128_t</span> a, <span class="type">__int128_t</span> b)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> a + b;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>当这个函数被编译时，它会被转换成汇编代码，通过两个64位值来进行处理。例如：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">add:</span><br><span class="line">    mov rax, rdi          ; 将第一个操作数a的低64位（rdi）移动到rax寄存器</span><br><span class="line">    add rax, rdx          ; 将第二个操作数b的低64位（rdx）加到rax，若溢出，则设置进位标志</span><br><span class="line">    adc rsi, rcx          ; 如果进位标志被设置，则将1加到rsi（即b的高64位）</span><br><span class="line">    mov rdx, rsi          ; 将结果移动到rdx寄存器（结果的高64位）</span><br><span class="line">    ret                   ; 返回结果</span><br></pre></td></tr></table></figure></div>
-
 <p>在这段汇编代码中：</p>
 <ul>
 <li><code>rax</code>和<code>rdx</code>分别存储操作数<code>a</code>的低64位和高64位。</li>
@@ -1893,7 +1888,6 @@
 <p>由于没有人想为取余操作单独实现一套逻辑，<code>div</code>指令同时负责<strong>除法</strong>和<strong>取余</strong>的计算。要执行一个32位整数除法，必须将<strong>被除数</strong>放入<code>eax</code>寄存器，并将<strong>除数</strong>作为唯一操作数传递给<code>div</code>指令。执行后，商（<strong>quotient</strong>）将存储在<code>eax</code>寄存器中，而余数（<strong>remainder</strong>）则存储在<code>edx</code>寄存器中。</p>
 <p>需要注意的是，被除数必须存储在两个寄存器中：<code>eax</code>和<code>edx</code>。这种机制使得64位除以32位甚至128位除以64位的除法成为可能，类似于128位乘法的处理方式。在执行普通的32位整数除法时，我们需要将<code>eax</code>寄存器的值扩展为64位，并将高位部分存储在<code>edx</code>中：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">div(int, int):</span><br><span class="line">    mov  eax, edi    ; 将被除数（eax）从 edi 传入</span><br><span class="line">    cdq              ; 扩展 eax 为 64 位并存入 edx</span><br><span class="line">    idiv esi         ; 执行有符号除法</span><br><span class="line">    ret              ; 返回</span><br></pre></td></tr></table></figure></div>
-
 <p>为了理解为什么需要扩展的实现，我们先来了解以下<code>cdq</code>指令是什么。<code>cdq</code> 的全称是 <strong>Convert Double to Quadword</strong>，它的作用是：</p>
 <ul>
 <li><strong>输入</strong>：<code>eax</code>（32 位整数）</li>
@@ -1906,13 +1900,9 @@
 <p>换句话说，<code>cdq</code> 负责对 <code>eax</code> 进行 <strong>符号扩展</strong>，确保 <code>edx:eax</code> 组成一个正确的 <strong>64 位被除数</strong>。x86 的 <code>idiv</code>（<strong>有符号除法</strong>）和 <code>div</code>（<strong>无符号除法</strong>）指令是针对 <strong>64 位被除数 ÷ 32 位除数</strong> 设计的，而 <code>eax</code> 只有 <strong>32 位</strong>，为了让 <code>idiv</code> 进行除法运算，必须扩展为 <strong>64 位</strong> 存储在 <code>edx:eax</code> 组合中。</p>
 <p>对于无符号除法，你只需将<code>edx</code>寄存器置为0，以避免它干扰计算：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">div(unsigned, unsigned):</span><br><span class="line">    mov  eax, edi    ; 将被除数（eax）从 edi 传入</span><br><span class="line">    xor  edx, edx    ; 清空 edx</span><br><span class="line">    div  esi         ; 执行无符号除法</span><br><span class="line">    ret              ; 返回</span><br></pre></td></tr></table></figure></div>
-
 <p>在这两种情况下，除了<code>eax</code>中的商外，你还可以通过<code>edx</code>访问余数。</p>
 <p><strong>取余操作</strong></p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">mod(unsigned, unsigned):</span><br><span class="line">    mov  eax, edi    ; 将被除数（eax）从 edi 传入</span><br><span class="line">    xor  edx, edx    ; 清空 edx</span><br><span class="line">    div  esi         ; 执行无符号除法</span><br><span class="line">    mov  eax, edx    ; 将余数（edx）存入 eax</span><br><span class="line">    ret              ; 返回</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h5 id="优化方式"><a href="#优化方式" class="headerlink" title="优化方式"></a>优化方式</h5><p>整数除法在 CPU 中的执行速度通常非常慢，即使是完全由硬件实现的 <code>div</code> 指令，其执行周期也远高于加法或乘法。为了解决这个问题，如果 <strong>除数是一个常数</strong>，可以使用一些优化技巧，将 <strong>除法转换为乘法</strong>，以提高效率。</p>
 <p>如果除数是 <strong>2 的幂</strong>，可以使用 <strong>二进制移位</strong> 来替代 <code>div</code>，从而极大地提高计算速度：</p>
 <ul>
@@ -1920,29 +1910,52 @@
 <li><code>x % 2^n</code> 可以用 <strong>按位与</strong> (<code>x &amp; (2^n - 1)</code>) 代替。</li>
 </ul>
 <p>还有种方式是在编译阶段<strong>估算</strong>除数的倒数<strong>d</strong>，然后在运行时直接乘上d即可。</p>
-<h5 id="Barrett-约简（Barrett-Reduction）"><a href="#Barrett-约简（Barrett-Reduction）" class="headerlink" title="Barrett 约简（Barrett Reduction）"></a>Barrett 约简（Barrett Reduction）</h5><p>上述<strong>d的估算</strong>成了我们现在待解决的问题，我们可以改写d为：<br>$$<br>d &#x3D; \frac{m}{2^s}<br>$$<br>其中 $m$ 是一个“魔数”（magic number），$s$ 是一个合适的二进制移位数，使得：<br>$$<br>\lfloor x &#x2F; y \rfloor &#x3D; \lfloor x \cdot m &#x2F; 2^s \rfloor<br>$$<br>这意味着整数除法可以用<strong>乘法和右移</strong>来完成：<br>$$<br>x &#x2F; y \approx (x \cdot m) \gg s<br>$$<br>编译器会自动优化常数除法。例如，对于 <code>x / (10^9 + 7)</code>，可以用以下汇编指令代替：</p>
+<h5 id="Barrett-约简（Barrett-Reduction）"><a href="#Barrett-约简（Barrett-Reduction）" class="headerlink" title="Barrett 约简（Barrett Reduction）"></a>Barrett 约简（Barrett Reduction）</h5><p>上述<strong>d的估算</strong>成了我们现在待解决的问题，我们可以改写d为：</p>
+<script type="math/tex; mode=display">
+d = \frac{m}{2^s}</script><p>其中 $m$ 是一个“魔数”（magic number），$s$ 是一个合适的二进制移位数，使得：</p>
+<script type="math/tex; mode=display">
+\lfloor x / y \rfloor = \lfloor x \cdot m / 2^s \rfloor</script><p>这意味着整数除法可以用<strong>乘法和右移</strong>来完成：</p>
+<script type="math/tex; mode=display">
+x / y \approx (x \cdot m) \gg s</script><p>编译器会自动优化常数除法。例如，对于 <code>x / (10^9 + 7)</code>，可以用以下汇编指令代替：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">; 输入 (rdi): x</span><br><span class="line">; 输出 (rax): x mod (m=1e9+7)</span><br><span class="line">mov    rax, rdi</span><br><span class="line">movabs rdx, -8543223828751151131  ; 预加载魔数</span><br><span class="line">mul    rdx                        ; 乘法</span><br><span class="line">mov    rax, rdx</span><br><span class="line">shr    rax, 29                    ; 右移</span><br></pre></td></tr></table></figure></div>
-
-<p>这样就避免了昂贵的整数除法。现在我们的问题就变成了是否肯定存在并能找到那么一组m与s可以进行表示1&#x2F;y。</p>
-<p>如果我们指定一个固定的移位值<strong>s</strong>，那么我们的<strong>m</strong>主要有两种选择，$⌊2^s&#x2F;y⌋ 或 ⌈2^s&#x2F;y⌉$ ，如果我们把前者代入式子：<br>$$<br>\lfloor \frac{x<em>\lfloor 2^s&#x2F;y \rfloor }{2^s} \rfloor<br>$$<br>会发现当y为奇数时，除法一定会有余数，经向下取整后结果必然小于$x&#x2F;y$。那么我们来考虑另外一种情况。<br>$$<br>\lfloor x&#x2F;y \rfloor&#x3D;\lfloor \frac{x</em>m }{2^s} \rfloor&#x3D;\lfloor \frac{x*\lceil 2^s&#x2F;y \rceil }{2^s} \rfloor<br>$$<br>代入m的边界条件：<br>$$<br>2^s&#x2F;y \le \lceil 2^s&#x2F;y \rceil &lt; 2^s&#x2F;y + 1<br>$$<br>即：<br>$$<br>x &#x2F; y - 1 &lt; \lfloor x \cdot m &#x2F; 2^s \rfloor &lt; x &#x2F; y + x &#x2F; 2^s<br>$$<br>我们能发现结果落在一个大小为 $(1+x&#x2F;2^s)$ 的区间内，这样我们只要找到<strong>一个s</strong>，使得对于<strong>所有x</strong>都有一个整数在此区间内，那么这个算法就能确保给出正确的答案。事实上，我们只需把s设置的比较大，就可以实现这个目的。</p>
-<p>最坏情况发生在<strong>最接近 1 的除法</strong>，即：<br>$$<br>x &#x3D; 2^n - 2, \quad y &#x3D; 2^n - 1<br>$$<br>这样，商的误差范围最大：<br>$$<br>\frac{x}{y} - 1 &lt; \lfloor x \cdot m &#x2F; 2^s \rfloor &lt; \frac{x}{y} + \frac{x}{2^s}<br>$$<br>但如果 $s \geq n$，那么这个范围内<strong>只能包含一个整数</strong>，保证计算结果正确。</p>
+<p>这样就避免了昂贵的整数除法。现在我们的问题就变成了是否肯定存在并能找到那么一组m与s可以进行表示1/y。</p>
+<p>如果我们指定一个固定的移位值<strong>s</strong>，那么我们的<strong>m</strong>主要有两种选择，$⌊2^s/y⌋ 或 ⌈2^s/y⌉$ ，如果我们把前者代入式子：</p>
+<script type="math/tex; mode=display">
+\lfloor \frac{x*\lfloor 2^s/y \rfloor }{2^s} \rfloor</script><p>会发现当y为奇数时，除法一定会有余数，经向下取整后结果必然小于$x/y$。那么我们来考虑另外一种情况。</p>
+<script type="math/tex; mode=display">
+\lfloor x/y \rfloor=\lfloor \frac{x*m }{2^s} \rfloor=\lfloor \frac{x*\lceil 2^s/y \rceil }{2^s} \rfloor</script><p>代入m的边界条件：</p>
+<script type="math/tex; mode=display">
+2^s/y \le \lceil 2^s/y \rceil < 2^s/y + 1</script><p>即：</p>
+<script type="math/tex; mode=display">
+x / y - 1 < \lfloor x \cdot m / 2^s \rfloor < x / y + x / 2^s</script><p>我们能发现结果落在一个大小为 $(1+x/2^s)$ 的区间内，这样我们只要找到<strong>一个s</strong>，使得对于<strong>所有x</strong>都有一个整数在此区间内，那么这个算法就能确保给出正确的答案。事实上，我们只需把s设置的比较大，就可以实现这个目的。</p>
+<p>最坏情况发生在<strong>最接近 1 的除法</strong>，即：</p>
+<script type="math/tex; mode=display">
+x = 2^n - 2, \quad y = 2^n - 1</script><p>这样，商的误差范围最大：</p>
+<script type="math/tex; mode=display">
+\frac{x}{y} - 1 < \lfloor x \cdot m / 2^s \rfloor < \frac{x}{y} + \frac{x}{2^s}</script><p>但如果 $s \geq n$，那么这个范围内<strong>只能包含一个整数</strong>，保证计算结果正确。</p>
 <p>总的来说，巴雷特约简就是将运行时的除法开销转移到了编译时。</p>
 <h5 id="Lemire-约简（Lemire-Reduction）"><a href="#Lemire-约简（Lemire-Reduction）" class="headerlink" title="Lemire 约简（Lemire Reduction）"></a>Lemire 约简（Lemire Reduction）</h5><p><strong>Barrett 约简</strong>是一种比较复杂的算法，而且它通过间接计算来生成一系列指令用于求模运算，因此可能会带来一些性能上的开销。而一种新的方法——Lemire 降维法（2019年提出）则更简单，并且在某些情况下，实际上比 Barrett 方法更快。尽管目前这个方法还没有一个公认的名称，但在这里我们称其为 <strong>Lemire 约简</strong>。</p>
-<p>假设我们有一个整数 <code>179</code> 和除数 <code>6</code>，它们的除法结果可以表示为：<br>$$<br>\frac{179}{6} &#x3D; 29.8333… \approx 29.83<br>$$<br>这个浮点数表示为：<br>$$<br>179 &#x2F; 6 &#x3D; 29.83 \quad \text{（或者表示为浮点数：} 11101.1101010101 \ldots \text{）}<br>$$<br>在这种表示下，我们如何提取我们所需要的部分呢？</p>
+<p>假设我们有一个整数 <code>179</code> 和除数 <code>6</code>，它们的除法结果可以表示为：</p>
+<script type="math/tex; mode=display">
+\frac{179}{6} = 29.8333... \approx 29.83</script><p>这个浮点数表示为：</p>
+<script type="math/tex; mode=display">
+179 / 6 = 29.83 \quad \text{（或者表示为浮点数：} 11101.1101010101 \ldots \text{）}</script><p>在这种表示下，我们如何提取我们所需要的部分呢？</p>
 <ol>
 <li><strong>整数部分</strong>（29）可以通过简单地取浮点数的小数点前部分（即取整）来获得。</li>
 <li><strong>小数部分</strong>（即分数 $\frac{5}{6}$）可以通过取小数点后的部分得到。</li>
 <li><strong>余数</strong>（5）则可以通过将小数部分乘以除数 <code>y</code> 来得到。</li>
 </ol>
-<p>对于 32 位整数，我们可以设定一个常量 <code>s = 64</code>，并查看在 <strong>乘法和移位</strong> 方案中的计算方式：<br>$$<br>\left\lfloor \frac{x}{y} \right\rfloor &#x3D; \left\lfloor \frac{x \cdot m}{2^s} \right\rfloor &#x3D; \left\lfloor \frac{x \cdot \lceil \frac{2^s}{y} \rceil}{2^s} \right\rfloor<br>$$<br>在这里，我们所做的操作是通过一个浮点常量 <code>m</code> 来乘以 <code>x</code>，然后通过移位和取整来实现。</p>
-<p>如果我们不是取高位（整数部分），而是取低位，这就对应于小数部分。如果我们再将其乘以除数 <code>y</code>，并取整，就能得到余数：<br>$$<br>r &#x3D; \left\lfloor \left( (x \cdot \lceil \frac{2^s}{y} \rceil) \mod 2^s \right) \cdot y \right\rfloor<br>$$<br>这样就能精确地得到余数。其工作原理是通过将浮点乘法链式组合来得到一个非常精确的结果，且误差是常量级别的 $O(\epsilon)$，其中 $\epsilon &#x3D; O( \frac{1}{2^s} )$。由于误差小于1，结果将会是精确的。</p>
+<p>对于 32 位整数，我们可以设定一个常量 <code>s = 64</code>，并查看在 <strong>乘法和移位</strong> 方案中的计算方式：</p>
+<script type="math/tex; mode=display">
+\left\lfloor \frac{x}{y} \right\rfloor = \left\lfloor \frac{x \cdot m}{2^s} \right\rfloor = \left\lfloor \frac{x \cdot \lceil \frac{2^s}{y} \rceil}{2^s} \right\rfloor</script><p>在这里，我们所做的操作是通过一个浮点常量 <code>m</code> 来乘以 <code>x</code>，然后通过移位和取整来实现。</p>
+<p>如果我们不是取高位（整数部分），而是取低位，这就对应于小数部分。如果我们再将其乘以除数 <code>y</code>，并取整，就能得到余数：</p>
+<script type="math/tex; mode=display">
+r = \left\lfloor \left( (x \cdot \lceil \frac{2^s}{y} \rceil) \mod 2^s \right) \cdot y \right\rfloor</script><p>这样就能精确地得到余数。其工作原理是通过将浮点乘法链式组合来得到一个非常精确的结果，且误差是常量级别的 $O(\epsilon)$，其中 $\epsilon = O( \frac{1}{2^s} )$。由于误差小于1，结果将会是精确的。</p>
 <p>以下是实现 Lemire 约简的代码：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint32_t</span> y;</span><br><span class="line"></span><br><span class="line"><span class="type">uint64_t</span> m = <span class="built_in">uint64_t</span>(<span class="number">-1</span>) / y + <span class="number">1</span>; <span class="comment">// ceil(2^64 / y)</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">uint32_t</span> <span class="title">mod</span><span class="params">(<span class="type">uint32_t</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="type">uint64_t</span> lowbits = m * x;</span><br><span class="line">    <span class="keyword">return</span> ((<span class="type">__uint128_t</span>) lowbits * y) &gt;&gt; <span class="number">64</span>; </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">uint32_t</span> <span class="title">div</span><span class="params">(<span class="type">uint32_t</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> ((<span class="type">__uint128_t</span>) m * x) &gt;&gt; <span class="number">64</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>除法可除性检查</strong></p>
 <p>我们还可以通过乘法来检查 <code>x</code> 是否能被 <code>y</code> 整除。具体地，<code>x</code> 能被 <code>y</code> 整除当且仅当：如果乘法后的小数部分（即 <code>m * x</code> 的低 64 位）没有超过 <code>m</code>，则 <code>x</code> 可被 <code>y</code> 整除。如果超过了，乘法的结果在再次与 <code>y</code> 相乘并右移 64 位时会得到一个非零数值。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">is_divisible</span><span class="params">(<span class="type">uint32_t</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> m * x &lt; m;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>缺点</strong></p>
 <p>Lemire 约简的唯一缺点是，它需要使用原始整数类型的 4 倍大小来进行乘法操作，而其他约简方法（如 Barrett 约简）只需要双精度浮点数就可以工作。因此，这种方法在内存上可能会有一定的开销。</p>
 
@@ -2086,7 +2099,7 @@
                     </span>
                     
                         <span>
-                            共 120.3k 字
+                            共 120k 字
                         </span>
                     
                 </p>

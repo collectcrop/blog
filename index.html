@@ -1278,13 +1278,10 @@ To estimate the real running time of a program, you need to sum all latencies fo
                             
                             pwn-anote32位程序，存在后门函数。
 
-
 粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。
 
 
-
-
-这里每次add时都会申请一个0x20大小的chunk，其中data域第一个...
+这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入...
                         
                     </div>
 
@@ -1364,9 +1361,8 @@ To estimate the real running time of a program, you need to sum all latencies fo
                             
                             利用原理主要链条：
 1exit-&gt;__run_exit_handlers-&gt;__call_tls_dtors
-
 源码：
-123456789101112131415161718192021222324252627282930313233343536373839#  define PTR_DEMANGLE(var)     PTR_MANGLE (var)#  define PTR_...
+123456789101112131415161718192021222324252627282930313233343536373839#  define PTR_DEMANGLE(var)     PTR_MANGLE (var)#  define PTR_M...
                         
                     </div>
 
@@ -1441,12 +1437,14 @@ To estimate the real running time of a program, you need to sum all latencies fo
                             
                             云崽bot基础搭建过程记录突发奇想想要搭建一个qqbot玩玩，经同学推荐，准备从最简单的yunzai框架入手。
 安装
-环境准备：Windows&#x2F;Linux&#x2F;MacOS&#x2F;AndroidNode.js(&gt;&#x3D;v21), Redis, Git
+环境准备：Windows/Linux/MacOS/AndroidNode.js(&gt;=v21), Redis, Git
 
 redis安装
 下载地址redis,密码:114514
 
-解压后启动redis-server.exe这个文件。...
+解压后启动redis-server.exe这个文件。
+
+将redis-server.exe所...
                         
                     </div>
 
@@ -1541,7 +1539,7 @@ redis安装
                     </span>
                     
                         <span>
-                            共 120.3k 字
+                            共 120k 字
                         </span>
                     
                 </p>

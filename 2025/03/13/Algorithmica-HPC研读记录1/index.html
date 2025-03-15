@@ -679,7 +679,7 @@
 <li><strong>以时钟频率划分的意思</strong>： 当你想要计算程序的总运行时间时，你需要将所有指令的延迟加起来，得到总的延迟周期数。然后，为了将这个延迟周期转换为时间，你就需要将总的延迟周期数除以时钟频率。这是因为时钟频率告诉你 CPU 每秒钟执行多少个时钟周期，从而你可以通过除法将延迟周期转换为实际的时间（单位为秒）。</li>
 </ol>
 <p>假设某程序的指令总延迟为 100,000 个时钟周期，而 CPU 的时钟频率是 2 GHz（即每秒 20 亿个周期），那么程序的实际运行时间可以通过以下公式计算：</p>
-<p>$运行时间&#x3D; \frac{\text{延迟周期数}}{\text{时钟频率}} &#x3D; \frac{100,000}{2 \times 10^9} \text{秒} &#x3D; 0.00005 \text{秒}$</p>
+<p>$运行时间= \frac{\text{延迟周期数}}{\text{时钟频率}} = \frac{100,000}{2 \times 10^9} \text{秒} = 0.00005 \text{秒}$</p>
 <p>通过这种方式，可以估算程序的实际运行时间，考虑到不同指令的执行延迟和CPU的时钟频率。</p>
 <h5 id="渐进分析理论"><a href="#渐进分析理论" class="headerlink" title="渐进分析理论"></a>渐进分析理论</h5><p>在计算机发展的初期，计算机科学家需要密切关注程序的执行时间、所用的处理周期（即基本的计算单元）以及涉及的操作次数。这些详细的度量在当时非常重要，因为计算资源有限，性能优化对程序的运行有显著的影响。</p>
 <p>随着计算机性能的提升，系统变得更强大，详细的执行时间、周期和操作数的度量变得不那么关键。计算机科学家转而更加关注渐近分析（Asymptotic Analysis），这种分析方法提供了一个抽象的视角，用来描述算法在输入规模增大时的性能变化。</p>
@@ -699,7 +699,7 @@
 </ul>
 <p>$T(n) \leq C \cdot f(n) \quad \text{(对于足够大的 n)}$</p>
 <p>其中，C 是常数，n 是输入规模。</p>
-<ol start="2">
+<ol>
 <li><strong>Big Theta (大 Θ)</strong></li>
 </ol>
 <ul>
@@ -710,7 +710,7 @@
 </ul>
 <p>$C_1 \cdot f(n) \leq T(n) \leq C_2 \cdot f(n) \quad \text{(对于足够大的 n)}$</p>
 <p>其中，C₁ 和 C₂ 是常数，n 是输入规模。</p>
-<ol start="3">
+<ol>
 <li><strong>Big Omega (大 Ω)</strong></li>
 </ol>
 <ul>
@@ -728,7 +728,6 @@
                      data-src="/blog/2025/03/13/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%951/complexity.jpg"
                       class=""
                 >
-
 <blockquote>
 <p>Under the promise that computers will eventually become fast enough to handle any <em>sufficiently large</em> input in a reasonable amount of time, asymptotically faster algorithms will always be faster in real-time too, regardless of the hidden constant.</p>
 <p>But this promise turned out to be not true — at least not in terms of clock speeds and instruction latencies — and in this chapter, we will try to explain why and how to deal with it.</p>
@@ -738,7 +737,7 @@
 <p>根据Dennard Scaling理论，当晶体管尺寸缩小约30%时，会发生以下变化：</p>
 <ul>
 <li><strong>晶体管密度翻倍</strong>：晶体管数量增加，能在相同面积内放置更多的晶体管。因为 $0.7^2≈0.5$</li>
-<li>**时钟速度增加40%**：由于晶体管变小，其开关速度加快，时钟频率能够提高。因为 $\frac{1}{0.7}≈1.4$</li>
+<li><strong>时钟速度增加40%</strong>：由于晶体管变小，其开关速度加快，时钟频率能够提高。因为 $\frac{1}{0.7}≈1.4$</li>
 <li><strong>功率密度保持不变</strong>：虽然晶体管数量增加，但由于每个晶体管功耗减少，总体功耗密度（单位面积的功耗）保持相对不变。</li>
 </ul>
 <p>Gordon Moore在1975年就做出了预测，晶体管上微处理器的数量每两年就会翻一番。这就是我们熟知的摩尔定律。</p>
@@ -799,49 +798,49 @@
 <li><strong>原理</strong>：流水线技术将指令的执行分为多个阶段，使得每个阶段可以同时处理不同的指令。这样可以减少等待时间并提高执行效率。</li>
 <li><strong>优势</strong>：通过重叠执行不同指令的不同部分，CPU的各个部分保持工作状态，提升了指令执行的并行度。</li>
 </ul>
-<ol start="2">
+<ol>
 <li><strong>猜测执行和乱序执行（Speculative and Out-of-Order Execution）</strong></li>
 </ol>
 <ul>
 <li><strong>原理</strong>：在某些指令尚未完成时，处理器会提前执行一些推测的操作，或者不必等待前一条指令完成后才执行下一条指令。</li>
 <li><strong>优势</strong>：提高了执行效率，减少了等待时间，尤其是在指令之间没有强依赖关系时。</li>
 </ul>
-<ol start="3">
+<ol>
 <li><strong>超标量处理器（Superscalar Processors）</strong></li>
 </ol>
 <ul>
 <li><strong>原理</strong>：通过在处理器中添加多个执行单元，允许同时处理多个独立的操作。</li>
 <li><strong>优势</strong>：可以在每个时钟周期内并行执行多个指令，提升了计算能力。</li>
 </ul>
-<ol start="4">
+<ol>
 <li><strong>SIMD（Single Instruction, Multiple Data）</strong></li>
 </ol>
 <ul>
 <li><strong>原理</strong>：增加机器字长，使得处理器能够对128位、256位或512位的数据块进行操作，并对这些数据分组处理。</li>
 <li><strong>优势</strong>：在进行数据处理时，同一指令可以同时操作多个数据，极大提高了处理能力，特别是在大规模数据并行处理（如图像和视频处理）时非常有效。</li>
 </ul>
-<ol start="5">
+<ol>
 <li><strong>多级缓存（Multiple Layers of Cache）</strong></li>
 </ol>
 <ul>
 <li><strong>原理</strong>：在芯片上添加多个层级的缓存，以加速RAM和外部内存的访问速度。</li>
 <li><strong>优势</strong>：由于内存访问速度相对较慢，通过高速缓存可以显著减少CPU与内存之间的访问延迟，提升整体性能。</li>
 </ul>
-<ol start="6">
+<ol>
 <li><strong>多核处理（Parallel Computing, GPUs）</strong></li>
 </ol>
 <ul>
 <li><strong>原理</strong>：在芯片上添加多个相同的核心，允许同时处理多个任务或线程，适用于并行计算任务。</li>
 <li><strong>优势</strong>：可以显著提升多任务处理能力，尤其适用于GPU计算（如图形渲染、深度学习等并行任务）。</li>
 </ul>
-<ol start="7">
+<ol>
 <li><strong>分布式计算（Distributed Computing）</strong></li>
 </ol>
 <ul>
 <li><strong>原理</strong>：使用多个芯片在主板上，或者在数据中心中使用多个便宜的计算机进行分布式计算。</li>
 <li><strong>优势</strong>：通过将任务分配到多个计算节点，可以有效扩展计算能力，尤其适用于大规模数据处理和高性能计算。</li>
 </ul>
-<ol start="8">
+<ol>
 <li><strong>定制硬件（ASICs, FPGAs）</strong></li>
 </ol>
 <ul>
@@ -876,7 +875,6 @@
 <p>为了直观感受这三类语言效率上的差距，我们可以以1024*1024规模的矩阵相乘来测试一下执行效率：</p>
 <p>解释型语言（以python为例）</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"></span><br><span class="line">n = <span class="number">1024</span></span><br><span class="line"></span><br><span class="line">a = [[random.random()</span><br><span class="line">      <span class="keyword">for</span> row <span class="keyword">in</span> <span class="built_in">range</span>(n)]</span><br><span class="line">      <span class="keyword">for</span> col <span class="keyword">in</span> <span class="built_in">range</span>(n)]</span><br><span class="line"></span><br><span class="line">b = [[random.random()</span><br><span class="line">      <span class="keyword">for</span> row <span class="keyword">in</span> <span class="built_in">range</span>(n)]</span><br><span class="line">      <span class="keyword">for</span> col <span class="keyword">in</span> <span class="built_in">range</span>(n)]</span><br><span class="line"></span><br><span class="line">c = [[<span class="number">0</span></span><br><span class="line">      <span class="keyword">for</span> row <span class="keyword">in</span> <span class="built_in">range</span>(n)]</span><br><span class="line">      <span class="keyword">for</span> col <span class="keyword">in</span> <span class="built_in">range</span>(n)]</span><br><span class="line"></span><br><span class="line">start = time.time()</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(n):</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(n):</span><br><span class="line">        <span class="keyword">for</span> k <span class="keyword">in</span> <span class="built_in">range</span>(n):</span><br><span class="line">            c[i][j] += a[i][k] * b[k][j]</span><br><span class="line"></span><br><span class="line">duration = time.time() - start</span><br><span class="line"><span class="built_in">print</span>(duration)</span><br></pre></td></tr></table></figure></div>
-
 <p>我自己跑出来的结果大约是181秒左右。然后我们仔细看看发生了什么。</p>
 <ul>
 <li>首先解释器开始解析<code>c[i][j] += a[i][k] * b[k][j]</code> 这一个语句，然后去找a，b，c是什么类型。</li>
@@ -886,17 +884,13 @@
 </ul>
 <p>然后我们来看看<strong>托管语言</strong>（Managed Languages），以java为例</p>
 <div class="highlight-container" data-rel="Java"><figure class="iseeu highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Matmul.java</span></span><br><span class="line"><span class="keyword">import</span> java.util.Random;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Matmul</span> &#123;</span><br><span class="line">    <span class="keyword">static</span> <span class="type">int</span> <span class="variable">n</span> <span class="operator">=</span> <span class="number">1024</span>;</span><br><span class="line">    <span class="keyword">static</span> <span class="type">double</span>[][] a = <span class="keyword">new</span> <span class="title class_">double</span>[n][n];</span><br><span class="line">    <span class="keyword">static</span> <span class="type">double</span>[][] b = <span class="keyword">new</span> <span class="title class_">double</span>[n][n];</span><br><span class="line">    <span class="keyword">static</span> <span class="type">double</span>[][] c = <span class="keyword">new</span> <span class="title class_">double</span>[n][n];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">Random</span> <span class="variable">rand</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Random</span>();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt; n; j++) &#123;</span><br><span class="line">                a[i][j] = rand.nextDouble();</span><br><span class="line">                b[i][j] = rand.nextDouble();</span><br><span class="line">                c[i][j] = <span class="number">0</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">long</span> <span class="variable">start</span> <span class="operator">=</span> System.nanoTime();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt; n; j++)</span><br><span class="line">                <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">k</span> <span class="operator">=</span> <span class="number">0</span>; k &lt; n; k++)</span><br><span class="line">                    c[i][j] += a[i][k] * b[k][j];</span><br><span class="line">                </span><br><span class="line">        <span class="type">double</span> <span class="variable">diff</span> <span class="operator">=</span> (System.nanoTime() - start) * <span class="number">1e-9</span>;</span><br><span class="line">        System.out.println(diff);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">javac Matmul.java</span><br><span class="line">java Matmul</span><br></pre></td></tr></table></figure></div>
-
 <p>这仅仅用了2.4秒就完成了。</p>
 <p>java 程序首先会被编译成 <strong>字节码</strong>，即 <code>.class</code> 文件。这些字节码不是针对某一特定硬件架构的机器码，而是跨平台的。字节码可以在任何支持 JVM 的平台上运行。字节码在 <strong>JVM</strong>（Java Virtual Machine）中解释执行。<strong>JVM</strong> 是一个运行 Java 程序的虚拟机，它将字节码转换为适合当前硬件的<strong>机器指令</strong>。由于字节码不是直接的机器码，所以 JVM 执行过程会有一定的性能开销。</p>
 <p>python也有类似于JVM的技术，称为<strong>PyPy</strong>。</p>
 <p>然后最后我们看看编译型语言，如C。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;time.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> n 1024</span></span><br><span class="line"><span class="type">double</span> a[n][n], b[n][n], c[n][n];</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; n; j++) &#123;</span><br><span class="line">            a[i][j] = (<span class="type">double</span>) rand() / RAND_MAX;</span><br><span class="line">            b[i][j] = (<span class="type">double</span>) rand() / RAND_MAX;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">clock_t</span> start = clock();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">0</span>; j &lt; n; j++)</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> k = <span class="number">0</span>; k &lt; n; k++)</span><br><span class="line">                c[i][j] += a[i][k] * b[k][j];</span><br><span class="line"></span><br><span class="line">    <span class="type">float</span> seconds = (<span class="type">float</span>) (clock() - start) / CLOCKS_PER_SEC;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%.4f\n&quot;</span>, seconds);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">gcc -O3 -g test.c -o <span class="built_in">test</span>	<span class="comment">#我们开O3优化进行编译</span></span><br><span class="line">./poc</span><br></pre></td></tr></table></figure></div>
-
 <p>只用了1.3秒就得到了结果。如果我们换为<code>gcc -O3 -march=native -ffast-math -g poc.c -o poc</code>，甚至可以在0.15秒左右的时间内得到结果。</p>
 <p><code>-march=native</code> 标志告诉编译器将代码优化为运行在当前编译机器的CPU架构上。这意味着编译器会针对当前处理器的指令集和特定功能进行优化，利用特定的硬件指令来提升性能。</p>
 <p>例如，现代CPU支持高级向量化指令（如 AVX、SSE），可以一次性处理多个数据元素，从而加速计算。使用 <code>-march=native</code> 标志后，编译器会利用这些指令，从而大幅提升性能。</p>
@@ -904,7 +898,6 @@
 <p>编译器还可以重新安排浮点操作，以避免一些昂贵的操作，或者利用硬件特定指令，例如用于并行操作的向量化指令。</p>
 <p>我们现在回到python，但是使用 <a class="link"   target="_blank" rel="noopener" href="https://www.openblas.net/" >OpenBLAS<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>来进行计算：</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"></span><br><span class="line">n = <span class="number">1024</span></span><br><span class="line"></span><br><span class="line">a = np.random.rand(n, n)</span><br><span class="line">b = np.random.rand(n, n)</span><br><span class="line"></span><br><span class="line">start = time.time()</span><br><span class="line"></span><br><span class="line">c = np.dot(a, b)</span><br><span class="line"></span><br><span class="line">duration = time.time() - start</span><br><span class="line"><span class="built_in">print</span>(duration)</span><br></pre></td></tr></table></figure></div>
-
 <p>所用时间来到了惊人的0.02秒。<strong>OpenBLAS</strong> 是一个广泛使用的高效线性代数库，通常用于实现像矩阵乘法这样的操作。为了实现优化，OpenBLAS中关于稠密矩阵乘法的实现通常涉及大量手写的汇编代码，每种架构的代码都需要根据其硬件特性单独定制。这些实现可能有多达 <strong>5000行汇编代码</strong>，针对不同的硬件架构进行了深度优化，以充分利用其特性（如SIMD指令集、缓存优化等）。后续的内容将逐步解释如何利用一些优化技术来提升矩阵乘法的性能。最终的目标是开发出一种简化的矩阵乘法实现，仅需 <strong>不到40行C代码</strong>，并能够在性能上接近OpenBLAS的实现。</p>
 <h3 id="二、计算机架构"><a href="#二、计算机架构" class="headerlink" title="二、计算机架构"></a>二、计算机架构</h3><h4 id="指令集架构（ISA）"><a href="#指令集架构（ISA）" class="headerlink" title="指令集架构（ISA）"></a>指令集架构（ISA）</h4><blockquote>
 <p>Hardware engineers love abstractions too. An abstraction of a CPU is called an <em>instruction set architecture</em> (ISA), and it defines how a computer should work from a programmer’s perspective. Similar to software interfaces, it gives computer engineers the ability to improve on existing CPU designs while also giving its users — us, programmers — the confidence that things that worked before won’t break on newer chips.</p>
@@ -917,11 +910,9 @@
 <p>Assembly is very simple in the sense that it doesn’t have many syntactical constructions compared to high-level programming languages. </p>
 </blockquote>
 <p>相较于高级语言具有很多的语法结构，汇编语言相当简单。主要就是涉及到数据的读取，操作与存储以及指令的跳转。汇编十分接近机器码，我们能够方便的对机器码进行反汇编。</p>
-<p>以下是*c &#x3D; *a + *b这个功能实现的两种架构汇编实现示例：</p>
+<p>以下是<em>c = </em>a + *b这个功能实现的两种架构汇编实现示例：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">;arm</span><br><span class="line">; *a = x0, *b = x1, *c = x2</span><br><span class="line">ldr w0, [x0]    ; load 4 bytes from wherever x0 points into w0</span><br><span class="line">ldr w1, [x1]    ; load 4 bytes from wherever x1 points into w1</span><br><span class="line">add w0, w0, w1  ; add w0 with w1 and save the result to w0</span><br><span class="line">str w0, [x2]    ; write contents of w0 to wherever x2 points</span><br></pre></td></tr></table></figure></div>
-
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">;x86</span><br><span class="line">; *a = rsi, *b = rdi, *c = rdx </span><br><span class="line">mov eax, DWORD PTR [rsi]  ; load 4 bytes from wherever rsi points into eax</span><br><span class="line">add eax, DWORD PTR [rdi]  ; add whatever is stored at rdi to eax</span><br><span class="line">mov DWORD PTR [rdx], eax  ; write contents of eax to wherever rdx points</span><br></pre></td></tr></table></figure></div>
-
 <p>我们能发现x86版本加法操作和内存加载在一条指令中同时进行，避免了额外的内存加载指令，这就可以用更少的指令实现更多的功能。而arm代表的RISC架构也有其优点，虽然每个指令只能完成一个操作，但可以通过高效的硬件流水线和指令并行执行来提高总体性能。</p>
 <p>后续我们都以x86架构举例：</p>
 <p>64、32、16以及8位寄存器的区别一般就体现在名字上（rax,eax,ax,al），其本质上就是使用某个寄存器的低位实现更少位数的寄存器。</p>
@@ -930,7 +921,6 @@
 <p>当我们进行数据复制时，比如用mov指令，实际上是一个告诉CPU寄存器更名的过程，由于寄存器重命名的方式，<code>mov</code> 指令不会在 CPU 内部花费额外的时间来复制数据。现代 CPU 在执行指令时，会在内部使用一种称为<strong>重命名表（Rename Table）</strong>的结构来跟踪寄存器的实际数据位置。当你执行 <code>mov</code> 指令时，CPU 只是更新寄存器映射表，而不进行数据的实际传输。这种操作通常不需要多余的时钟周期，只会消耗一个解码周期（即处理这条指令本身的时间）。<code>xchg</code>指令同理。</p>
 <p>地址模式如下：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SIZE PTR [base + index * scale + displacement]</span><br></pre></td></tr></table></figure></div>
-
 <p>SIZE可以是BYTE,WORD,DWORD以及QWORD，分别对应着1个字节，2个字节，4个字节和8个字节。</p>
 <p><strong>scale只能是 1, 2, 4, 或 8</strong>。</p>
 <p>地址操作一般会用到<code>lea</code>指令，其功能如下：</p>
@@ -947,13 +937,11 @@
 </ul>
 <p>作为替代 <code>add</code> 的工具</p>
 <ul>
-<li><p>**<code>lea</code> 替代 <code>add</code>**：<code>lea</code> 也常常作为 <code>add</code> 指令的替代，尤其是在需要执行多个加法操作时。<code>lea</code> 不需要单独的 <code>mov</code> 指令来保存结果，因为它可以直接将计算结果存入指定寄存器。</p>
+<li><p><strong><code>lea</code> 替代 <code>add</code></strong>：<code>lea</code> 也常常作为 <code>add</code> 指令的替代，尤其是在需要执行多个加法操作时。<code>lea</code> 不需要单独的 <code>mov</code> 指令来保存结果，因为它可以直接将计算结果存入指定寄存器。</p>
 <p>例如，假设你有：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">add eax, ebx</span><br><span class="line">add eax, ecx</span><br></pre></td></tr></table></figure></div>
-
 <p>这两条指令会将 <code>ebx</code> 和 <code>ecx</code> 加到 <code>eax</code> 上。但是，如果你使用 <code>lea</code>，你可以避免使用第二条 <code>add</code> 指令：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lea eax, [ebx + ecx]</span><br></pre></td></tr></table></figure></div>
-
 <p>这条指令会直接将 <code>ebx + ecx</code> 的结果存入 <code>eax</code>，节省了一条 <code>add</code> 指令。通过 <code>lea</code>，你甚至可以在一条指令中执行多个加法运算（如 <code>a = b + c + d</code>），避免了额外的 <code>mov</code> 操作。</p>
 </li>
 </ul>
@@ -975,7 +963,6 @@
 </ul>
 <p>实现<code>*c = *a + *b</code>方式如下：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">movl (%rsi), %eax</span><br><span class="line">addl (%rdi), %eax</span><br><span class="line">movl %eax, (%rdx)</span><br></pre></td></tr></table></figure></div>
-
 <h5 id="循环与条件"><a href="#循环与条件" class="headerlink" title="循环与条件"></a>循环与条件</h5><p>循环主要通过跳转指令实现。</p>
 <ol>
 <li><strong>跳转指令的作用</strong></li>
@@ -986,14 +973,13 @@
 <li><strong>相对地址</strong>：跳转到一个相对当前指令位置的地址（例如，跳转前进或后退一定的字节数）。</li>
 <li><strong>运行时计算的地址</strong>：这个地址不是在编译时固定的，而是在程序运行时计算得到。</li>
 </ul>
-<ol start="2">
+<ol>
 <li><strong>标签的使用</strong></li>
 </ol>
 <p>为了避免直接管理这些地址，汇编程序员可以使用 <strong>标签</strong>。标签是指用一个字符串标记某个指令的位置，并且这个字符串在机器代码生成时会被替换成相对地址。例如：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">start:</span><br><span class="line">    ; 这里是某个指令</span><br><span class="line">    jmp start  ; 跳转回start标签的位置</span><br></pre></td></tr></table></figure></div>
-
 <p>在上面的例子中，<code>start:</code> 是一个标签，指示 <code>jmp</code> 指令跳转到这个标签的位置。这个标签的实际地址会在编译时被替换为相对地址。</p>
-<ol start="3">
+<ol>
 <li><strong>标签的命名规则</strong></li>
 </ol>
 <p>标签的命名并不复杂。通常，编译器会使用一些规则来生成标签名称：</p>
@@ -1006,16 +992,12 @@
 <p>一般是利用FLAGS寄存器来保存比较状态，然后通过该状态来决定是否跳转，常见条件跳转指令有<code>je</code>、<code>jne</code>、<code>ja</code>、<code>jna</code>、<code>jb</code>、<code>jnb</code>等。</p>
 <h5 id="循环展开（Loop-Unrolling）"><a href="#循环展开（Loop-Unrolling）" class="headerlink" title="循环展开（Loop Unrolling）"></a>循环展开（<a class="link"   target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Loop_unrolling" >Loop Unrolling<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>）</h5><p>由于我们用于循环的指令占一定的长度（循环变量迭代、比较、判断跳转），我们有时候可以通过人为的增加步长并补充必要的有效指令来增加指令的效率，例子如下：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">;before optimization</span><br><span class="line">loop:</span><br><span class="line">    add  edx, DWORD PTR [rax]</span><br><span class="line">    add  rax, 4</span><br><span class="line">    cmp  rax, rcx</span><br><span class="line">    jne  loop</span><br></pre></td></tr></table></figure></div>
-
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">;after optimization</span><br><span class="line">loop:</span><br><span class="line">    add  edx, [rax]</span><br><span class="line">    add  edx, [rax+4]</span><br><span class="line">    add  edx, [rax+8]</span><br><span class="line">    add  edx, [rax+12]</span><br><span class="line">    add  rax, 16</span><br><span class="line">    cmp  rax, rcx</span><br><span class="line">    jne  loop</span><br></pre></td></tr></table></figure></div>
-
-<p>比如我们在遍历一个拥有16个int元素的数组进行求和，我们忽略每个指令实际执行的时间周期花费差异，第一种方法需要16*4&#x3D;64次指令执行，而第二种方式只用4*7&#x3D;28次指令执行即可，看上去效率提高了很多。但实际上循环展开不一定带来预期的性能提升，因为现代处理器并不是按顺序一条条执行指令，而是会维护一个指令队列，允许 <strong>并行执行独立的操作</strong>。这意味着如果两条指令之间没有依赖关系（即它们的执行结果互不影响），处理器可以将它们同时执行，而不需要等待其中一个完成后再执行另一个。</p>
+<p>比如我们在遍历一个拥有16个int元素的数组进行求和，我们忽略每个指令实际执行的时间周期花费差异，第一种方法需要16<em>4=64次指令执行，而第二种方式只用4\</em>7=28次指令执行即可，看上去效率提高了很多。但实际上循环展开不一定带来预期的性能提升，因为现代处理器并不是按顺序一条条执行指令，而是会维护一个指令队列，允许 <strong>并行执行独立的操作</strong>。这意味着如果两条指令之间没有依赖关系（即它们的执行结果互不影响），处理器可以将它们同时执行，而不需要等待其中一个完成后再执行另一个。</p>
 <p>另一种可能的优化思路是利用某些指令的副作用来进行FLAGS位寄存器的设置，从而优化掉cmp的使用。比如利用add结束后会进行的状态设置。</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">    mov  rax, -100  ; replace 100 with the array size</span><br><span class="line">loop:</span><br><span class="line">    add  edx, DWORD PTR [rax + 100 + rcx]</span><br><span class="line">    add  rax, 4</span><br><span class="line">    jnz  loop       ; checks if the result is zero</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h5 id="常用指令花费"><a href="#常用指令花费" class="headerlink" title="常用指令花费"></a>常用指令花费</h5><p><strong>x86 常用指令延迟列表（Latency &amp; Throughput）</strong></p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1025,7 +1007,8 @@
 <th>说明</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>add r/m, r</code></td>
 <td><strong>1 cycle</strong></td>
 <td>1 per cycle</td>
@@ -1175,11 +1158,12 @@
 <td>-</td>
 <td>返回（弹栈）</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <h4 id="栈帧结构"><a href="#栈帧结构" class="headerlink" title="栈帧结构"></a>栈帧结构</h4><p>rsp存栈顶，rbp存栈底。</p>
 <p>栈帧操作所用到的call，ret，push，pop，leave等实际是一种语法糖，其本身可以被拆解为不同的指令组合。</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">; &quot;push rax&quot;</span><br><span class="line">sub rsp, 8</span><br><span class="line">mov QWORD PTR[rsp], rax</span><br><span class="line"></span><br><span class="line">; &quot;pop rax&quot;</span><br><span class="line">mov rax, QWORD PTR[rsp]</span><br><span class="line">add rsp, 8</span><br><span class="line"></span><br><span class="line">; &quot;call func&quot;</span><br><span class="line">push rip ; &lt;- instruction pointer (although accessing it like that is probably illegal)</span><br><span class="line">jmp func</span><br><span class="line"></span><br><span class="line">; &quot;ret&quot;</span><br><span class="line">pop  rcx ; &lt;- choose any unused register</span><br><span class="line">jmp rcx</span><br><span class="line"></span><br><span class="line">; &quot;leave&quot;</span><br><span class="line">mov rsp,rbp</span><br><span class="line">pop rbp</span><br></pre></td></tr></table></figure></div>
-
 <h4 id="调用约定"><a href="#调用约定" class="headerlink" title="调用约定"></a>调用约定</h4><p><strong>传递参数</strong>：如 <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>rcx</code>, <code>r8</code>, <code>r9</code> 等寄存器（对于更多的参数，可能会使用栈传递）。</p>
 <p><strong>返回值</strong>：函数返回值通常存储在 <code>rax</code> 寄存器中。</p>
 <p><strong>堆栈管理</strong>：在调用其他函数时，通常需要通过 <code>push</code> 和 <code>pop</code> 指令保存和恢复寄存器的内容，以确保函数之间的参数和返回值不会冲突。</p>
@@ -1187,7 +1171,6 @@
 <h4 id="内联优化"><a href="#内联优化" class="headerlink" title="内联优化"></a>内联优化</h4><p><strong>内联优化</strong>（Inline optimization）是编译器用来提高程序运行效率的一种优化手段。内联优化通过将函数调用替换成函数体的代码，来避免函数调用的开销，从而提高程序的执行效率。</p>
 <p>在 C++ 中，内联函数是通过使用 <code>inline</code> 关键字声明的函数。编译器在编译时，会将内联函数的代码直接插入到调用该函数的地方，而不是生成函数调用的代码。这样就避免了常规函数调用的开销（如栈的操作、跳转等）。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">inline</span> <span class="type">int</span> <span class="title">square</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> x * x;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>在这个例子中，<code>square</code> 函数会在每次调用时直接将其代码插入到调用点，而不是像普通函数那样产生函数调用的开销。</p>
 <p><strong>内联函数的好处</strong></p>
 <ol>
@@ -1199,20 +1182,16 @@
 <p><strong>尾递归优化</strong>（Tail Call Elimination, TCE）是一种优化技术，它的目的是将尾递归函数转换为迭代（loop），从而避免每次递归调用时额外的栈空间开销。尾递归是指函数调用自己并且在递归调用之后没有其他计算操作，递归的返回值直接就是递归调用的结果。</p>
 <p>首先，考虑一个常见的递归阶乘函数：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">factorial</span><span class="params">(<span class="type">int</span> n)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (n == <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">return</span> factorial(n - <span class="number">1</span>) * n;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>在这种递归实现中，每次递归调用都需要等待 <code>factorial(n - 1)</code> 计算完成后才进行乘法运算。这个递归调用没有进行尾递归优化，因此每次递归都需要保存返回地址、参数等信息到栈上，直到递归完成才开始计算结果。</p>
 <p><strong>对应的汇编实现</strong></p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">; n = edi, ret = eax</span><br><span class="line">factorial:</span><br><span class="line">    test edi, edi       ; 判断 n 是否为零</span><br><span class="line">    jne  nonzero        ; 如果 n 不为零，跳转到 nonzero</span><br><span class="line">    mov  eax, 1         ; 如果 n 为零，返回 1</span><br><span class="line">    ret</span><br><span class="line"></span><br><span class="line">nonzero:</span><br><span class="line">    push edi            ; 保存 n，用于后续的乘法</span><br><span class="line">    sub  edi, 1         ; n - 1</span><br><span class="line">    call factorial      ; 递归调用 factorial(n - 1)</span><br><span class="line">    pop  edi            ; 恢复 n</span><br><span class="line">    imul eax, edi       ; 将结果乘以 n</span><br><span class="line">    ret</span><br></pre></td></tr></table></figure></div>
-
 <p>这个实现是典型的递归形式，每次递归都会保存当前的 <code>n</code> 到栈中，并在递归返回后进行乘法操作。随着递归深度的增加，这会消耗大量的栈空间（push和call分别都会往栈上存1个地址的内容）。</p>
 <p><strong>尾递归优化</strong></p>
 <p>如果函数是<strong>尾递归</strong>的（即递归调用之后没有其他操作），我们就可以将递归调用转化为一个循环，这样就避免了递归带来的栈开销。比如我们可以通过引入一个累积参数 <code>p</code> 来进行尾递归优化：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">factorial</span><span class="params">(<span class="type">int</span> n, <span class="type">int</span> p = <span class="number">1</span>)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (n == <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> p;</span><br><span class="line">    <span class="keyword">return</span> factorial(n - <span class="number">1</span>, p * n);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>在这个版本中，我们传入一个参数 <code>p</code> 来存储当前的乘积。当 <code>n</code> 为 0 时，直接返回 <code>p</code>。这就避免了递归调用之后的乘法操作，变成了一个可以优化为循环的尾递归。</p>
 <p><strong>优化后的汇编实现（尾递归转循环）</strong></p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">; 假设 n &gt; 0</span><br><span class="line">factorial:</span><br><span class="line">    mov  eax, 1         ; 将 eax 初始化为 1（当前乘积）</span><br><span class="line">loop:</span><br><span class="line">    imul eax, edi       ; eax = eax * edi（乘以 n）</span><br><span class="line">    sub  edi, 1         ; n = n - 1</span><br><span class="line">    jne  loop           ; 如果 n != 0，继续循环</span><br><span class="line">    ret</span><br></pre></td></tr></table></figure></div>
-
 <p>在这个实现中，递归调用被替换成了一个循环。每次循环将当前值 <code>edi</code>（即 n）乘以当前的乘积（存储在 <code>eax</code> 中），然后递减 <code>edi</code>，直到 <code>edi</code> 为 0 时结束。</p>
 <p><strong>尾递归优化的好处</strong></p>
 <ol>
@@ -1222,15 +1201,12 @@
 <h4 id="间接分支"><a href="#间接分支" class="headerlink" title="间接分支"></a>间接分支</h4><p>在汇编中，所有标签都会转换成绝对或者相对地址然后嵌入指令的机器码中。</p>
 <h5 id="多路分支"><a href="#多路分支" class="headerlink" title="多路分支"></a>多路分支</h5><p>对于n路分支，一般不会直接创建n个分支，而是创建一个分支函数表来进行定位。switch指令有时候并不能让编译器方便的进行优化，所以像glibc中有关IO部分的实现，一般都会用到goto指令直接跳转。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">weather_in_russia</span><span class="params">(<span class="type">int</span> season)</span> &#123;</span><br><span class="line">    <span class="type">static</span> <span class="type">const</span> <span class="type">void</span>* table[] = &#123;&amp;&amp;winter, &amp;&amp;spring, &amp;&amp;summer, &amp;&amp;fall&#125;;</span><br><span class="line">    <span class="keyword">goto</span> *table[season];</span><br><span class="line"></span><br><span class="line">    winter:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;Freezing\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    spring:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;Dirty\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    summer:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;Dry\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    fall:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;Windy\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <h5 id="动态分发（Dynamic-Dispatch）"><a href="#动态分发（Dynamic-Dispatch）" class="headerlink" title="动态分发（Dynamic Dispatch）"></a>动态分发（Dynamic Dispatch）</h5><p><strong>动态分发</strong>是实现运行时多态性（runtime polymorphism）的核心技术，尤其在面向对象编程中非常常见。它允许程序在运行时决定调用哪个具体方法，而不是在编译时确定。这种特性使得基于继承和多态的代码结构能够在不同类型的对象上以相同的接口进行操作。</p>
 <p>考虑一个经典的例子，我们有一个 <code>Animal</code> 抽象类，其中有一个虚拟的 <code>speak()</code> 方法，以及两个具体实现类：<code>Dog</code> 和 <code>Cat</code>。每个具体类实现了自己的 <code>speak()</code> 方法，<code>Dog</code> 发出 “Bark”，<code>Cat</code> 发出 “Meow”。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">Animal</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">speak</span><span class="params">()</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;&lt;abstract animal sound&gt;\n&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Dog</span> : <span class="keyword">public</span> Animal &#123;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">speak</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;Bark\n&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Cat</span> : <span class="keyword">public</span> Animal &#123;</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">speak</span><span class="params">()</span> <span class="keyword">override</span> </span>&#123; <span class="built_in">printf</span>(<span class="string">&quot;Meow\n&quot;</span>); &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>创建对象并调用方法</strong></p>
 <p>我们希望创建一个 <code>Animal</code> 类型的指针，指向不同的具体对象（<code>Dog</code> 或 <code>Cat</code>），并通过这个指针调用 <code>speak()</code> 方法，而无需在编译时明确知道它指向的是 <code>Dog</code> 还是 <code>Cat</code>。这样，我们可以通过动态分发来调用适当的实现。</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="built_in">srand</span>(<span class="built_in">time</span>(<span class="literal">nullptr</span>));</span><br><span class="line">    Dog sparkles;</span><br><span class="line">    Cat mittens;</span><br><span class="line">    </span><br><span class="line">    Animal* catdog = (<span class="built_in">rand</span>() &amp; <span class="number">1</span>) ? <span class="built_in">static_cast</span>&lt;Animal*&gt;(&amp;sparkles) : <span class="built_in">static_cast</span>&lt;Animal*&gt;(&amp;mittens);</span><br><span class="line">    catdog-&gt;<span class="built_in">speak</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这里我们拿g++编译后的文件扔到IDA里看看，就会发现使用到了vtable来管理函数指针。</p>
 <img  
                      lazyload
@@ -1238,14 +1214,12 @@
                      data-src="/blog/2025/03/13/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%951/image-20250226203831161.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/03/13/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%951/image-20250226204059941.png"
                       class=""
                 >
-
 <p><strong>如何实现动态分发</strong></p>
 <p>在 C++ 中，动态分发是通过<strong>虚拟方法表</strong>（<strong>vtable</strong>）来实现的。下面是它是如何工作的：</p>
 <ol>
@@ -1290,26 +1264,18 @@
 <p>使用指令缓存后，也会相应影响一些优化策略。</p>
 <h5 id="非对称分支"><a href="#非对称分支" class="headerlink" title="非对称分支"></a>非对称分支</h5><p>例如有如下C代码，其形式非常对称：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">length</span><span class="params">(<span class="type">int</span> x, <span class="type">int</span> y)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (x &gt; y)</span><br><span class="line">        <span class="keyword">return</span> x - y;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">        <span class="keyword">return</span> y - x;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>但如果我们直接翻译成汇编语言：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">length:</span><br><span class="line">    cmp  edi, esi</span><br><span class="line">    jle  less</span><br><span class="line">    ; x &gt; y</span><br><span class="line">    sub  edi, esi</span><br><span class="line">    mov  eax, edi</span><br><span class="line">done:</span><br><span class="line">    ret</span><br><span class="line">less:</span><br><span class="line">    ; x &lt;= y</span><br><span class="line">    sub  esi, edi</span><br><span class="line">    mov  eax, esi</span><br><span class="line">    jmp  done</span><br></pre></td></tr></table></figure></div>
-
 <p>很明显可以发现，如果<code>x&gt;y</code>，只用5条指令就完成了函数调用；但是如果<code>x&lt;=y</code>，就额外需要经过两次跳转。</p>
 <p>其实我们可以假设<code>x&gt;y</code>是不大可能的，然后将如上c代码优化为如下版本：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">length</span><span class="params">(<span class="type">int</span> x, <span class="type">int</span> y)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (x &gt; y)</span><br><span class="line">        swap(x, y);</span><br><span class="line">    <span class="keyword">return</span> y - x;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>其对应汇编如下，显而易见比上述实现方式短了两个指令：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">length:</span><br><span class="line">    cmp  edi, esi</span><br><span class="line">    jle  normal     ; if x &lt;= y, no swap is needed, and we can skip the xchg</span><br><span class="line">    xchg edi, esi</span><br><span class="line">normal:</span><br><span class="line">    sub  esi, edi</span><br><span class="line">    mov  eax, esi</span><br><span class="line">    ret</span><br></pre></td></tr></table></figure></div>
-
 <p>但我们还能进一步优化，我们可以直接认为<code>x&gt;y</code>不可能发生，优化为如下汇编实现：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">length:</span><br><span class="line">    cmp  edi, esi</span><br><span class="line">    jg   swap</span><br><span class="line">normal:</span><br><span class="line">    sub  esi, edi</span><br><span class="line">    mov  eax, esi</span><br><span class="line">    ret</span><br><span class="line">swap:</span><br><span class="line">    xchg edi, esi</span><br><span class="line">    jmp normal</span><br></pre></td></tr></table></figure></div>
-
 <p>这种优化看起来没什么改变，实际上通过把swap提取到正常执行逻辑之外，可以减少跳转的次数，从而节省时间。第一种形式每次都会有 <strong>条件跳转</strong>（<code>jle</code>），即使在大部分情况下不需要执行交换。而第二种方式在正常情况下不会执行跳转，从而避免了跳转带来的延迟，提升了性能。</p>
 <p>对应实现的C代码如下：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">length</span><span class="params">(<span class="type">int</span> x, <span class="type">int</span> y)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (x &gt; y) [[unlikely]]</span><br><span class="line">        swap(x, y);</span><br><span class="line">    <span class="keyword">return</span> y - x;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h3 id="三、指令级并行性（ILP）"><a href="#三、指令级并行性（ILP）" class="headerlink" title="三、指令级并行性（ILP）"></a>三、指令级并行性（ILP）</h3><h4 id="概述-1"><a href="#概述-1" class="headerlink" title="概述"></a>概述</h4><p>这里的并行并不是指多核并行，因为多核并行实质上是用多个核心实现<strong>计算资源的整合</strong>和<strong>上限突破</strong>，是用计算资源换取效率。这里我们仅考虑一个核心内部的指令并行。执行一条指令大致需要如下5步操作：</p>
 <ul>
 <li>取指（IF）</li>
@@ -1324,7 +1290,6 @@
                      data-src="/blog/2025/03/13/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%951/image-20250313225642301-1741877811093-3.png"
                       class=""
                 >
-
 <h4 id="流水线风险"><a href="#流水线风险" class="headerlink" title="流水线风险"></a>流水线风险</h4><p><strong>三种主要的流水线风险</strong></p>
 <ol>
 <li><strong>结构风险（Structural Hazards）</strong>：<ul>
@@ -1354,11 +1319,9 @@
 <h4 id="分支预测"><a href="#分支预测" class="headerlink" title="分支预测"></a>分支预测</h4><p>分支预测的核心问题正是 CPU 的<strong>流水线处理方式</strong>导致的。具体来说，现代 CPU 采用<strong>指令流水线</strong>（pipeline）技术，以提高指令执行的并行度和吞吐量。但在遇到<strong>分支指令</strong>时，由于目标地址可能依赖于尚未执行完的计算结果，导致 CPU <strong>无法提前确定下一条应该执行的指令</strong>，进而产生流水线的停顿。那为什么我们要进行分支预测呢？这是因为如果我们使流水线停顿等待分支条件的计算结果，中间的等待的时间就相对浪费了，那么我们如果知道执行的概率分布，就可以挑一个可能更高的分支进行<strong>预执行</strong>，那么等到分支条件的计算结果出来之后，如果我们预测成功，相当于高效利用了计算分支条件的这段时间。</p>
 <h5 id="case-study"><a href="#case-study" class="headerlink" title="case study"></a>case study</h5><p>假如有如下c代码，假设a数组中等可能随机分布着0-99的数值：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">volatile</span> <span class="type">int</span> s;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    <span class="keyword">if</span> (a[i] &lt; <span class="number">50</span>)</span><br><span class="line">        s += a[i];</span><br></pre></td></tr></table></figure></div>
-
 <p>其在Clang下编译出的结果大致如下：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">    mov  rcx, -4000000</span><br><span class="line">    jmp  body</span><br><span class="line">counter:</span><br><span class="line">    add  rcx, 4</span><br><span class="line">    jz   finished   ; &quot;jump if rcx became zero&quot;</span><br><span class="line">body:</span><br><span class="line">    mov  edx, dword ptr [rcx + a + 4000000]</span><br><span class="line">    cmp  edx, 49</span><br><span class="line">    jg   counter</span><br><span class="line">    add  dword ptr [rsp + 12], edx</span><br><span class="line">    jmp  counter</span><br></pre></td></tr></table></figure></div>
-
-<p>这也是个不对称的分支，如果进入<code>a[i] &lt; 50</code>的这个分支，需要多执行 <code>add  dword ptr [rsp + 12], edx</code> 这样一个指令，大约需要多花费4个时钟周期。由于 <code>a[i]</code> 的值是 <strong>完全随机的</strong>，<code>a[i] &lt; 50</code> 成立的概率大约是 <strong>50%<strong>。<code>volatile</code> 关键字的作用是</strong>防止编译器优化</strong>（比如循环展开、向量化等），确保代码执行顺序与写法一致。</p>
+<p>这也是个不对称的分支，如果进入<code>a[i] &lt; 50</code>的这个分支，需要多执行 <code>add  dword ptr [rsp + 12], edx</code> 这样一个指令，大约需要多花费4个时钟周期。由于 <code>a[i]</code> 的值是 <strong>完全随机的</strong>，<code>a[i] &lt; 50</code> 成立的概率大约是 <strong>50%</strong>。<code>volatile</code> 关键字的作用是<strong>防止编译器优化</strong>（比如循环展开、向量化等），确保代码执行顺序与写法一致。</p>
 <p>现代 CPU 采用 <strong>流水线（pipeline）技术</strong>，在执行一条指令时，会<strong>提前加载下一条指令</strong>。但如果遇到<strong>不可预测的分支</strong>，就会出现 <strong>分支预测失败（Branch Misprediction）</strong>，导致 CPU <strong>清空流水线</strong>，重新加载正确的指令。</p>
 <p>在 <strong>AMD Zen 2</strong> 上：</p>
 <ul>
@@ -1370,23 +1333,22 @@
 </ol>
 </li>
 </ul>
-<p>那么，每两个元素的平均执行时间是：<br>$$<br>(4 + 5 + 19) &#x2F; 2 &#x3D; 14 \text{ cycles per element}<br>$$<br>这与实验测得的 <strong>14 个周期&#x2F;循环</strong> 完全一致，说明 <strong>分支预测失败</strong> 是主要的性能瓶颈。如果我们改变分支的比较条件为小于P，则能得到图表如下：</p>
+<p>那么，每两个元素的平均执行时间是：</p>
+<script type="math/tex; mode=display">
+(4 + 5 + 19) / 2 = 14 \text{ cycles per element}</script><p>这与实验测得的 <strong>14 个周期/循环</strong> 完全一致，说明 <strong>分支预测失败</strong> 是主要的性能瓶颈。如果我们改变分支的比较条件为小于P，则能得到图表如下：</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/03/13/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%951/probabilities.svg"
                       class=""
                 >
-
-<p>最大值在50处，这比较直观，因为50%概率相当于完全随机选取一个分支进行预取执行，很容易分支预测失败并丢弃整个流水线重新加载。最小值在P&#x3D;0处，此时相当于每次必不进入分支，那每次基本就只用检查一下条件是否满足。而有一个极小值在85-90%左右，这是因为进入分支会多执行加法操作，会多花约4 个周期。超过了这个转折点，多执行的加法操作代价就超过了10%概率丢弃流水线的代价了。</p>
-<h5 id="模式识别"><a href="#模式识别" class="headerlink" title="模式识别"></a>模式识别</h5><p>前面我们讨论了 <strong>分支预测失败（Branch Misprediction）</strong> 对性能的影响。在 <code>P=50%</code>（也就是 <code>a[i]</code> 以 50% 的概率小于 50）的情况下，由于数据是随机分布的，CPU 无法准确预测 <code>if (a[i] &lt; 50)</code> 语句的走向，因此 <strong>每次预测失败都会导致流水线清空</strong>，最终导致 <strong>14 cycles&#x2F;element</strong> 的低效执行。</p>
+<p>最大值在50处，这比较直观，因为50%概率相当于完全随机选取一个分支进行预取执行，很容易分支预测失败并丢弃整个流水线重新加载。最小值在P=0处，此时相当于每次必不进入分支，那每次基本就只用检查一下条件是否满足。而有一个极小值在85-90%左右，这是因为进入分支会多执行加法操作，会多花约4 个周期。超过了这个转折点，多执行的加法操作代价就超过了10%概率丢弃流水线的代价了。</p>
+<h5 id="模式识别"><a href="#模式识别" class="headerlink" title="模式识别"></a>模式识别</h5><p>前面我们讨论了 <strong>分支预测失败（Branch Misprediction）</strong> 对性能的影响。在 <code>P=50%</code>（也就是 <code>a[i]</code> 以 50% 的概率小于 50）的情况下，由于数据是随机分布的，CPU 无法准确预测 <code>if (a[i] &lt; 50)</code> 语句的走向，因此 <strong>每次预测失败都会导致流水线清空</strong>，最终导致 <strong>14 cycles/element</strong> 的低效执行。</p>
 <p><strong>1. 排序优化</strong></p>
 <p>我们可以在计算前 <strong>先对数组进行排序</strong>：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    a[i] = <span class="built_in">rand</span>() % <span class="number">100</span>;</span><br><span class="line"></span><br><span class="line">std::<span class="built_in">sort</span>(a, a + N);</span><br></pre></td></tr></table></figure></div>
-
 <p>这样，数组 <code>a</code> 变成了一个 <strong>递增序列</strong>：</p>
 <div class="highlight-container" data-rel="C#"><figure class="iseeu highlight c#"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">0, 1, 2, ..., 49, 50, ..., 99</span>]</span><br></pre></td></tr></table></figure></div>
-
 <p>这意味着：</p>
 <ul>
 <li><strong>前半部分</strong> (<code>a[i] &lt; 50</code>) <strong>连续执行 “yes” 分支</strong>。</li>
@@ -1402,53 +1364,38 @@
 <p>现代 CPU 的分支预测器远比 <strong>“历史统计”</strong> 更先进。它们不仅会<strong>记录某个分支的过去走向</strong>，还会<strong>识别更复杂的执行模式</strong>。</p>
 <p><strong>实验 1：减少 <code>N</code> 的大小</strong> 如果我们把数组大小 <code>N</code> <strong>减少到 1000</strong>，但<strong>不排序</strong>：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++)</span><br><span class="line">    a[i] = <span class="built_in">rand</span>() % <span class="number">100</span>;</span><br></pre></td></tr></table></figure></div>
-
 <p>此时，CPU <strong>可以完全记住所有 1000 个数据点的分支模式</strong>：</p>
 <ul>
 <li>因为 <strong>分支预测器的历史表（BTB, Branch Target Buffer）能够存储足够多的历史信息</strong>，它可以记住 <strong>每个 <code>a[i] &lt; 50</code> 的位置</strong>，从而 <strong>100% 预测成功</strong>。</li>
-<li>这样，CPU <strong>根本不会犯错</strong>，分支预测 <strong>几乎完美</strong>，导致 <strong>执行时间降到 4 cycles&#x2F;element 以下</strong>！</li>
+<li>这样，CPU <strong>根本不会犯错</strong>，分支预测 <strong>几乎完美</strong>，导致 <strong>执行时间降到 4 cycles/element 以下</strong>！</li>
 </ul>
 <h5 id="分支提示"><a href="#分支提示" class="headerlink" title="分支提示"></a>分支提示</h5><p>如果我们<strong>事先知道某个分支更可能被执行</strong>，可以 <strong>显式地告诉编译器</strong>，让它优化指令布局，使 CPU 处理分支更快。</p>
 <p>C++20 引入了 <code>[[likely]]</code> 关键字，可以用于指示某个分支<strong>更有可能被执行</strong>：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    <span class="keyword">if</span> (a[i] &lt; P) [[likely]]  <span class="comment">// 提示这个分支更可能执行</span></span><br><span class="line">        s += a[i];</span><br></pre></td></tr></table></figure></div>
-
 <p>当 <code>P=75</code> 时：</p>
 <ul>
-<li>**使用 <code>[[likely]]</code>**：执行速度 <strong>≈ 7.3 cycles&#x2F;element</strong></li>
-<li>**不使用 <code>[[likely]]</code>**：执行速度 <strong>≈ 8.3 cycles&#x2F;element</strong></li>
+<li><strong>使用 <code>[[likely]]</code></strong>：执行速度 <strong>≈ 7.3 cycles/element</strong></li>
+<li><strong>不使用 <code>[[likely]]</code></strong>：执行速度 <strong>≈ 8.3 cycles/element</strong></li>
 </ul>
 <p><strong>提升了约 1 cycle 的效率</strong>。</p>
 <p><code>[[likely]]</code> 并不会直接影响 CPU 的分支预测器，而是改变了汇编代码的布局，使 CPU 前端（Front-End）更容易处理常见分支。也就是使<strong>更可能执行的分支紧跟主代码路径</strong>（减少 <code>jmp</code> 跳转的开销）。</p>
 <p>在 C++20 之前，也可以使用 <code>__builtin_expect</code>（GCC &amp; Clang 支持）：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> LIKELY(x) __builtin_expect(!!(x), 1)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UNLIKELY(x) __builtin_expect(!!(x), 0)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    <span class="keyword">if</span> (LIKELY(a[i] &lt; P))</span><br><span class="line">        s += a[i];</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h4 id="少分支编程"><a href="#少分支编程" class="headerlink" title="少分支编程"></a>少分支编程</h4><p>既然进行分支预测可能会导致整个流水线清空重载，那么我们很容易想尝试能不能不用或少用分支实现同样的功能。</p>
 <p>比如还是上述例子：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    a[i] = rand() % <span class="number">100</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">volatile</span> <span class="type">int</span> s;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    <span class="keyword">if</span> (a[i] &lt; <span class="number">50</span>)</span><br><span class="line">        s += a[i];</span><br></pre></td></tr></table></figure></div>
-
-<p>可以用如下方法进行优化，去除掉if语句。</p>
-<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    s += (a[i] &lt; <span class="number">50</span>) * a[i];</span><br></pre></td></tr></table></figure></div>
-
+<p>可以用如下方法进行优化，去除掉if语句。<br><div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    s += (a[i] &lt; <span class="number">50</span>) * a[i];</span><br></pre></td></tr></table></figure></div></p>
 <p>汇编中没有布尔类型，也没有直接建立正负值到0，1的映射。但是我们可以通过位操作技巧来实现这个功能，也就是右移位31位（因为int类型占32位）。这样由于负数的补码表示中最高位为1，所以可以用来建立一个正负值到0，1的映射。</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">; x = a[i]</span><br><span class="line">mov  ebx, eax   ; t = x</span><br><span class="line">sub  ebx, 50    ; t -= 50</span><br><span class="line">sar  ebx, 31    ; t &gt;&gt;= 31</span><br><span class="line">imul  eax, ebx   ; x *= t</span><br><span class="line">add dword ptr [rsp + 12], eax	; s+=x</span><br></pre></td></tr></table></figure></div>
-
 <p>由于imul需要花费3个cycle，于是有种花费2个cycle实现的方式：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mov  ebx, eax   ; t = x</span><br><span class="line">sub  ebx, 50    ; t -= 50</span><br><span class="line">sar  ebx, 31    ; t &gt;&gt;= 31</span><br><span class="line">; imul  eax, ebx ; x *= t</span><br><span class="line">sub  ebx, 1     ; t -= 1 (causing underflow if t = 0)</span><br><span class="line">and  eax, ebx   ; x &amp;= t</span><br><span class="line">add dword ptr [rsp + 12], eax	; s+=x</span><br></pre></td></tr></table></figure></div>
-
-<p>但上述两种优化方式没有考虑下溢出的情况，也就是$$[−2^{31},−2^{31}+49] $$ 这个范围内的值减50后会溢出，从而导致进入错误的分支。</p>
+<p>但上述两种优化方式没有考虑下溢出的情况，也就是<script type="math/tex">[−2^{31},−2^{31}+49]</script> 这个范围内的值减50后会溢出，从而导致进入错误的分支。</p>
 <p>所以现代 CPU 提供了一种<strong>条件移动（Conditional Move, <code>cmov</code>）</strong>指令，能<strong>避免乘法和位运算</strong>，提高效率：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mov     ebx, 0      ; cmov 不能直接使用立即数，所以先设定 ebx=0</span><br><span class="line">cmp     eax, 50</span><br><span class="line">cmovge  eax, ebx    ; 若 eax &gt;= 50，则 eax = ebx (0)</span><br></pre></td></tr></table></figure></div>
-
 <p>这相当于：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">s += (a[i] &lt; <span class="number">50</span> ? a[i] : <span class="number">0</span>);</span><br></pre></td></tr></table></figure></div>
-
 <p>最终编译器优化的汇编代码：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">mov     eax, 0</span><br><span class="line">mov     ecx, -4000000</span><br><span class="line">loop:</span><br><span class="line">    mov     esi, dword ptr [rdx + a + 4000000]  ; 读取 a[i]</span><br><span class="line">    cmp     esi, 50</span><br><span class="line">    cmovge  esi, eax                            ; esi = (esi &gt;= 50 ? 0 : esi)</span><br><span class="line">    add     dword ptr [rsp + 12], esi           ; s += esi</span><br><span class="line">    add     rdx, 4</span><br><span class="line">    jnz     loop                                ; 继续循环</span><br></pre></td></tr></table></figure></div>
-
-
-
 <h4 id="决定何时用分支"><a href="#决定何时用分支" class="headerlink" title="决定何时用分支"></a>决定何时用分支</h4><p>由于cmov的方式实际上还是会让流水线产生暂停，这里我们可以对比一下两种不同方式在不同P值情况下的效率。可以看出当有75%把握确定选取某个分支时，分支预测的效率实际是会优于无分支方式的。</p>
 <img  
                      lazyload
@@ -1456,20 +1403,17 @@
                      data-src="/blog/2025/03/13/Algorithmica-HPC%E7%A0%94%E8%AF%BB%E8%AE%B0%E5%BD%951/branchy-vs-branchless.svg"
                       class=""
                 >
-
 <h4 id="应用示例"><a href="#应用示例" class="headerlink" title="应用示例"></a>应用示例</h4><h5 id="字符串处理"><a href="#字符串处理" class="headerlink" title="字符串处理"></a><strong>字符串处理</strong></h5><p>在简化的情况下，<code>std::string</code> 实际上是由指向一个以 null 结尾的字符数组（也就是 C 字符串）的指针，以及一个存储字符串大小的整数组成的。一个常见的字符串值是空字符串，它的默认值也是空字符串。</p>
 <p>处理空字符串的传统方式是，将字符串的指针赋为 <code>nullptr</code>，并将字符串大小赋为 0。在处理字符串时，我们需要检查指针是否为空或者大小是否为零。这样就会引入一个分支（<code>if</code> 检查），这种分支会带来性能开销（尤其是在大多数字符串为空或非空的情况下）。</p>
 <p>为了去除这个分支，我们可以为空字符串分配一个“零 C 字符串”，即分配一个包含零字节的内存，并将所有空字符串都指向这个零字节。这样，所有处理空字符串的操作都将读取这个无用的零字节，虽然这会增加一些操作，但仍然比一个分支预测错误的开销要小得多。</p>
 <h5 id="二分查找"><a href="#二分查找" class="headerlink" title="二分查找"></a><strong>二分查找</strong></h5><p>标准的二分查找可以通过消除分支来实现，在处理小数组（适合缓存时）时，比使用分支的 <code>std::lower_bound</code> 快大约 4 倍。</p>
 <p>以下是一个消除分支的二分查找实现：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">int</span> <span class="title">lower_bound</span><span class="params">(<span class="type">int</span> x)</span> </span>&#123;</span><br><span class="line">    <span class="type">int</span> *base = t, len = n;</span><br><span class="line">    <span class="keyword">while</span> (len &gt; <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="type">int</span> half = len / <span class="number">2</span>;</span><br><span class="line">        base += (base[half - <span class="number">1</span>] &lt; x) * half;  <span class="comment">// 会被替换成 &quot;cmov&quot;</span></span><br><span class="line">        len -= half;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> *base;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>这个实现的复杂度略高，但它的一个缺点是它可能会进行更多的比较（比标准二分查找需要更多的比较），并且无法像传统二分查找那样进行未来内存读取的预测（这通常作为预取操作，因此在处理非常大的数组时会有所损失）。</p>
 <p>总结来说，数据结构通过隐式或显式地填充数据，消除分支，使得其操作需要固定次数的迭代。更多复杂的示例可以参考相关资料。</p>
 <h5 id="数据并行编程"><a href="#数据并行编程" class="headerlink" title="数据并行编程"></a><strong>数据并行编程</strong></h5><p>在 SIMD（单指令多数据）应用中，分支消除非常重要，因为 SIMD 本身不支持分支操作。</p>
 <p>在我们之前的数组求和例子中，去除累加器的 <code>volatile</code> 类型修饰符后，编译器能够对循环进行向量化优化：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* volatile */</span> <span class="type">int</span> s = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; N; i++)</span><br><span class="line">    <span class="keyword">if</span> (a[i] &lt; <span class="number">50</span>)</span><br><span class="line">        s += a[i];</span><br></pre></td></tr></table></figure></div>
-
 <p>向量化后的代码每个元素处理时间为 0.3 个周期，性能瓶颈主要来自内存访问。</p>
 <p>编译器通常能够向量化任何没有分支或迭代之间没有依赖关系的循环。如果循环存在少量的复杂变体，例如包含只有一个 <code>if</code> 而没有 <code>else</code> 的简单循环，编译器也能进行向量化优化。但对于更复杂的循环，向量化则变得非常复杂，可能需要一些技术，例如掩码处理和寄存器内的重新排列。</p>
 <h4 id="指令表"><a href="#指令表" class="headerlink" title="指令表"></a>指令表</h4><p>在数字电子学中，交错执行（Interleaving execution stages）是一种常见的优化方式，它不仅应用于 CPU 的主流水线（pipeline），还用于单个指令的执行单元以及内存操作。大多数<strong>执行单元</strong>都有自己的小型流水线，并且通常可以在前一条指令执行一两周期后，就接受另一条指令。</p>
@@ -1477,11 +1421,12 @@
 <ul>
 <li><strong>整数运算单元（ALU, Arithmetic Logic Unit）</strong>：用于执行 <code>add</code>、<code>sub</code>、<code>cmp</code> 等整数运算。</li>
 <li><strong>浮点运算单元（FPU, Floating Point Unit）</strong>：用于执行 <code>mulss</code>、<code>divss</code> 等浮点数运算。</li>
-<li><strong>加载&#x2F;存储单元（Load&#x2F;Store Unit, LSU）</strong>：用于 <code>mov r, m</code>、<code>mov m, r</code> 等内存访问指令。</li>
+<li><strong>加载/存储单元（Load/Store Unit, LSU）</strong>：用于 <code>mov r, m</code>、<code>mov m, r</code> 等内存访问指令。</li>
 <li><strong>分支单元（Branch Unit）</strong>：用于 <code>jmp</code>、<code>call</code>、<code>ret</code> 等控制流指令。</li>
 </ul>
 <p>这些执行单元通常也是流水线化的（Pipelined），并且现代 CPU 可能会有<strong>多个相同类型的执行单元</strong>，以提高吞吐量。可以把 CPU 的流水线看作是<strong>多个层级的流水线结构</strong>。</p>
 <p>以下是一些常见的 CPU 资源分配：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1489,7 +1434,8 @@
 <th><strong>可能涉及的硬件单元</strong></th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><strong>取指（IF）</strong></td>
 <td>指令缓存（L1I Cache）、<strong>IFU</strong>取指单元</td>
 </tr>
@@ -1503,13 +1449,15 @@
 </tr>
 <tr>
 <td><strong>访存（MEM）</strong></td>
-<td><strong>LSU</strong>（加载&#x2F;存储单元）、L1&#x2F;L2 Cache</td>
+<td><strong>LSU</strong>（加载/存储单元）、L1/L2 Cache</td>
 </tr>
 <tr>
 <td><strong>写回（WB）</strong></td>
 <td>寄存器文件、提交队列</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p>所以在这种情况下，有两种不同衡量指令花费的标准，一种是延迟（<em>Latency</em>），另一种是吞吐量（<em>Throughput</em>）。</p>
 <ul>
 <li><p><strong>延迟（Latency）</strong>：指令的执行结果需要多少个周期（cycles）才能获得。</p>
@@ -1518,6 +1466,7 @@
 </li>
 </ul>
 <p>对于特定的 CPU 架构，我们可以通过<strong>指令表（Instruction Tables）</strong>来获取这些数值。以下是 <strong>AMD Zen 2</strong> 架构上一些指令的示例（所有操作数均为 32 位）：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1526,7 +1475,8 @@
 <th>反向吞吐量（Reciprocal Throughput）</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td><code>jmp</code></td>
 <td>-</td>
 <td>2</td>
@@ -1534,12 +1484,12 @@
 <tr>
 <td><code>mov r, r</code></td>
 <td>-</td>
-<td>1&#x2F;4</td>
+<td>1/4</td>
 </tr>
 <tr>
 <td><code>mov r, m</code></td>
 <td>4</td>
-<td>1&#x2F;2</td>
+<td>1/2</td>
 </tr>
 <tr>
 <td><code>mov m, r</code></td>
@@ -1549,17 +1499,17 @@
 <tr>
 <td><code>add</code></td>
 <td>1</td>
-<td>1&#x2F;3</td>
+<td>1/3</td>
 </tr>
 <tr>
 <td><code>cmp</code></td>
 <td>1</td>
-<td>1&#x2F;4</td>
+<td>1/4</td>
 </tr>
 <tr>
 <td><code>popcnt</code></td>
 <td>1</td>
-<td>1&#x2F;4</td>
+<td>1/4</td>
 </tr>
 <tr>
 <td><code>mul</code></td>
@@ -1571,7 +1521,9 @@
 <td>13-28</td>
 <td>13-28</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p><strong>吞吐量的倒数（Reciprocal Throughput）</strong></p>
 <ul>
 <li>因为人们通常习惯于<strong>“数值越大代表开销越大”</strong>的成本模型，所以更常用<strong>反向吞吐量</strong>（Reciprocal Throughput），即每条指令平均需要多少个周期才能执行完一条（而不是每周期执行多少条）。</li>
@@ -1579,12 +1531,12 @@
 <p><strong>指令执行单元的复用</strong></p>
 <ul>
 <li>如果某条指令非常频繁，CPU 可能会复制其执行单元，以提高吞吐量（但通常不会超过解码宽度）。</li>
-<li>例如，<code>add</code> 具有 1&#x2F;3 的吞吐量，这表示多个 <code>add</code> 指令可以在不同的执行单元中同时进行。</li>
+<li>例如，<code>add</code> 具有 1/3 的吞吐量，这表示多个 <code>add</code> 指令可以在不同的执行单元中同时进行。</li>
 </ul>
 <p><strong>流水线执行</strong></p>
 <ul>
 <li>许多指令都是<strong>流水线化（Pipelined）</strong>的。例如，<strong>如果某条指令的吞吐量倒数是 <code>n</code>，通常意味着它的执行单元可以在 <code>n</code> 个周期后接受另一条同样的指令</strong>。</li>
-<li>如果吞吐量倒数小于 1（如 <code>mov r, r</code> 的 1&#x2F;4），表示 CPU 可能有多个执行单元，可以在同一周期并行执行多条这样的指令。</li>
+<li>如果吞吐量倒数小于 1（如 <code>mov r, r</code> 的 1/4），表示 CPU 可能有多个执行单元，可以在同一周期并行执行多条这样的指令。</li>
 </ul>
 <p><strong>变量延迟（Variable Latency）</strong></p>
 <ul>
@@ -1594,7 +1546,6 @@
 <p>优化延迟通常和优化吞吐量有很大的不同，</p>
 <p>假设有一个数组求和的代码：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> s = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; n; i++)</span><br><span class="line">    s += a[i];</span><br></pre></td></tr></table></figure></div>
-
 <p>如果我们假设：</p>
 <ul>
 <li><strong>编译器没有向量化</strong>（SIMD 没有被使用）。</li>
@@ -1603,10 +1554,9 @@
 </ul>
 <p>那么，它会被展开成：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> s = <span class="number">0</span>;</span><br><span class="line">s += a[<span class="number">0</span>];</span><br><span class="line">s += a[<span class="number">1</span>];</span><br><span class="line">s += a[<span class="number">2</span>];</span><br><span class="line">s += a[<span class="number">3</span>];</span><br><span class="line"><span class="comment">// ...</span></span><br></pre></td></tr></table></figure></div>
-
-<p>由于 <code>add</code> 指令的<strong>延迟为 1</strong>，每次 <code>s += a[i]</code> 操作都依赖于前一次计算的 <code>s</code>，**导致只能每个周期执行 1 次 <code>add</code>**，即 <strong>处理 1 个数组元素&#x2F;周期</strong>。</p>
-<p>然而，我们注意到 <strong>Zen 2 处理器的 <code>add</code> 吞吐量是 2</strong>，也就是说 <strong>CPU 实际上每个周期可以执行 2 次 <code>add</code><strong>，但当前代码无法利用这个能力，因为每个 <code>add</code> 依赖于上一次的 <code>s</code>，存在</strong>数据依赖</strong>。这里说add的吞吐量为2，好像与上面表中说明吞吐量为3相悖，实际是因为<strong>寄存器到寄存器的 <code>add</code> 指令吞吐量很高（4），但如果 <code>add</code> 的操作数之一来自内存，它的执行速度就会受到内存读取的吞吐量限制（2）</strong>。</p>
-<p>假设 CPU 里有 <strong>4 条 ALU 管道</strong> 专门用于 <code>add</code> 操作，而有 <strong>2 条 Load&#x2F;Store 单元（LSU）</strong> 用于 <code>mov</code>（内存加载）。</p>
+<p>由于 <code>add</code> 指令的<strong>延迟为 1</strong>，每次 <code>s += a[i]</code> 操作都依赖于前一次计算的 <code>s</code>，<strong>导致只能每个周期执行 1 次 <code>add</code></strong>，即 <strong>处理 1 个数组元素/周期</strong>。</p>
+<p>然而，我们注意到 <strong>Zen 2 处理器的 <code>add</code> 吞吐量是 2</strong>，也就是说 <strong>CPU 实际上每个周期可以执行 2 次 <code>add</code></strong>，但当前代码无法利用这个能力，因为每个 <code>add</code> 依赖于上一次的 <code>s</code>，存在<strong>数据依赖</strong>。这里说add的吞吐量为2，好像与上面表中说明吞吐量为3相悖，实际是因为<strong>寄存器到寄存器的 <code>add</code> 指令吞吐量很高（4），但如果 <code>add</code> 的操作数之一来自内存，它的执行速度就会受到内存读取的吞吐量限制（2）</strong>。</p>
+<p>假设 CPU 里有 <strong>4 条 ALU 管道</strong> 专门用于 <code>add</code> 操作，而有 <strong>2 条 Load/Store 单元（LSU）</strong> 用于 <code>mov</code>（内存加载）。</p>
 <ul>
 <li><strong>如果 <code>add</code> 只用 ALU（<code>reg, reg</code>），它可以 4 条并行执行</strong>。</li>
 <li><strong>如果 <code>add</code> 需要访问内存（<code>reg, [mem]</code>），它必须先经过 LSU 加载数据</strong>，但 <strong>LSU 只有 2 条管道，所以吞吐量上限是 2</strong>。</li>
@@ -1615,7 +1565,6 @@
 <p><strong>解决方案：使用多个累加器</strong></p>
 <p>为了提高吞吐量，我们可以使用<strong>两个独立的累加器</strong>，分别求和奇数索引和偶数索引的元素：</p>
 <div class="highlight-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> s0 = <span class="number">0</span>, s1 = <span class="number">0</span>;</span><br><span class="line">s0 += a[<span class="number">0</span>];</span><br><span class="line">s1 += a[<span class="number">1</span>];</span><br><span class="line">s0 += a[<span class="number">2</span>];</span><br><span class="line">s1 += a[<span class="number">3</span>];</span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"><span class="type">int</span> s = s0 + s1;</span><br></pre></td></tr></table></figure></div>
-
 <p><strong>这样做的好处是：</strong></p>
 <ul>
 <li><strong>s0 和 s1 互不依赖</strong>，可以<strong>并行执行</strong>。</li>
@@ -1625,16 +1574,16 @@
 <p><strong>一般情况：多累加器策略</strong></p>
 <p>如果某条指令：</p>
 <ul>
-<li><strong>延迟（Latency）&#x3D; x</strong></li>
-<li><strong>吞吐量（Throughput）&#x3D; y</strong></li>
+<li><strong>延迟（Latency）= x</strong></li>
+<li><strong>吞吐量（Throughput）= y</strong></li>
 </ul>
 <p>那么，要<strong>完全利用 CPU 的执行单元</strong>，我们需要 <strong>x × y 个独立的累加器</strong>，以确保 CPU 在任何时刻都有足够的指令可以执行，不会被数据依赖阻塞。</p>
 <p>对于 <code>add</code>：</p>
 <ul>
-<li><strong>Latency &#x3D; 1</strong></li>
-<li><strong>Throughput &#x3D; 2</strong></li>
+<li><strong>Latency = 1</strong></li>
+<li><strong>Throughput = 2</strong></li>
 </ul>
-<p>因此，我们需要<strong>1 × 2 &#x3D; 2 个累加器</strong>（s0 和 s1），刚好匹配 CPU 资源，最大化吞吐量。</p>
+<p>因此，我们需要<strong>1 × 2 = 2 个累加器</strong>（s0 和 s1），刚好匹配 CPU 资源，最大化吞吐量。</p>
 <p>在优化循环时，我们通常：</p>
 <ol>
 <li><strong>确定 CPU 关键的执行端口</strong>（Execution Ports）—— 不同指令可能使用不同的执行端口。</li>
@@ -1794,7 +1743,7 @@
                     </span>
                     
                         <span>
-                            共 120.3k 字
+                            共 120k 字
                         </span>
                     
                 </p>

