@@ -573,7 +573,7 @@
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">21</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">22</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -654,7 +654,7 @@
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">21</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">22</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -669,6 +669,80 @@
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/blog/2024/09/21/Exploits-under-exception-handling/">
+                            Exploits under exception handling
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            引入在栈溢出漏洞中，程序没有控制或错误控制输入的大小导致了该漏洞的产生。那我们很自然会想到能不能用try  throw catch的异常机制来捕获栈溢出行为，从而能更直观的获取错误信息，也在一定程度上避免了一些奇怪的错误产生。但在c++的异常处理实现中，如果我们放任输入数据超过缓冲区大小，冀以异常机制来捕获栈溢出，结果将不尽如人意，甚至还会导致canary保护机制的绕过。
+原理&amp;题目...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sat Sep 21 2024 17:00:04 GMT+0800">
+                
+                    2024-09-21
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/blog/tags/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                        <li>
+                            | 
+                            <a href="/blog/tags/exception/">exception</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/blog/2024/09/21/Exploits-under-exception-handling/">阅读全文<span class="seo-reader-text">Exploits under exception handling</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -775,11 +849,11 @@
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 21 篇文章
+                        共撰写了 22 篇文章
                     </span>
                     
                         <span>
-                            共 94.8k 字
+                            共 120.3k 字
                         </span>
                     
                 </p>
