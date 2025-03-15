@@ -99,7 +99,11 @@
     
     
     
-<meta name="generator" content="Hexo 7.3.0"></head>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
 
 
 
@@ -687,10 +691,11 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            问题由来在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。
+                            问题由来
+在对于堆的_IO_FILE利用的学习过程中，我们通常需要伪造一个fake_IO_FILE，并且附带源码调试，以方便清除是否进入了目标函数，是否一些条件判断通过。但是有时候却在pwndbg加载时找不到对应的glibc的symbol
+file文件，这就导致我们无法进行源码级别调试，而且看结构体只能自己一个一个字段带进去看，十分麻烦。所以这里介绍一下如何方便地进行带符号调试。
 
-
-符号文件...
+...
                         
                     </div>
 
@@ -768,10 +773,12 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            protobuf简介Protocol Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：
+                            protobuf简介
+Protocol
+Buffers（通常简称为protobuf）是由Google开发的一种语言中立、平台中立的序列化结构数据的方法。它用于高效地存储和交换数据，特别适合用于网络通信和数据存储。protobuf的主要特点包括：
 
 高效性：protobuf使用紧凑的二进制格式，比其他文本格式（如JSON或XML）更小、更快。
-语言中立：支持多种编程语言，包括C++、Java、P...
+语言中立：支持多种编程语言，包括C++、...
                         
                     </div>
 
@@ -845,17 +852,20 @@
                         
                             
                             适用版本
+
 2.23——至今
 
 利用条件
+
 能控制_IO_FILE的vtable和_wide_data(一般使用largebin attack)
 程序从main函数返回，或者执行exit函数
 能泄露libc_base和heap_base
 
 利用思路
+
 劫持IO_FILE的vtable为_IO_wfile_jumps
 控制_wide_data为可控的堆地址空间
-控制_wide_data-&gt;_w...
+控制...
                         
                     </div>
 
@@ -934,8 +944,10 @@
                         
                             
                             solidity这个语言广泛运用与智能合约的编写，想要入门区块链就得先了解这个语言。该语言其实与c语言用法类似。在solidity语言中，标识执行账户是用地址实现的，比如我们MetaMask中创建的Account的地址或是某个合约的地址。
-1.一些基本概念与工具站1）账户外部账户
-外部账户是由人创建的，可以存储以太币，是由公钥和私钥控制的账户。每个外部账户拥有一对公私钥，这对密钥用于签署交易...
+1.一些基本概念与工具站
+1）账户
+外部账户
+外部账户是由人创建的，可以存储以太币，是由公钥和私钥控制的账户。每个外部账户拥有一对公私钥，这对密钥...
                         
                     </div>
 
@@ -1008,16 +1020,20 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            适用版本glibc2.23 - 2.29
+                            适用版本
+glibc2.23 - 2.29
 利用条件
+
 能控制top chunk的size域
 能获取heap_base，进而计算出top_chunk的地址
 能自由控制堆分配尺寸大小
 
 利用思路
-将top chunk的size改得很大，使后续能够分配很大的堆块，从而使topchunk指向目标地址。
 
-精准计算top chunk的地址与target addr-0x10之间偏移，再进行细微的调整，使申...
+将top
+chunk的size改得很大，使后续能够分配很大的堆块，从而使topchunk指向目标地址。
+精准计算top chunk的地址与target
+addr-0x10之...
                         
                     </div>
 
@@ -1096,9 +1112,10 @@
                         
                             
                             问题发展路径
+
 一开始最基本的格式化字符串漏洞任意地址写，没有什么限制
 进阶一点的是非栈上的格式化字符串漏洞利用，需要利用到栈上的指向程序名称的链条以及靠近内核区域的链条，但这种方法正常而言需要多次格式化字符串漏洞的执行利用，对目标地址改动越大需要利用到越多次。
-最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用格式化字符...
+最后是在读取内容非栈上的情况下，实现在一次格式化字符串漏洞的触发中直接进行对一个栈上地址的两个字节的修改，可以用于减少利用...
                         
                     </div>
 
@@ -1172,9 +1189,12 @@
                         
                             
                             go pwn的特点
-Golang 使用了自己的运行时和内存管理机制。Go 的堆栈是可扩展的（split-stack model），即每个 Goroutine 的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。
+
+Golang 使用了自己的运行时和内存管理机制。Go
+的堆栈是可扩展的（split-stack model），即每个 Goroutine
+的堆栈大小可以动态扩展。这使得堆栈布局更加复杂，和固定大小的堆栈相比更难预测。
 无标准栈帧，也就是不怎么依靠rbp作为栈帧指针（但实际那个位置有时还是维护rbp），通常通过rsp进行局部变量寻址。
-Go 语言依赖垃圾回收器管理内存，而 ...
+Go 语言依赖垃圾回收器...
                         
                     </div>
 
@@ -1252,10 +1272,15 @@ Go 语言依赖垃圾回收器管理内存，而 ...
                     <div class="home-article-content markdown-body">
                         
                             
-                            一、web与pwn的联系在某些 Web 服务中，会通过调用二进制程序来处理特定请求，尤其是在涉及动态内容生成、脚本执行、数据处理等场景时。以下是一些常见的例子：
-1. CGI (Common Gateway Interface)
-概述： CGI 是一种通用的接口标准，允许 Web 服务器调用外部的二进制程序或脚本来生成动态内容。
-调用方式： 当用户请求特定路径时，Web 服务器会通过 CGI...
+                            一、web与pwn的联系
+在某些 Web
+服务中，会通过调用二进制程序来处理特定请求，尤其是在涉及动态内容生成、脚本执行、数据处理等场景时。以下是一些常见的例子：
+1. CGI (Common Gateway
+Interface)
+
+概述： CGI 是一种通用的接口标准，允许 Web
+服务器调用外部的二进制程序或脚本来生成动态内容。
+调用方式： 当用户请求特定路径时，Web ...
                         
                     </div>
 
@@ -1328,8 +1353,10 @@ Go 语言依赖垃圾回收器管理内存，而 ...
                     <div class="home-article-content markdown-body">
                         
                             
-                            一、利用目的在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出
-二、利用方式以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄”、“䂚”...
+                            一、利用目的
+在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出
+二、利用方式
+以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄...
                         
                     </div>
 
@@ -1402,7 +1429,13 @@ Go 语言依赖垃圾回收器管理内存，而 ...
                     <div class="home-article-content markdown-body">
                         
                             
-                            一、mips架构概述1.寄存器
+                            一、mips架构概述
+1.寄存器
+
+
+
+
+
 
 
 
@@ -1420,22 +1453,17 @@ $zero
 
 $1
 $at
-保留给汇编器（Assembler Temporary）。在汇编过程中用于一些临时计算，程序员不应直接使用。
+保留给汇编器（Assembler
+Temporary）。在汇编过程中用于一些临时计算，程序员不应直接使用。
 
 
 $2-$3
-$v0-$v1
+\(v0-\)v1
 用于存储函数的返回值。
 
 
 $4-$7
-$a0-$a3
-函数调用参数，用于传递最多 4 个函数参数。
-
-
-$8-$15
-$t0-$t7
-临时寄存...
+\(a0-\)a3...
                         
                     </div>
 
@@ -1525,7 +1553,7 @@ $t0-$t7
                     </span>
                     
                         <span>
-                            共 120k 字
+                            共 118.7k 字
                         </span>
                     
                 </p>

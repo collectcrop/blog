@@ -18,12 +18,12 @@
     <meta name="googlebot" content="index,follow">
     <meta name="revisit-after" content="1 days">
     
-        <meta name="description" content="快速在24.04Ubuntu搭建pwn环境打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用glibc-all-in-one，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这里顺便记录">
+        <meta name="description" content="快速在24.04Ubuntu搭建pwn环境 打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用glibc-all-in-one，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这里顺便">
 <meta property="og:type" content="article">
 <meta property="og:title" content="快速在24.04Ubuntu搭建pwn环境">
 <meta property="og:url" content="https://collectcrop.github.io/blog/2025/01/24/%E5%BF%AB%E9%80%9F%E5%9C%A824-04Ubuntu%E6%90%AD%E5%BB%BApwn%E7%8E%AF%E5%A2%83/index.html">
 <meta property="og:site_name" content="Collectcrop&#39;s Blog">
-<meta property="og:description" content="快速在24.04Ubuntu搭建pwn环境打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用glibc-all-in-one，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这里顺便记录">
+<meta property="og:description" content="快速在24.04Ubuntu搭建pwn环境 打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用glibc-all-in-one，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这里顺便">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2025/01/24/%E5%BF%AB%E9%80%9F%E5%9C%A824-04Ubuntu%E6%90%AD%E5%BB%BApwn%E7%8E%AF%E5%A2%83/image-20241209111313097.png">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2025/01/24/%E5%BF%AB%E9%80%9F%E5%9C%A824-04Ubuntu%E6%90%AD%E5%BB%BApwn%E7%8E%AF%E5%A2%83/image-20241209111731629.png">
@@ -110,7 +110,11 @@
     
     
     
-<meta name="generator" content="Hexo 7.3.0"></head>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
 
 
 
@@ -643,7 +647,7 @@
     
     
         <span class="article-wordcount article-meta-item">
-            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>954 字</span>
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>962 字</span>
         </span>
     
     
@@ -667,20 +671,27 @@
 
 
 		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
-			<h2 id="快速在24-04Ubuntu搭建pwn环境"><a href="#快速在24-04Ubuntu搭建pwn环境" class="headerlink" title="快速在24.04Ubuntu搭建pwn环境"></a>快速在24.04Ubuntu搭建pwn环境</h2><p>打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用<code>glibc-all-in-one</code>，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这里顺便记录下快速起pwn环境的步骤。</p>
-<h3 id="安装清单"><a href="#安装清单" class="headerlink" title="安装清单"></a>安装清单</h3><div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">pwntools</span><br><span class="line">ROPgadget</span><br><span class="line">seccomp-tools</span><br><span class="line">glibc-all-in-one</span><br><span class="line">patchelf</span><br><span class="line">pwndbg</span><br><span class="line">one_gadget</span><br></pre></td></tr></table></figure></div>
-<h3 id="0-安装24-04Ubuntu"><a href="#0-安装24-04Ubuntu" class="headerlink" title="0.安装24.04Ubuntu"></a>0.安装24.04Ubuntu</h3><p>这里我选择wsl的安装，直接安装完成后，打开会自动进行进一步的安装以及初始化。</p>
+			<h2 id="快速在24.04ubuntu搭建pwn环境">快速在24.04Ubuntu搭建pwn环境</h2>
+<p>打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用<code>glibc-all-in-one</code>，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这里顺便记录下快速起pwn环境的步骤。</p>
+<h3 id="安装清单">安装清单</h3>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">pwntools</span><br><span class="line">ROPgadget</span><br><span class="line">seccomp-tools</span><br><span class="line">glibc-all-in-one</span><br><span class="line">patchelf</span><br><span class="line">pwndbg</span><br><span class="line">one_gadget</span><br></pre></td></tr></table></figure></div>
+<h3 id="安装24.04ubuntu">0.安装24.04Ubuntu</h3>
+<p>这里我选择wsl的安装，直接安装完成后，打开会自动进行进一步的安装以及初始化。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2025/01/24/%E5%BF%AB%E9%80%9F%E5%9C%A824-04Ubuntu%E6%90%AD%E5%BB%BApwn%E7%8E%AF%E5%A2%83/image-20241209111313097.png"
                       class=""
                 >
-<h3 id="1-更新系统"><a href="#1-更新系统" class="headerlink" title="1. 更新系统"></a>1. 更新系统</h3><p>首先，确保你的系统是最新的：</p>
+<h3 id="更新系统">1. 更新系统</h3>
+<p>首先，确保你的系统是最新的：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt update &amp;&amp; <span class="built_in">sudo</span> apt upgrade -y</span><br></pre></td></tr></table></figure></div>
-<h3 id="2-安装基本工具"><a href="#2-安装基本工具" class="headerlink" title="2. 安装基本工具"></a>2. 安装基本工具</h3><p>安装一些常用的开发工具和库：</p>
+<h3 id="安装基本工具">2. 安装基本工具</h3>
+<p>安装一些常用的开发工具和库：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install -y build-essential gdb python3 python3-pip git</span><br></pre></td></tr></table></figure></div>
-<h3 id="3-安装-pwntools"><a href="#3-安装-pwntools" class="headerlink" title="3. 安装 pwntools"></a>3. 安装 pwntools</h3><p><code>pwntools</code> 是 PWN 环境中常用的 Python 库，用于编写漏洞利用脚本：</p>
+<h3 id="安装-pwntools">3. 安装 pwntools</h3>
+<p><code>pwntools</code> 是 PWN 环境中常用的 Python
+库，用于编写漏洞利用脚本：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip3 install pwntools</span><br></pre></td></tr></table></figure></div>
 <p>可能会有报错如下：</p>
 <img  
@@ -689,50 +700,64 @@
                      data-src="/blog/2025/01/24/%E5%BF%AB%E9%80%9F%E5%9C%A824-04Ubuntu%E6%90%AD%E5%BB%BApwn%E7%8E%AF%E5%A2%83/image-20241209111731629.png"
                       class=""
                 >
-<p>由于 Ubuntu 24.04 使用了<code>externally-managed-environment</code>模式，这种模式下系统不允许直接用 <code>pip</code> 安装全局包。为了避免对系统 Python 环境造成破坏，所以要创建一个虚拟环境来安装 Python 包。</p>
+<p>由于 Ubuntu 24.04
+使用了<code>externally-managed-environment</code>模式，这种模式下系统不允许直接用
+<code>pip</code> 安装全局包。为了避免对系统 Python
+环境造成破坏，所以要创建一个虚拟环境来安装 Python 包。</p>
 <p><strong>解决方法：使用虚拟环境</strong></p>
-<ol>
-<li><p><strong>安装 <code>python3-venv</code> 和 <code>python3-pip</code></strong>： 首先，确保你已经安装了 <code>python3-venv</code> 和 <code>python3-pip</code>，这些工具允许你创建虚拟环境并安装 pip 包。</p>
-<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install python3-venv python3-pip</span><br></pre></td></tr></table></figure></div>
-</li>
-<li><p><strong>创建虚拟环境</strong>： 创建一个新的虚拟环境，用来安装和管理 <code>pwntools</code>。</p>
-<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -m venv pwnenv</span><br></pre></td></tr></table></figure></div>
-</li>
-<li><p><strong>激活虚拟环境</strong>： 激活虚拟环境，这样你就可以在隔离的环境中安装 Python 包了。</p>
+<ol type="1">
+<li><p><strong>安装 <code>python3-venv</code> 和
+<code>python3-pip</code></strong>： 首先，确保你已经安装了
+<code>python3-venv</code> 和
+<code>python3-pip</code>，这些工具允许你创建虚拟环境并安装 pip 包。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install python3-venv python3-pip</span><br></pre></td></tr></table></figure></div></li>
+<li><p><strong>创建虚拟环境</strong>：
+创建一个新的虚拟环境，用来安装和管理 <code>pwntools</code>。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -m venv pwnenv</span><br></pre></td></tr></table></figure></div></li>
+<li><p><strong>激活虚拟环境</strong>：
+激活虚拟环境，这样你就可以在隔离的环境中安装 Python 包了。</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">source</span> pwnenv/bin/activate</span><br></pre></td></tr></table></figure></div>
-<p>激活后，你会看到命令提示符前面会加上 <code>(pwnenv)</code>，表示你已经进入虚拟环境。</p>
-</li>
-<li><p><strong>安装 <code>pwntools</code></strong>： 在虚拟环境中，你可以使用 <code>pip</code> 安装 <code>pwntools</code> 和其他需要的 Python 包。</p>
-<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip install pwntools</span><br></pre></td></tr></table></figure></div>
-</li>
-<li><p><strong>退出虚拟环境</strong>： 使用完虚拟环境后，可以通过以下命令退出：</p>
-<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">deactivate</span><br></pre></td></tr></table></figure></div>
-</li>
+<p>激活后，你会看到命令提示符前面会加上
+<code>(pwnenv)</code>，表示你已经进入虚拟环境。</p></li>
+<li><p><strong>安装 <code>pwntools</code></strong>：
+在虚拟环境中，你可以使用 <code>pip</code> 安装 <code>pwntools</code>
+和其他需要的 Python 包。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip install pwntools</span><br></pre></td></tr></table></figure></div></li>
+<li><p><strong>退出虚拟环境</strong>：
+使用完虚拟环境后，可以通过以下命令退出：</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">deactivate</span><br></pre></td></tr></table></figure></div></li>
 </ol>
 <p><strong>使用 <code>pipx</code>（可选）</strong></p>
-<p>如果不想每次都手动激活虚拟环境，可以考虑使用 <code>pipx</code> 来管理独立的 Python 应用程序。<code>pipx</code> 会自动为我们创建虚拟环境并管理依赖。</p>
-<ol>
+<p>如果不想每次都手动激活虚拟环境，可以考虑使用 <code>pipx</code>
+来管理独立的 Python 应用程序。<code>pipx</code>
+会自动为我们创建虚拟环境并管理依赖。</p>
+<ol type="1">
 <li><p><strong>安装 <code>pipx</code></strong>：</p>
-<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install pipx</span><br></pre></td></tr></table></figure></div>
-</li>
-<li><p><strong>使用 <code>pipx</code> 安装 <code>pwntools</code></strong>：</p>
-<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx install pwntools</span><br></pre></td></tr></table></figure></div>
-</li>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install pipx</span><br></pre></td></tr></table></figure></div></li>
+<li><p><strong>使用 <code>pipx</code> 安装
+<code>pwntools</code></strong>：</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pipx install pwntools</span><br></pre></td></tr></table></figure></div></li>
 </ol>
-<p><code>pipx</code> 会自动为你创建一个虚拟环境，并在其中安装 <code>pwntools</code>，你可以直接运行它，而无需手动管理虚拟环境。</p>
+<p><code>pipx</code> 会自动为你创建一个虚拟环境，并在其中安装
+<code>pwntools</code>，你可以直接运行它，而无需手动管理虚拟环境。</p>
 <p>但这个pipx亲测太慢了！！！不推荐。</p>
-<h3 id="4-安装-ROPgadget"><a href="#4-安装-ROPgadget" class="headerlink" title="4. 安装 ROPgadget"></a>4. 安装 ROPgadget</h3><p><code>ROPgadget</code> 是一个用于查找 ROP 链 gadget 的工具：</p>
+<h3 id="安装-ropgadget">4. 安装 ROPgadget</h3>
+<p><code>ROPgadget</code> 是一个用于查找 ROP 链 gadget 的工具：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip3 install ropgadget</span><br></pre></td></tr></table></figure></div>
-<h3 id="5-安装-seccomp-tools"><a href="#5-安装-seccomp-tools" class="headerlink" title="5. 安装 seccomp-tools"></a>5. 安装 seccomp-tools</h3><p><code>seccomp-tools</code> 用于分析和利用 seccomp 过滤器：</p>
+<h3 id="安装-seccomp-tools">5. 安装 seccomp-tools</h3>
+<p><code>seccomp-tools</code> 用于分析和利用 seccomp 过滤器：</p>
 <p>安装 Ruby 和 RubyGems</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt install -y ruby-full</span><br></pre></td></tr></table></figure></div>
 <p>使用 RubyGems 安装 <code>seccomp-tools</code></p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> gem install seccomp-tools</span><br></pre></td></tr></table></figure></div>
 <p>安装完成后，可以通过以下命令验证安装是否成功：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">seccomp-tools --version</span><br></pre></td></tr></table></figure></div>
-<h3 id="6-安装-glibc-all-in-one"><a href="#6-安装-glibc-all-in-one" class="headerlink" title="6. 安装 glibc-all-in-one"></a>6. 安装 glibc-all-in-one</h3><p><code>glibc-all-in-one</code> 包含了不同版本的 glibc，方便进行漏洞测试：</p>
+<h3 id="安装-glibc-all-in-one">6. 安装 glibc-all-in-one</h3>
+<p><code>glibc-all-in-one</code> 包含了不同版本的
+glibc，方便进行漏洞测试：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> git <span class="built_in">clone</span> https://github.com/matrix1001/glibc-all-in-one.git</span><br><span class="line"><span class="built_in">cd</span> glibc-all-in-one/</span><br><span class="line"><span class="built_in">sudo</span> python3 update_list</span><br></pre></td></tr></table></figure></div>
-<h3 id="7-安装patchelf"><a href="#7-安装patchelf" class="headerlink" title="7. 安装patchelf"></a>7. 安装patchelf</h3><div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/NixOS/patchelf.git</span><br><span class="line"><span class="built_in">cd</span> patchelf</span><br><span class="line">./bootstrap.sh </span><br></pre></td></tr></table></figure></div>
+<h3 id="安装patchelf">7. 安装patchelf</h3>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/NixOS/patchelf.git</span><br><span class="line"><span class="built_in">cd</span> patchelf</span><br><span class="line">./bootstrap.sh </span><br></pre></td></tr></table></figure></div>
 <p>若显示报错</p>
 <img  
                      lazyload
@@ -741,7 +766,9 @@
                       class=""
                 >
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">sudo</span> apt-get install autoconf automake libtool</span><br><span class="line">./bootstrap.sh</span><br><span class="line">./configure</span><br><span class="line">make</span><br><span class="line">make check</span><br><span class="line"><span class="built_in">sudo</span> make install</span><br></pre></td></tr></table></figure></div>
-<h3 id="8-安装-pwndbg"><a href="#8-安装-pwndbg" class="headerlink" title="8. 安装 pwndbg"></a>8. 安装 pwndbg</h3><p><code>pwndbg</code> 是一个为 GDB 提供增强功能的插件，它对调试 PWN 题目非常有用：</p>
+<h3 id="安装-pwndbg">8. 安装 pwndbg</h3>
+<p><code>pwndbg</code> 是一个为 GDB 提供增强功能的插件，它对调试 PWN
+题目非常有用：</p>
 <p>装的时候记得先切到之前建立的虚拟环境。</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/pwndbg/pwndbg</span><br><span class="line"><span class="built_in">cd</span> pwndbg</span><br><span class="line">./setup.sh</span><br></pre></td></tr></table></figure></div>
 <p>若产生如下错误，则有可能是网络连接的问题（具体的可以看日志文件）。</p>
@@ -753,7 +780,9 @@
                 >
 <p>可以配置镜像源加速</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> -p ~/.pip</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[global]</span></span><br><span class="line"><span class="string">index-url = https://pypi.tuna.tsinghua.edu.cn/simple&quot;</span> &gt; ~/.pip/pip.conf</span><br></pre></td></tr></table></figure></div>
-<h3 id="8-安装-one-gadget"><a href="#8-安装-one-gadget" class="headerlink" title="8. 安装 one_gadget"></a>8. 安装 one_gadget</h3><p><code>one_gadget</code> 是一个用来快速查找 libc 中单次调用的 RCE gadget 的工具：</p>
+<h3 id="安装-one_gadget">8. 安装 one_gadget</h3>
+<p><code>one_gadget</code> 是一个用来快速查找 libc 中单次调用的 RCE
+gadget 的工具：</p>
 <div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gem install one_gadget</span><br></pre></td></tr></table></figure></div>
 
 		</div>
@@ -877,7 +906,7 @@
 	<div class="post-toc">
 		<div class="toc-title">目录</div>
 		<div class="page-title">快速在24.04Ubuntu搭建pwn环境</div>
-		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BF%AB%E9%80%9F%E5%9C%A824-04Ubuntu%E6%90%AD%E5%BB%BApwn%E7%8E%AF%E5%A2%83"><span class="nav-text">快速在24.04Ubuntu搭建pwn环境</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E6%B8%85%E5%8D%95"><span class="nav-text">安装清单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#0-%E5%AE%89%E8%A3%8524-04Ubuntu"><span class="nav-text">0.安装24.04Ubuntu</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%9B%B4%E6%96%B0%E7%B3%BB%E7%BB%9F"><span class="nav-text">1. 更新系统</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%AE%89%E8%A3%85%E5%9F%BA%E6%9C%AC%E5%B7%A5%E5%85%B7"><span class="nav-text">2. 安装基本工具</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-%E5%AE%89%E8%A3%85-pwntools"><span class="nav-text">3. 安装 pwntools</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E5%AE%89%E8%A3%85-ROPgadget"><span class="nav-text">4. 安装 ROPgadget</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-%E5%AE%89%E8%A3%85-seccomp-tools"><span class="nav-text">5. 安装 seccomp-tools</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-%E5%AE%89%E8%A3%85-glibc-all-in-one"><span class="nav-text">6. 安装 glibc-all-in-one</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-%E5%AE%89%E8%A3%85patchelf"><span class="nav-text">7. 安装patchelf</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-%E5%AE%89%E8%A3%85-pwndbg"><span class="nav-text">8. 安装 pwndbg</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-%E5%AE%89%E8%A3%85-one-gadget"><span class="nav-text">8. 安装 one_gadget</span></a></li></ol></li></ol>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BF%AB%E9%80%9F%E5%9C%A824.04ubuntu%E6%90%AD%E5%BB%BApwn%E7%8E%AF%E5%A2%83"><span class="nav-text">快速在24.04Ubuntu搭建pwn环境</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E6%B8%85%E5%8D%95"><span class="nav-text">安装清单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%8524.04ubuntu"><span class="nav-text">0.安装24.04Ubuntu</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9B%B4%E6%96%B0%E7%B3%BB%E7%BB%9F"><span class="nav-text">1. 更新系统</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E5%9F%BA%E6%9C%AC%E5%B7%A5%E5%85%B7"><span class="nav-text">2. 安装基本工具</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-pwntools"><span class="nav-text">3. 安装 pwntools</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-ropgadget"><span class="nav-text">4. 安装 ROPgadget</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-seccomp-tools"><span class="nav-text">5. 安装 seccomp-tools</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-glibc-all-in-one"><span class="nav-text">6. 安装 glibc-all-in-one</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85patchelf"><span class="nav-text">7. 安装patchelf</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-pwndbg"><span class="nav-text">8. 安装 pwndbg</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-one_gadget"><span class="nav-text">8. 安装 one_gadget</span></a></li></ol></li></ol>
 
 	</div>
 </div>
@@ -908,7 +937,7 @@
                     </span>
                     
                         <span>
-                            共 120k 字
+                            共 118.7k 字
                         </span>
                     
                 </p>

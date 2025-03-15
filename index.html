@@ -99,7 +99,123 @@
     
     
     
-<meta name="generator" content="Hexo 7.3.0"></head>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head>
 
 
 
@@ -748,8 +864,12 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            Algorithmica HPC研读记录（4-6章）四、编译（Compilation）概述学习汇编语言的主要好处并不在于能够用它编写程序，而是在于理解编译后的代码在执行过程中发生了什么，以及它对性能的影响。
-在极少数情况下，我们确实需要手写汇编代码以达到最高性能，但大多数时候，编译器本身就能生成接近最优的代码。如果编译器未能做到这一点，通常是因为程序员比编译器掌握了更多关于问题的特定知识，但...
+                            Algorithmica
+HPC研读记录（4-6章）
+四、编译（Compilation）
+概述
+学习汇编语言的主要好处并不在于能够用它编写程序，而是在于理解编译后的代码在执行过程中发生了什么，以及它对性能的影响。
+在极少数情况下，我们确实需要手写汇编代码以达到最高性能，但大多数时候，编译器本身就能生成接近最优的代码。如果编译器未能做到这一点，通常是因为程序员比编译器掌握了更多关于问...
                         
                     </div>
 
@@ -822,8 +942,15 @@
                     <div class="home-article-content markdown-body">
                         
                             
-                            Algorithmica HPC研读记录（1-3章）一、复杂性模型概述传统复杂性理论
-To estimate the real running time of a program, you need to sum all latencies for its executed instructions and divide it by the clock frequency, that is,...
+                            Algorithmica
+HPC研读记录（1-3章）
+一、复杂性模型
+概述
+传统复杂性理论
+
+To estimate the real running time of a program, you need to sum all
+latencies for its executed instructions and divide it by the clock
+frequen...
                         
                     </div>
 
@@ -896,8 +1023,15 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            ret2dir手法学习原理Ret2dir（Return-to-Direct Mapping）是一种 内核利用 技术，攻击者可以利用它 绕过 SMEP、SMAP、pxn 等用户空间与内核空间隔离的防护手段，最终实现 本地提权。
-在 大多数 Linux 内核（基于 x86_64 架构） 中，物理地址（Physical Address） 的很大一部分会被 直接映射（direct mapping） ...
+                            ret2dir手法学习
+原理
+Ret2dir（Return-to-Direct Mapping）是一种 内核利用
+技术，攻击者可以利用它 绕过 SMEP、SMAP、pxn
+等用户空间与内核空间隔离的防护手段，最终实现
+本地提权。
+在 大多数 Linux 内核（基于 x86_64 架构）
+中，物理地址（Physical Address） 的很大一部分会被
+直接映射（direct...
                         
                     </div>
 
@@ -970,9 +1104,12 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            ret2usr利用手法以及常见保护机制绕过浅析ret2usr在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。
-这里仍以2018 强网杯 - core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。
-12345678...
+                            ret2usr利用手法以及常见保护机制绕过浅析
+ret2usr
+在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。
+这里仍以2018 强网杯 -
+core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。
+1...
                         
                     </div>
 
@@ -1050,8 +1187,14 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            kernel pwn初探基础知识基础的概念入门时不宜死磕，最好粗略看看留个印象，然后下去环境配好后，在调试探索时逐步深化理解。
-如何理解内核操作系统内核（Operation System Kernel）本质上也是一种软件，可以看作是普通应用程式与硬件之间的一层中间层，其主要作用便是调度系统资源、控制 IO 设备、操作网络与文件系统等，并为上层应用提供便捷、抽象的应用接口。操作系统内核实际上是...
+                            kernel pwn初探
+基础知识
+基础的概念入门时不宜死磕，最好粗略看看留个印象，然后下去环境配好后，在调试探索时逐步深化理解。
+如何理解内核
+操作系统内核（Operation System
+Kernel）本质上也是一种软件，可以看作是普通应用程式与硬件之间的一层中间层，其主要作用便是调度系统资源、控制
+IO
+设备、操作网络与文件系统等，并为上层应用提供便捷、抽象的应用接口。...
                         
                     </div>
 
@@ -1124,8 +1267,10 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            C#开发学习记录1开发环境：Visual Studio 2022
-前言从高中时就对开发软件比较感兴趣，用过pygame写过小游戏，当时其实也想用Unity来写个游戏来着。不过高中确实学业压力比较重，加上Unity主要是用C#作为编程语言的，当时也没接触过C#语言，就不了了之。大一又误入安全歧途:smirk:，一直在打ctf，现在趁寒假学点windows程序开发。一开始我看了b站上的视频学习w...
+                            C#开发学习记录1
+开发环境：Visual Studio 2022
+前言
+从高中时就对开发软件比较感兴趣，用过pygame写过小游戏，当时其实也想用Unity来写个游戏来着。不过高中确实学业压力比较重，加上Unity主要是用C#作为编程语言的，当时也没接触过C#语言，就不了了之。大一又误入安全歧途:smirk:，一直在打ctf，现在趁寒假学点windows程序开发。一开始我看了b站上的...
                         
                     </div>
 
@@ -1203,7 +1348,8 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            快速在24.04Ubuntu搭建pwn环境打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用glibc-all-in-one，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这里顺...
+                            快速在24.04Ubuntu搭建pwn环境
+打了重庆市赛时，3个pwn题有2个给了2.39glibc，据有些大师傅们说，2.39的glibc只能在24.04的Ubuntu上兼容，我也试了试用glibc-all-in-one，下2.39的glibc，但是下下来是空的。这说明原先22.04Ubuntu的环境已经不够用了，需要新建一个24.04版本的Ubuntu虚拟机来应对各种可能的做题环境。这...
                         
                     </div>
 
@@ -1276,12 +1422,14 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            pwn-anote32位程序，存在后门函数。
+                            pwn-anote
+32位程序，存在后门函数。
 
-粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。
+粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work
+done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。
 
 
-这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入...
+这里每次add时都会申请一个0x20大小的chunk，其中dat...
                         
                     </div>
 
@@ -1359,10 +1507,11 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            利用原理主要链条：
+                            利用原理
+主要链条：
 1exit-&gt;__run_exit_handlers-&gt;__call_tls_dtors
 源码：
-123456789101112131415161718192021222324252627282930313233343536373839#  define PTR_DEMANGLE(var)     PTR_MANGLE (var)#  define PTR_M...
+123456789101112131415161718192021222324252627282930313233343536373839#  define PTR_DEMANGLE(var)     PTR_MANGLE (var)#  define ...
                         
                     </div>
 
@@ -1435,16 +1584,17 @@ To estimate the real running time of a program, you need to sum all latencies fo
                     <div class="home-article-content markdown-body">
                         
                             
-                            云崽bot基础搭建过程记录突发奇想想要搭建一个qqbot玩玩，经同学推荐，准备从最简单的yunzai框架入手。
+                            云崽bot基础搭建过程记录
+突发奇想想要搭建一个qqbot玩玩，经同学推荐，准备从最简单的yunzai框架入手。
 安装
-环境准备：Windows/Linux/MacOS/AndroidNode.js(&gt;=v21), Redis, Git
+
+环境准备：Windows/Linux/MacOS/Android Node.js(&gt;=v21), Redis, Git
 
 redis安装
+
 下载地址redis,密码:114514
-
 解压后启动redis-server.exe这个文件。
-
-将redis-server.exe所...
+将redis...
                         
                     </div>
 
@@ -1539,7 +1689,7 @@ redis安装
                     </span>
                     
                         <span>
-                            共 120k 字
+                            共 118.7k 字
                         </span>
                     
                 </p>

