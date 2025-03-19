@@ -569,7 +569,7 @@
 
         <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">30</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
@@ -577,7 +577,7 @@
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">23</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">24</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -650,7 +650,7 @@
 </div>
                 <div class="statistics flex justify-around my-2.5">
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">30</div>
         <div class="label text-third-text-color text-sm">标签</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
@@ -658,7 +658,7 @@
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">23</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">24</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -673,6 +673,83 @@
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/">
+                            tls_dtor_list劫持exit执行-高版本glibc利用思路之一
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            利用原理
+主要链条：
+1exit-&gt;__run_exit_handlers-&gt;__call_tls_dtors
+源码：
+123456789101112131415161718192021222324252627282930313233343536373839#  define PTR_DEMANGLE(var)     PTR_MANGLE (var)#  define ...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Thu Nov 28 2024 12:52:47 GMT+0800">
+                
+                    2024-11-28
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/blog/tags/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                        <li>
+                            | 
+                            <a href="/blog/tags/heap/">heap</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/blog/2024/11/28/tls-dtor-list%E5%8A%AB%E6%8C%81exit%E6%89%A7%E8%A1%8C-%E9%AB%98%E7%89%88%E6%9C%ACglibc%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF%E4%B9%8B%E4%B8%80/">阅读全文<span class="seo-reader-text">tls_dtor_list劫持exit执行-高版本glibc利用思路之一</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1424,82 +1501,6 @@ Interface)
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/blog/2024/09/21/CVE-2024-2961/">
-                            CVE-2024-2961
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            一、利用目的
-在二进制程序调用iconv这个glibc函数时，或是在PHP从一个字符集转换到另一个字符集调用iconv这个API时，其中当编码转换为ISO-2022-CN-EXT时，iconv有可能会产生缓冲区溢出
-二、利用方式
-以从UTF-8转义到ISO-2022-CN-EXT为例。要触发此漏洞，我们需要迫使iconv()在输出缓冲区结束前发出一个转义序列。为此，我们可以使用诸如“劄...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sat Sep 21 2024 18:56:13 GMT+0800">
-                
-                    2024-09-21
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/blog/tags/pwn/">pwn</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/blog/tags/CVE/">CVE</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/blog/2024/09/21/CVE-2024-2961/">阅读全文<span class="seo-reader-text">CVE-2024-2961</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1530,11 +1531,11 @@ Interface)
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 23 篇文章
+                        共撰写了 24 篇文章
                     </span>
                     
                         <span>
-                            共 122k 字
+                            共 125.9k 字
                         </span>
                     
                 </p>
