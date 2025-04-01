@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2025/04/01/复杂程序fuzz初探/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="复杂程序fuzz初探 什么是fuzz Fuzz（Fuzzing，模糊测试）是一种自动化测试技术，用于发现程序中的漏洞或异常行为。它的核心思想是向程序输入大量随机、畸形（fuzzed）或异常的数据，观察程序的响应，以检测潜在的崩溃、内存泄漏、安全漏洞等问题。适用于二进制程序测试和Web 渗透测试。结合代码覆盖率分析和符号执行，现代 Fuzzing 工具能够高效发现程序中的安全漏洞，在 CT">
+<meta property="og:type" content="article">
+<meta property="og:title" content="复杂程序fuzz初探">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="复杂程序fuzz初探 什么是fuzz Fuzz（Fuzzing，模糊测试）是一种自动化测试技术，用于发现程序中的漏洞或异常行为。它的核心思想是向程序输入大量随机、畸形（fuzzed）或异常的数据，观察程序的响应，以检测潜在的崩溃、内存泄漏、安全漏洞等问题。适用于二进制程序测试和Web 渗透测试。结合代码覆盖率分析和符号执行，现代 Fuzzing 工具能够高效发现程序中的安全漏洞，在 CT">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250311121702148.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250329231524270.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250329223749125.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250329230107885.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330174158039.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330174942595.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330175509457.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330175853671.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330224957022.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330225423810.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330225904720.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330230203787.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250401111738980.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250401134648864.png">
+<meta property="article:published_time" content="2025-04-01T06:27:10.000Z">
+<meta property="article:modified_time" content="2025-04-01T06:27:10.632Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="gdb">
+<meta property="article:tag" content="fuzz">
+<meta property="article:tag" content="pdf">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250311121702148.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            复杂程序fuzz初探 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"zh-CN","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    归档
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    标签
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分类
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    关于
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    友情链接
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                归档
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                标签
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                分类
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                关于
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">友情链接</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">32</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">8</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">25</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">复杂程序fuzz初探</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2025-04-01 14:27:10</span>
+        <span class="mobile">2025-04-01 14:27:10</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2025-04-01 14:27:10</span>
+            <span class="mobile">2025-04-01 14:27:10</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/fuzz/">fuzz</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/gdb/">gdb</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/fuzz/">fuzz</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/pdf/">pdf</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>3.9k 字</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>17 分钟</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h2 id="复杂程序fuzz初探">复杂程序fuzz初探</h2>
+<h4 id="什么是fuzz">什么是fuzz</h4>
+<p>Fuzz（Fuzzing，模糊测试）是一种<strong>自动化测试技术</strong>，用于发现程序中的漏洞或异常行为。它的核心思想是<strong>向程序输入大量随机、畸形（fuzzed）或异常的数据，观察程序的响应</strong>，以检测潜在的崩溃、内存泄漏、安全漏洞等问题。适用于<strong>二进制程序测试</strong>和<strong>Web
+渗透测试</strong>。结合代码覆盖率分析和符号执行，现代 Fuzzing
+工具能够高效发现程序中的安全漏洞，在
+CTF、漏洞研究、软件测试等领域广泛应用。一个非常常用的工具是<strong>AFL++</strong>。</p>
+<p>提到fuzz，我们经常听到另一个术语叫做<strong>插桩</strong>，插桩（Instrumentation）是一种<strong>在程序运行时插入额外代码</strong>的技术，主要用于：</p>
+<ul>
+<li><strong>监测代码覆盖率</strong></li>
+<li><strong>记录执行路径</strong></li>
+<li><strong>检测异常（如崩溃、内存错误）</strong></li>
+</ul>
+<p>AFL++ 主要通过<strong>编译时插桩</strong>来优化 Fuzzing
+过程，比如：</p>
+<ol type="1">
+<li>在每个基本块（Basic Block）入口添加<strong>统计代码</strong>。</li>
+<li>记录哪些路径已被执行。</li>
+<li>反馈给 Fuzzing 引擎，生成更有效的输入数据。</li>
+</ol>
+<h4 id="afl安装">AFL++安装</h4>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/AFLplusplus/AFLplusplus</span><br><span class="line"><span class="built_in">cd</span> AFLplusplus</span><br><span class="line"></span><br><span class="line"><span class="built_in">sudo</span> apt-get install llvm clang</span><br><span class="line">make source-only</span><br><span class="line"><span class="built_in">sudo</span> make install</span><br></pre></td></tr></table></figure></div>
+<p>编译方式如下，与gcc使用类似，这里可能会显示afl-gcc已经被移除了，那么我们可以换用<strong>afl-clang-fast</strong>进行编译。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250311121702148.png"
+                      class=""
+                >
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">afl-clang-fast fuzz.c -o fuzz</span><br></pre></td></tr></table></figure></div>
+<p>然后我们需要准备输入和输出两个目录，输入目录里存</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> input </span><br><span class="line"><span class="built_in">mkdir</span> output</span><br><span class="line"><span class="built_in">cd</span> input</span><br></pre></td></tr></table></figure></div>
+<h4 id="提升fuzz效率">提升fuzz效率</h4>
+<p>但是这里我发现跑的速度极慢，11分钟才完成了242个testcase。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250329231524270.png"
+                      class=""
+                >
+<p>这里我尝试了多进程一起跑，结果wsl直接炸盘。后面看了相关介绍才知道wsl性能差的原因。</p>
+<p><strong>WSL 的 Fork 机制效率低</strong></p>
+<ul>
+<li>AFL++ 依赖 <strong><code>fork()</code></strong> 来创建新进程，但 WSL
+的 <code>fork()</code> 性能 <strong>比原生 Linux
+差几十倍</strong>，因为它底层用的是 Windows 的进程模型。</li>
+<li><strong>影响</strong>：每次 AFL++ 运行新变异输入，都会导致 WSL 执行
+<code>fork()</code>，使 fuzzing 速度极慢。</li>
+</ul>
+<p><strong>WSL I/O 性能较差</strong></p>
+<ul>
+<li><strong>AFL++ 需要频繁读取/写入测试用例文件</strong>，但 WSL
+下的文件 I/O <strong>比原生 Linux 慢 10 倍以上</strong>（尤其是
+<code>/mnt</code> 挂载 Windows 磁盘时）。</li>
+<li><strong>影响</strong>：
+<ul>
+<li><code>exec speed</code> 变得很慢</li>
+<li><code>cycles done</code> 进度很慢</li>
+<li><code>timeouts</code> 过多</li>
+</ul></li>
+</ul>
+<p><strong>WSL 不能直接访问裸机 CPU</strong></p>
+<ul>
+<li>WSL 运行在 <strong>Hyper-V
+之上</strong>，但没有完整的虚拟化支持，所以：
+<ul>
+<li><strong>不能利用 CPU 的 fuzzing 相关优化指令</strong></li>
+<li><strong><code>afl-fuzz</code> 可能不能充分利用 CPU
+多核</strong></li>
+<li><strong>性能远远低于裸机 Linux</strong></li>
+</ul></li>
+</ul>
+<p>所以这里换用<strong>vmware</strong>来作为虚拟的环境。这里github项目给了一个<a class="link" 
+ target="_blank" rel="noopener" href="https://drive.google.com/file/d/1_m1x-SHcm7Muov2mlmbbt8nkrMYp0Q3K/view" >镜像<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>。用户名为fuzz，密码为fuzz。</p>
+<h4 id="fuzzing101例题复现">Fuzzing101例题复现</h4>
+<p>项目地址：https://github.com/antonio-morales/Fuzzing101/</p>
+<h5 id="exercise-1">Exercise 1</h5>
+<h6 id="fuzz">fuzz</h6>
+<p>环境准备：</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> fuzzing_xpdf &amp;&amp; <span class="built_in">cd</span> fuzzing_xpdf/</span><br><span class="line"><span class="built_in">sudo</span> apt install build-essential</span><br><span class="line">wget https://dl.xpdfreader.com/old/xpdf-3.02.tar.gz</span><br><span class="line">tar -xvzf xpdf-3.02.tar.gz</span><br><span class="line"><span class="built_in">cd</span> xpdf-3.02</span><br><span class="line"><span class="built_in">sudo</span> apt update &amp;&amp; <span class="built_in">sudo</span> apt install -y build-essential gcc</span><br><span class="line">./configure --prefix=<span class="string">&quot;path/to/fuzzing_xpdf/install/&quot;</span>		</span><br><span class="line"><span class="comment">#prefix指定程序存放路径，注意prefix前面自己的路径里不能有空格，否则后面会截断</span></span><br><span class="line">make</span><br><span class="line">make install</span><br></pre></td></tr></table></figure></div>
+<p>用export来暂时将我们装好的程序所在bin目录加入PATH环境变量，方便我们使用命令。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> PATH=path/to/fuzzing_xpdf/install/bin:<span class="variable">$PATH</span></span><br><span class="line"><span class="built_in">which</span> pdfinfo  	<span class="comment">#检查是否加入环境变量成功</span></span><br></pre></td></tr></table></figure></div>
+<p>然后可以找个目录下我们试用的pdf文件。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> pdf_examples &amp;&amp; <span class="built_in">cd</span> pdf_examples</span><br><span class="line">wget https://github.com/mozilla/pdf.js-sample-files/raw/master/helloworld.pdf</span><br><span class="line">wget https://www.melbpc.org.au/wp-content/uploads/2017/10/small-example-pdf-file.pdf</span><br><span class="line"></span><br><span class="line">pdfinfo -box -meta path/to/fuzzing_xpdf/pdf_examples/helloworld.pdf</span><br></pre></td></tr></table></figure></div>
+<p>其中github教学中有个pdf的下载地址失效了，这里我自己写了个markdown文件转成pdf当作第三个输入种子用。内容是Test
+seed pdf file here，2级标题。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250329223749125.png"
+                      class=""
+                >
+<p>实际上我们如果要结合<strong>afl++</strong>来测这个xpdf的程序的话，我们需要用<strong>afl-clang-fast</strong>来对其进行编译。我们需要先把前面下好的install删了，然后清空所有之前编译好的文件。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">rm</span> -r install</span><br><span class="line"><span class="built_in">cd</span> xpdf-3.02</span><br><span class="line">make clean</span><br><span class="line"></span><br><span class="line"><span class="built_in">export</span> LLVM_CONFIG=<span class="string">&quot;llvm-config-11&quot;</span></span><br><span class="line">CC=afl-clang-fast CXX=afl-clang-fast++ ./configure --prefix=<span class="string">&quot;path/to/fuzzing_xpdf/install&quot;</span></span><br><span class="line">make</span><br><span class="line">make install</span><br></pre></td></tr></table></figure></div>
+<p>然后我们就可以把fuzzer跑起来了。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">afl-fuzz -i path/to/fuzzing_xpdf/pdf_examples -o path/to/fuzzing_xpdf/out/ -s 123 -- path/to/fuzzing_xpdf/install/bin/pdftotext @@ path/to/fuzzing_xpdf/output</span><br></pre></td></tr></table></figure></div>
+<p><strong>指令各部分拆解</strong></p>
+<table>
+<colgroup>
+<col style="width: 41%" />
+<col style="width: 58%" />
+</colgroup>
+<thead>
+<tr>
+<th>选项</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>afl-fuzz</code></td>
+<td>启动 AFL++ fuzz 测试工具</td>
+</tr>
+<tr>
+<td><code>-i $HOME/fuzzing_xpdf/pdf_examples/</code></td>
+<td>指定初始输入样本的目录，AFL++ 会从这里拿 PDF
+文件作为初始种子输入</td>
+</tr>
+<tr>
+<td><code>-o $HOME/fuzzing_xpdf/out/</code></td>
+<td>指定 AFL++ 的输出目录，用于保存 fuzz
+过程中的崩溃、超时、变异过的样本等</td>
+</tr>
+<tr>
+<td><code>-s 123</code></td>
+<td>指定 fuzzing 使用的随机种子（123），这样 fuzzing
+的变异是可复现的，适合实验和调试</td>
+</tr>
+<tr>
+<td><code>--</code></td>
+<td>分隔符，告诉 AFL++，后面的都是被 fuzz 的目标程序及其参数</td>
+</tr>
+<tr>
+<td><code>$HOME/fuzzing_xpdf/install/bin/pdftotext</code></td>
+<td>被 fuzz 的目标程序，这里是 <code>pdftotext</code>，Xpdf 项目中的 PDF
+转文本工具</td>
+</tr>
+<tr>
+<td><code>@@</code></td>
+<td>占位符，AFL++ 会在每次 fuzz 时自动用一个输入文件的路径替换
+<code>@@</code></td>
+</tr>
+<tr>
+<td><code>$HOME/fuzzing_xpdf/output</code></td>
+<td><code>pdftotext</code> 的输出路径，转出来的文本会放到这里，不影响
+fuzzing 行为，只是程序的正常参数</td>
+</tr>
+</tbody>
+</table>
+<p>可能会有如下报错：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250329230107885.png"
+                      class=""
+                >
+<p>这说明 Linux 系统当前配置了
+<code>core_pattern</code>，把崩溃的程序信息重定向到外部的 <strong>crash
+handler</strong>（比如 <code>apport</code>,
+<code>systemd-coredump</code>, <code>core_collector</code>
+之类的工具）。</p>
+<p>这会让 AFL++ 无法<strong>立即</strong>感知到目标程序崩溃，AFL++ 是靠
+<code>waitpid()</code> 来实时感知崩溃的，但你现在系统的 core dump 是通过
+pipe 发给了外部工具，导致 AFL++ 检测不到 crash，甚至误以为是
+timeout。</p>
+<p>临时关闭 core_pattern 的 pipe 重定向：</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> core | <span class="built_in">sudo</span> <span class="built_in">tee</span> /proc/sys/kernel/core_pattern</span><br></pre></td></tr></table></figure></div>
+<p>这样崩溃就会直接产出 core 文件，而不是送去外部工具，AFL++
+就能正常检测到 crash 了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330174158039.png"
+                      class=""
+                >
+<p>crash时的结果文件存在<strong>out/defalut/crashes</strong>中，我们可以选取一个样本，先确定是否能复现crash，具体来说就是用pdftotext再次跑一遍对应样本。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330174942595.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330175509457.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330175853671.png"
+                      class=""
+                >
+<p>这里能看到崩溃时的调用栈，有样本是在执行getObject时崩溃的，也有样本发生了栈溢出（能看到函数调用栈深度来到了惊人的250）。</p>
+<p>然后我们先来用pwndbg调试栈溢出的这个样本，首先是在<strong>call
+PDFDoc</strong>时崩溃退出的。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330224957022.png"
+                      class=""
+                >
+<p>如果直接到崩溃点看内存映射以及寄存器，我们可以发现是rsp达到了stack段的起始位置，此时再次call一个函数就会超出可写的内存段，触发seg
+fault。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330225423810.png"
+                      class=""
+                >
+<p>然后跟进去，发现<strong>call
+PDFDoc::setup</strong>会直接栈溢出崩溃，然后是<strong>call
+Catalog::Catalog</strong>崩溃，然后是<strong>call
+XRef::fetch</strong>崩溃。这样一直找也能逐渐找到漏洞所在点，其实我们如果观察之前fuzz时crashes结果直接扔<strong>pdftotext</strong>报错的结果，会发现栈溢出最后就是<strong>ObjectStream::ObjectStream</strong>与<strong>XRef::fetch</strong>反复互相调用导致的。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330225904720.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250330230203787.png"
+                      class=""
+                >
+<p>因为这里我们有程序的源码，所以我们可以看着关键源码分析，并看看能不能将bug修复。</p>
+<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">ObjectStream::<span class="built_in">ObjectStream</span>(XRef *xref, <span class="type">int</span> objStrNumA) &#123;</span><br><span class="line">  Stream *str;</span><br><span class="line">  Parser *parser;</span><br><span class="line">  <span class="type">int</span> *offsets;</span><br><span class="line">  Object objStr, obj1, obj2;</span><br><span class="line">  <span class="type">int</span> first, i;</span><br><span class="line"></span><br><span class="line">  objStrNum = objStrNumA;</span><br><span class="line">  nObjects = <span class="number">0</span>;</span><br><span class="line">  objs = <span class="literal">NULL</span>;</span><br><span class="line">  objNums = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (!xref-&gt;<span class="built_in">fetch</span>(objStrNum, <span class="number">0</span>, &amp;objStr)-&gt;<span class="built_in">isStream</span>()) &#123;</span><br><span class="line">    <span class="keyword">goto</span> err1;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (!objStr.<span class="built_in">streamGetDict</span>()-&gt;<span class="built_in">lookup</span>(<span class="string">&quot;N&quot;</span>, &amp;obj1)-&gt;<span class="built_in">isInt</span>()) &#123;</span><br><span class="line">    obj<span class="number">1.f</span>ree();</span><br><span class="line">    <span class="keyword">goto</span> err1;</span><br><span class="line">  &#125;</span><br><span class="line">  ................</span><br><span class="line"> err1:</span><br><span class="line">  objStr.<span class="built_in">free</span>();</span><br><span class="line">  <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function">Object *<span class="title">XRef::fetch</span><span class="params">(<span class="type">int</span> num, <span class="type">int</span> gen, Object *obj)</span> </span>&#123;</span><br><span class="line">  XRefEntry *e;</span><br><span class="line">  Parser *parser;</span><br><span class="line">  Object obj1, obj2, obj3;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// check for bogus ref - this can happen in corrupted PDF files</span></span><br><span class="line">  <span class="keyword">if</span> (num &lt; <span class="number">0</span> || num &gt;= size) &#123;</span><br><span class="line">    <span class="keyword">goto</span> err;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  e = &amp;entries[num];</span><br><span class="line">  <span class="keyword">switch</span> (e-&gt;type) &#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">case</span> xrefEntryUncompressed:</span><br><span class="line">	.................</span><br><span class="line">    <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">case</span> xrefEntryCompressed:</span><br><span class="line">    <span class="keyword">if</span> (gen != <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">goto</span> err;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!objStr || objStr-&gt;<span class="built_in">getObjStrNum</span>() != (<span class="type">int</span>)e-&gt;offset) &#123;</span><br><span class="line">      <span class="keyword">if</span> (objStr) &#123;</span><br><span class="line">	<span class="keyword">delete</span> objStr;</span><br><span class="line">      &#125;</span><br><span class="line">      objStr = <span class="keyword">new</span> <span class="built_in">ObjectStream</span>(<span class="keyword">this</span>, e-&gt;offset);				<span class="comment">// here</span></span><br><span class="line">    &#125;</span><br><span class="line">    objStr-&gt;<span class="built_in">getObject</span>(e-&gt;gen, num, obj);</span><br><span class="line">    <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">default</span>:</span><br><span class="line">    <span class="keyword">goto</span> err;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> obj;</span><br><span class="line"></span><br><span class="line"> err:</span><br><span class="line">  <span class="keyword">return</span> obj-&gt;<span class="built_in">initNull</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>其中Object类的一些类型的判断是通过type字段实现的。当
+<code>Type</code> 为 <code>ObjStream</code> 时，表示该对象是
+<strong>对象流（Object Stream）</strong>。对象流是 PDF 1.5
+引入的一种优化机制，目的是减少 PDF 文档的大小和提高解析效率。</p>
+<p>对象流的主要特征：</p>
+<ol type="1">
+<li><strong>存储压缩对象</strong>：对象流用于存储多个 PDF
+对象（通常是小型的、非结构化的 PDF 对象，如字典和数组）。</li>
+<li><strong>被压缩存储</strong>：通常使用 FlateDecode（基于 zlib
+的压缩算法）进行压缩。</li>
+<li><strong>非直接引用</strong>：被包含在对象流中的对象不会在 xref
+表中单独列出，而是由 <code>ObjStm</code> 统一管理。</li>
+</ol>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250401111738980.png"
+                      class=""
+                >
+<h6 id="pdf结构介绍">pdf结构介绍</h6>
+<p>这里我们可以先了解一下pdf的文件结构，以前面的<strong>helloworld.pdf</strong>为例：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line">%PDF-1.7</span><br><span class="line"></span><br><span class="line">1 0 obj  % entry point</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Catalog</span><br><span class="line">  /Pages 2 0 R</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br><span class="line"></span><br><span class="line">2 0 obj</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Pages</span><br><span class="line">  /MediaBox [ 0 0 200 200 ]</span><br><span class="line">  /Count 1</span><br><span class="line">  /Kids [ 3 0 R ]</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br><span class="line"></span><br><span class="line">3 0 obj</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Page</span><br><span class="line">  /Parent 2 0 R</span><br><span class="line">  /Resources &lt;&lt;</span><br><span class="line">    /Font &lt;&lt;</span><br><span class="line">      /F1 4 0 R </span><br><span class="line">    &gt;&gt;</span><br><span class="line">  &gt;&gt;</span><br><span class="line">  /Contents 5 0 R</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br><span class="line"></span><br><span class="line">4 0 obj</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Font</span><br><span class="line">  /Subtype /Type1</span><br><span class="line">  /BaseFont /Times-Roman</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br><span class="line"></span><br><span class="line">5 0 obj  % page content</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Length 44</span><br><span class="line">&gt;&gt;</span><br><span class="line">stream</span><br><span class="line">BT</span><br><span class="line">70 50 TD</span><br><span class="line">/F1 12 Tf</span><br><span class="line">(Hello, world!) Tj</span><br><span class="line">ET</span><br><span class="line">endstream</span><br><span class="line">endobj</span><br><span class="line"></span><br><span class="line">xref</span><br><span class="line">0 6</span><br><span class="line">0000000000 65535 f </span><br><span class="line">0000000010 00000 n </span><br><span class="line">0000000079 00000 n </span><br><span class="line">0000000173 00000 n </span><br><span class="line">0000000301 00000 n </span><br><span class="line">0000000380 00000 n </span><br><span class="line">trailer</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Size 6</span><br><span class="line">  /Root 1 0 R</span><br><span class="line">&gt;&gt;</span><br><span class="line">startxref</span><br><span class="line">492</span><br><span class="line">%%EOF</span><br></pre></td></tr></table></figure></div>
+<p><strong>1. 头部（Header）</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">%PDF-1.7</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>PDF-1.7</code>：表明该 PDF 使用 <strong>PDF 1.7 版本</strong>
+规范。</li>
+<li><strong>注意</strong>：有些 PDF
+在此之后会加上一行二进制数据，以避免文本编辑器错误处理 PDF。</li>
+</ul>
+<p><strong>2. 对象（Body）</strong></p>
+<p><strong>2.1 根目录对象 (<code>Catalog</code>)</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">1 0 obj  % entry point</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Catalog</span><br><span class="line">  /Pages 2 0 R</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>对象 ID：</strong> <code>1 0 obj</code></li>
+<li><strong><code>/Type /Catalog</code></strong>：表明这是 PDF 的
+<strong>根目录对象</strong>（<code>Catalog</code>）。</li>
+<li><strong><code>/Pages 2 0 R</code></strong>：指向
+<strong>页面树对象</strong> <code>2 0 obj</code>，用于管理 PDF
+页面。</li>
+</ul>
+<p><strong>2.2 页面树对象 (<code>Pages</code>)</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">2 0 obj</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Pages</span><br><span class="line">  /MediaBox [ 0 0 200 200 ]</span><br><span class="line">  /Count 1</span><br><span class="line">  /Kids [ 3 0 R ]</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>对象 ID：</strong> <code>2 0 obj</code></li>
+<li><strong><code>/Type /Pages</code></strong>：标明它是
+<strong>页面集合</strong>，用于管理 PDF 页面。</li>
+<li><strong><code>/MediaBox [ 0 0 200 200 ]</code></strong>：
+<ul>
+<li>定义 <strong>页面大小</strong>（单位：PostScript Points，1pt ≈ 1/72
+英寸）。</li>
+<li><code>(0,0)</code> 是左下角，<code>(200,200)</code> 是右上角。</li>
+</ul></li>
+<li><strong><code>/Count 1</code></strong>：表示这个 PDF 只有 <strong>1
+页</strong>。</li>
+<li><strong><code>/Kids [ 3 0 R ]</code></strong>：
+<ul>
+<li>该数组存储了 PDF <strong>页面对象</strong>的引用，这里只有
+<code>3 0 obj</code>（即唯一的页面）。</li>
+</ul></li>
+</ul>
+<p><strong>2.3 页面对象 (<code>Page</code>)</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">3 0 obj</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Page</span><br><span class="line">  /Parent 2 0 R</span><br><span class="line">  /Resources &lt;&lt;</span><br><span class="line">    /Font &lt;&lt;</span><br><span class="line">      /F1 4 0 R </span><br><span class="line">    &gt;&gt;</span><br><span class="line">  &gt;&gt;</span><br><span class="line">  /Contents 5 0 R</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>对象 ID：</strong> <code>3 0 obj</code></li>
+<li><strong><code>/Type /Page</code></strong>：标明它是
+<strong>页面对象</strong>。</li>
+<li><strong><code>/Parent 2 0 R</code></strong>：指向 <strong>父级
+<code>Pages</code> 对象</strong> <code>2 0 obj</code>。</li>
+<li><strong><code>/Resources</code></strong>：
+<ul>
+<li><strong>存储该页面的资源信息（如字体、图片等）。</strong></li>
+<li><code>/Font &lt;&lt; /F1 4 0 R &gt;&gt;</code>：
+<ul>
+<li>定义了字体资源，<code>F1</code> 代表该页面的
+<strong>字体名称</strong>，实际引用
+<code>4 0 obj</code>（字体对象）。</li>
+</ul></li>
+</ul></li>
+<li><strong><code>/Contents 5 0 R</code></strong>：
+<ul>
+<li>指向
+<strong>页面内容流</strong>（<code>5 0 obj</code>），用于绘制文本或图形。</li>
+</ul></li>
+</ul>
+<p><strong>2.4 字体对象 (<code>Font</code>)</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">4 0 obj</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Type /Font</span><br><span class="line">  /Subtype /Type1</span><br><span class="line">  /BaseFont /Times-Roman</span><br><span class="line">&gt;&gt;</span><br><span class="line">endobj</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>对象 ID：</strong> <code>4 0 obj</code></li>
+<li><strong><code>/Type /Font</code></strong>：表明该对象是
+<strong>字体对象</strong>。</li>
+<li><strong><code>/Subtype /Type1</code></strong>：PDF 1.0 时代的
+<strong>Type1 字体</strong>，用于打印设备。</li>
+<li><strong><code>/BaseFont /Times-Roman</code></strong>：
+<ul>
+<li>指定 <strong>Times-Roman 字体</strong>（标准 14 种字体之一）。</li>
+<li>由于 <strong>标准字体内置在 PDF 查看器中</strong>，所以 PDF
+不需要嵌入该字体。</li>
+</ul></li>
+</ul>
+<p><strong>2.5 页面内容 (<code>Contents</code>)</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">5 0 obj  % page content</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Length 44</span><br><span class="line">&gt;&gt;</span><br><span class="line">stream</span><br><span class="line">BT</span><br><span class="line">70 50 TD</span><br><span class="line">/F1 12 Tf</span><br><span class="line">(Hello, world!) Tj</span><br><span class="line">ET</span><br><span class="line">endstream</span><br><span class="line">endobj</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong>对象 ID：</strong> <code>5 0 obj</code></li>
+<li><strong><code>/Length 44</code></strong>：
+<ul>
+<li><strong>流的长度为 44
+字节</strong>（实际计算时可能不包括换行符）。</li>
+</ul></li>
+<li><strong><code>stream ... endstream</code></strong>：
+<ul>
+<li><strong>包含绘制指令</strong>，PDF 使用 PostScript 类似的
+<strong>页面描述语言</strong>。</li>
+</ul></li>
+<li><strong>解释 <code>stream</code> 指令</strong>：
+<ul>
+<li><code>BT</code>：开始文本模式 (<strong>Begin Text</strong>)。</li>
+<li><code>70 50 TD</code>：
+<ul>
+<li><strong>移动文本位置</strong>（<code>70</code>，<code>50</code>）。</li>
+<li><code>TD</code>（Text Move）：移动到 <code>(70, 50)</code>
+位置（相对于左下角）。</li>
+</ul></li>
+<li><code>/F1 12 Tf</code>：
+<ul>
+<li><strong>设置字体</strong> <code>F1</code>（即 <code>4 0 obj</code>
+的 <code>Times-Roman</code>）。</li>
+<li><strong>字体大小</strong> <code>12</code> pt。</li>
+</ul></li>
+<li><code>(Hello, world!) Tj</code>：
+<ul>
+<li><strong>绘制字符串 <code>Hello, world!</code></strong>。</li>
+</ul></li>
+<li><code>ET</code>：结束文本模式 (<strong>End Text</strong>)。</li>
+</ul></li>
+</ul>
+<p><strong>3. 交叉引用表（xref）</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">xref</span><br><span class="line">0 6</span><br><span class="line">0000000000 65535 f </span><br><span class="line">0000000010 00000 n </span><br><span class="line">0000000079 00000 n </span><br><span class="line">0000000173 00000 n </span><br><span class="line">0000000301 00000 n </span><br><span class="line">0000000380 00000 n </span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><p><strong><code>xref</code>
+表示交叉引用表的开始</strong>。</p></li>
+<li><p><strong><code>0 6</code></strong>：</p>
+<ul>
+<li>表示 <code>xref</code> 表含有 <strong>6 个对象</strong>（编号
+<code>0</code> 到 <code>5</code>）。</li>
+</ul></li>
+<li><p><strong>每行解释</strong>：</p>
+<div class="highlight-container" data-rel="Matlab"><figure class="iseeu highlight matlab"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">0000000000</span> <span class="number">65535</span> f   <span class="comment">% 0 号对象（特殊空闲对象）</span></span><br><span class="line"><span class="number">0000000010</span> <span class="number">00000</span> n   <span class="comment">% 1 号对象在文件的第 10 字节</span></span><br><span class="line"><span class="number">0000000079</span> <span class="number">00000</span> n   <span class="comment">% 2 号对象在文件的第 79 字节</span></span><br><span class="line"><span class="number">0000000173</span> <span class="number">00000</span> n   <span class="comment">% 3 号对象在文件的第 173 字节</span></span><br><span class="line"><span class="number">0000000301</span> <span class="number">00000</span> n   <span class="comment">% 4 号对象在文件的第 301 字节</span></span><br><span class="line"><span class="number">0000000380</span> <span class="number">00000</span> n   <span class="comment">% 5 号对象在文件的第 380 字节</span></span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>n</code> 表示 <strong>该对象已使用</strong>。</li>
+<li><code>f</code> 表示
+<strong>该对象已被删除或未使用</strong>（<code>0</code> 号对象）。</li>
+</ul></li>
+</ul>
+<p><strong>4. Trailer（尾部信息）</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">trailer</span><br><span class="line">&lt;&lt;</span><br><span class="line">  /Size 6</span><br><span class="line">  /Root 1 0 R</span><br><span class="line">&gt;&gt;</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong><code>/Size 6</code></strong>：
+<ul>
+<li>PDF 文件一共 <strong>包含 6 个对象</strong>（编号 <code>0</code> 到
+<code>5</code>）。</li>
+</ul></li>
+<li><strong><code>/Root 1 0 R</code></strong>：
+<ul>
+<li>PDF <strong>根目录对象</strong>是 <code>1 0 obj</code>（即
+<code>Catalog</code>）。</li>
+</ul></li>
+</ul>
+<p><strong>5. 文件结尾</strong></p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">startxref</span><br><span class="line">492</span><br><span class="line">%%EOF</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><strong><code>startxref 492</code></strong>：
+<ul>
+<li>交叉引用表 (<code>xref</code>) 在 <strong>文件偏移量 492</strong>
+处。</li>
+</ul></li>
+<li><strong><code>%%EOF</code></strong>：
+<ul>
+<li>PDF 文件的结束标志。</li>
+</ul></li>
+</ul>
+<h6 id="代码分析">代码分析</h6>
+<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// XRef::fetch</span></span><br><span class="line"><span class="keyword">if</span> (!objStr || objStr-&gt;<span class="built_in">getObjStrNum</span>() != (<span class="type">int</span>)e-&gt;offset) &#123;</span><br><span class="line">  <span class="keyword">if</span> (objStr) &#123;</span><br><span class="line">    <span class="keyword">delete</span> objStr;</span><br><span class="line">  &#125;</span><br><span class="line">  objStr = <span class="keyword">new</span> <span class="built_in">ObjectStream</span>(<span class="keyword">this</span>, e-&gt;offset);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>当 <code>xref</code> 表项是 <strong>压缩对象流
+(xrefEntryCompressed)</strong> 时，它会：</p>
+<ol type="1">
+<li><strong>创建一个新的 ObjectStream</strong></li>
+<li><strong>调用 ObjectStream::getObject</strong> 来获取具体的对象</li>
+</ol>
+<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ObjectStream::ObjectStream</span></span><br><span class="line"><span class="keyword">if</span> (!xref-&gt;<span class="built_in">fetch</span>(objStrNum, <span class="number">0</span>, &amp;objStr)-&gt;<span class="built_in">isStream</span>()) &#123;</span><br><span class="line">  <span class="keyword">goto</span> err1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>当 <strong>ObjectStream::ObjectStream</strong> 试图加载
+<code>objStrNum</code> 时，它会调用 <strong>xref-&gt;fetch</strong>
+来获取对应的对象，而这个 <code>fetch</code> 可能会继续触发
+<strong>ObjectStream::ObjectStream</strong>，导致无限递归。</p>
+<p><strong>漏洞根因</strong></p>
+<ul>
+<li>当 PDF 文件中的交叉引用表 (xref) 让某个对象指向
+<strong>另一个压缩对象流</strong>，但该压缩对象流本身也存储在另一个压缩对象流内，这样
+<code>fetch</code> 和 <code>ObjectStream</code> 之间会无限调用，最终导致
+<strong>栈溢出 (stack overflow)</strong>。</li>
+<li>这个错误通常发生在 <strong>循环引用 (circular reference)</strong> 或
+<strong>递归解压 (recursive decompression)</strong> 时。</li>
+</ul>
+<h5 id="漏洞修复">漏洞修复</h5>
+<p>需要修复的源码位于<strong>xpdf/XRef.cc</strong>中。我们可以用
+<strong>哈希表 (std::unordered_set)</strong>
+记录访问过的对象，避免重复解析。为了保留原始版本这里我们再解压一边<strong>xpdf-3.02</strong>，并将其命名为<strong>fixed-xpdf-3.02</strong>。</p>
+<div class="highlight-container" data-rel="C++"><figure class="iseeu highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unordered_set&gt;</span></span></span><br><span class="line"></span><br><span class="line">std::unordered_set&lt;<span class="type">int</span>&gt; visitedObjects; <span class="comment">// 记录访问过的对象</span></span><br><span class="line"></span><br><span class="line"><span class="function">Object *<span class="title">XRef::fetch</span><span class="params">(<span class="type">int</span> num, <span class="type">int</span> gen, Object *obj)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (visitedObjects.<span class="built_in">count</span>(num) &gt; <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="built_in">error</span>(<span class="string">&quot;XRef::fetch: Circular reference detected!&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> obj-&gt;<span class="built_in">initNull</span>();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  visitedObjects.<span class="built_in">insert</span>(num); <span class="comment">// 标记当前对象已访问</span></span><br><span class="line"></span><br><span class="line">  XRefEntry *e;</span><br><span class="line">  Parser *parser;</span><br><span class="line">  Object obj1, obj2, obj3;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (num &lt; <span class="number">0</span> || num &gt;= size) &#123;</span><br><span class="line">    <span class="keyword">goto</span> err;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  e = &amp;entries[num];</span><br><span class="line">  <span class="keyword">switch</span> (e-&gt;type) &#123;</span><br><span class="line">    <span class="keyword">case</span> xrefEntryUncompressed:</span><br><span class="line">      <span class="keyword">if</span> (e-&gt;gen != gen) &#123;</span><br><span class="line">        <span class="keyword">goto</span> err;</span><br><span class="line">      &#125;</span><br><span class="line">      obj<span class="number">1.</span><span class="built_in">initNull</span>();</span><br><span class="line">      parser = <span class="keyword">new</span> <span class="built_in">Parser</span>(<span class="keyword">this</span>,</span><br><span class="line">        <span class="keyword">new</span> <span class="built_in">Lexer</span>(<span class="keyword">this</span>,</span><br><span class="line">          str-&gt;<span class="built_in">makeSubStream</span>(start + e-&gt;offset, gFalse, <span class="number">0</span>, &amp;obj1)),</span><br><span class="line">        gTrue);</span><br><span class="line">      parser-&gt;<span class="built_in">getObj</span>(&amp;obj1);</span><br><span class="line">      parser-&gt;<span class="built_in">getObj</span>(&amp;obj2);</span><br><span class="line">      parser-&gt;<span class="built_in">getObj</span>(&amp;obj3);</span><br><span class="line">      <span class="keyword">if</span> (!obj<span class="number">1.</span><span class="built_in">isInt</span>() || obj<span class="number">1.</span><span class="built_in">getInt</span>() != num ||</span><br><span class="line">        !obj<span class="number">2.</span><span class="built_in">isInt</span>() || obj<span class="number">2.</span><span class="built_in">getInt</span>() != gen ||</span><br><span class="line">        !obj<span class="number">3.</span><span class="built_in">isCmd</span>(<span class="string">&quot;obj&quot;</span>)) &#123;</span><br><span class="line">        obj<span class="number">1.f</span>ree();</span><br><span class="line">        obj<span class="number">2.f</span>ree();</span><br><span class="line">        obj<span class="number">3.f</span>ree();</span><br><span class="line">        <span class="keyword">delete</span> parser;</span><br><span class="line">        <span class="keyword">goto</span> err;</span><br><span class="line">      &#125;</span><br><span class="line">      parser-&gt;<span class="built_in">getObj</span>(obj, encrypted ? fileKey : (Guchar *)<span class="literal">NULL</span>,</span><br><span class="line">        encAlgorithm, keyLength, num, gen);</span><br><span class="line">      obj<span class="number">1.f</span>ree();</span><br><span class="line">      obj<span class="number">2.f</span>ree();</span><br><span class="line">      obj<span class="number">3.f</span>ree();</span><br><span class="line">      <span class="keyword">delete</span> parser;</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">case</span> xrefEntryCompressed:</span><br><span class="line">      <span class="keyword">if</span> (gen != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">goto</span> err;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (!objStr || objStr-&gt;<span class="built_in">getObjStrNum</span>() != (<span class="type">int</span>)e-&gt;offset) &#123;</span><br><span class="line">        <span class="keyword">if</span> (objStr) &#123;</span><br><span class="line">          <span class="keyword">delete</span> objStr;</span><br><span class="line">        &#125;</span><br><span class="line">        objStr = <span class="keyword">new</span> <span class="built_in">ObjectStream</span>(<span class="keyword">this</span>, e-&gt;offset);</span><br><span class="line">      &#125;</span><br><span class="line">      objStr-&gt;<span class="built_in">getObject</span>(e-&gt;gen, num, obj);</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">      <span class="keyword">goto</span> err;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  visitedObjects.<span class="built_in">erase</span>(num); <span class="comment">// 解析完后移除标记</span></span><br><span class="line">  <span class="keyword">return</span> obj;</span><br><span class="line"></span><br><span class="line">err:</span><br><span class="line">  visitedObjects.<span class="built_in">erase</span>(num);</span><br><span class="line">  <span class="keyword">return</span> obj-&gt;<span class="built_in">initNull</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>然后再次编译，把二进制文件输出到<strong>fixed/bin</strong>目录下。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> fixed-xpdf-3.02</span><br><span class="line">CC=afl-clang-fast CXX=afl-clang-fast++ ./configure --prefix=<span class="string">&quot;path/to/fuzzing_xpdf/fixed&quot;</span></span><br><span class="line">make</span><br><span class="line">make install</span><br></pre></td></tr></table></figure></div>
+<p>之后用修复好编译后的<strong>pdftotext</strong>用之前触发crash的样本进行测试，此时就会输出<strong>Circular
+reference detected!</strong>而不是直接<strong>seg
+fault</strong>，这里的2就是前面fuzz出的id为2的样本，只是改了个名，然后也用github仓库中对应给的<strong>solution</strong>进行了验证，也是成功的进行了修复。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/01/%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2/image-20250401134648864.png"
+                      class=""
+                >
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 复杂程序fuzz初探</li>
+        <li><strong>作者:</strong> collectcrop</li>
+        <li><strong>创建于
+                :</strong> 2025-04-01 14:27:10</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2025-04-01 14:27:10
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://collectcrop.github.io/2025/04/01/复杂程序fuzz初探/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/gdb/">#gdb</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/fuzz/">#fuzz</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/pdf/">#pdf</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/02/22/kernel-pwn初探/" title="kernel pwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="kernel pwn初探" class="!max-w-none">
+  <span class="title">kernel pwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/15/Algorithmica-HPC研读记录2/" title="Algorithmica-HPC研读记录2" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="Algorithmica-HPC研读记录2" class="!max-w-none">
+  <span class="title">Algorithmica-HPC研读记录2</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/13/Algorithmica-HPC研读记录1/" title="Algorithmica-HPC研读记录1" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="Algorithmica-HPC研读记录1" class="!max-w-none">
+  <span class="title">Algorithmica-HPC研读记录1</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/02/22/kernel-pwn初探/" title="kernel pwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="kernel pwn初探" class="!max-w-none">
+  <span class="title">kernel pwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/15/Algorithmica-HPC研读记录2/" title="Algorithmica-HPC研读记录2" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="Algorithmica-HPC研读记录2" class="!max-w-none">
+  <span class="title">Algorithmica-HPC研读记录2</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2025/03/19/CUDA%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B%E5%88%9D%E6%8E%A2/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">CUDA编程模型初探</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">复杂程序fuzz初探</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%8D%E6%9D%82%E7%A8%8B%E5%BA%8Ffuzz%E5%88%9D%E6%8E%A2"><span class="nav-text">复杂程序fuzz初探</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFfuzz"><span class="nav-text">什么是fuzz</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#afl%E5%AE%89%E8%A3%85"><span class="nav-text">AFL++安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8F%90%E5%8D%87fuzz%E6%95%88%E7%8E%87"><span class="nav-text">提升fuzz效率</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#fuzzing101%E4%BE%8B%E9%A2%98%E5%A4%8D%E7%8E%B0"><span class="nav-text">Fuzzing101例题复现</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#exercise-1"><span class="nav-text">Exercise 1</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#fuzz"><span class="nav-text">fuzz</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#pdf%E7%BB%93%E6%9E%84%E4%BB%8B%E7%BB%8D"><span class="nav-text">pdf结构介绍</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90"><span class="nav-text">代码分析</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E4%BF%AE%E5%A4%8D"><span class="nav-text">漏洞修复</span></a></li></ol></li></ol></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2025&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 25 篇文章
+                    </span>
+                    
+                        <span>
+                            共 129.8k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>
