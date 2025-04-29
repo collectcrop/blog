@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2025/04/29/从零开始搭建自制操作系统——基础概念-bootloader编写/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="基础概念 实模式与保护模式         特性 实模式（Real Mode） 保护模式（Protected Mode）     CPU 架构 最初 8086 从 80286 起支持   最大寻址内存 1MB 4GB（32位）或更高（64位）   位宽 16 位 32 位（或后来的 64 位）   内存访问方式 段:偏移（Segme">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从零开始搭建自制操作系统——基础概念&amp;bootloader编写">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="基础概念 实模式与保护模式         特性 实模式（Real Mode） 保护模式（Protected Mode）     CPU 架构 最初 8086 从 80286 起支持   最大寻址内存 1MB 4GB（32位）或更高（64位）   位宽 16 位 32 位（或后来的 64 位）   内存访问方式 段:偏移（Segme">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428143119979.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428141938872.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428150840394.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428150926760.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428151033734.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428152445304.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428182429367.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428204029759.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428211052544.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428211923276.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250429121228091.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250429153050724.png">
+<meta property="article:published_time" content="2025-04-29T08:04:27.000Z">
+<meta property="article:modified_time" content="2025-04-29T08:04:49.023Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="OS">
+<meta property="article:tag" content="debug">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428143119979.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            从零开始搭建自制操作系统——基础概念&amp;bootloader编写 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"zh-CN","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    归档
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    标签
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分类
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    关于
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    友情链接
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                归档
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                标签
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                分类
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                关于
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">友情链接</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">33</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">28</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">从零开始搭建自制操作系统——基础概念&amp;bootloader编写</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2025-04-29 16:04:27</span>
+        <span class="mobile">2025-04-29 16:04:27</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2025-04-29 16:04:49</span>
+            <span class="mobile">2025-04-29 16:04:49</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/OS/">OS</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/OS/">OS</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/debug/">debug</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>7.1k 字</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>30 分钟</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h3 id="基础概念">基础概念</h3>
+<h4 id="实模式与保护模式">实模式与保护模式</h4>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 46%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr>
+<th>特性</th>
+<th>实模式（Real Mode）</th>
+<th>保护模式（Protected Mode）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU 架构</td>
+<td>最初 8086</td>
+<td>从 80286 起支持</td>
+</tr>
+<tr>
+<td>最大寻址内存</td>
+<td><strong>1MB</strong></td>
+<td><strong>4GB（32位）或更高（64位）</strong></td>
+</tr>
+<tr>
+<td>位宽</td>
+<td>16 位</td>
+<td>32 位（或后来的 64 位）</td>
+</tr>
+<tr>
+<td>内存访问方式</td>
+<td>段:偏移（Segment:Offset）</td>
+<td>线性地址 + 分段/分页机制</td>
+</tr>
+<tr>
+<td>支持分页</td>
+<td>❌ 无</td>
+<td>✅ 有</td>
+</tr>
+<tr>
+<td>支持特权级</td>
+<td>❌ 无</td>
+<td>✅ 有（Ring 0~3）</td>
+</tr>
+<tr>
+<td>多任务</td>
+<td>❌</td>
+<td>✅ 可以通过 TSS 实现</td>
+</tr>
+<tr>
+<td>程序加载</td>
+<td>BIOS 调用</td>
+<td>操作系统加载器</td>
+</tr>
+<tr>
+<td>中断管理</td>
+<td>直接访问中断向量表（0x0000:0x0000）</td>
+<td>支持 IDT + 更复杂的中断系统</td>
+</tr>
+</tbody>
+</table>
+<p><strong>实模式</strong>（Real Mode）</p>
+<p><strong>段寄存器 + 偏移地址</strong> 访问内存：</p>
+<ul>
+<li>8086 的地址由 <code>segment * 16 + offset</code> 计算而得</li>
+<li>示例：<code>CS = 0x1000</code>, <code>IP = 0x0010</code> → 实际地址
+= <code>0x10000 + 0x10 = 0x10010</code></li>
+</ul>
+<p><strong>没有权限管理</strong>：</p>
+<ul>
+<li>所有程序都可以访问所有内存，没有保护，容易导致错误程序覆盖内存。</li>
+</ul>
+<p><strong>只能访问 1MB</strong>：</p>
+<ul>
+<li>虽然地址可以算出超过 1MB，但由于只使用 20 位地址线，超过部分会 wrap
+around。</li>
+</ul>
+<p><strong>BIOS、bootloader 都运行在实模式</strong>：</p>
+<ul>
+<li>开机时 BIOS 会设置 CPU 为实模式，从 0x7c00 加载 MBR 并执行。</li>
+</ul>
+<p><strong>保护模式</strong>（Protected Mode）</p>
+<p><strong>段寄存器不再直接表示物理地址</strong>：</p>
+<ul>
+<li>段寄存器变成 <strong>选择子（Selector）</strong>，用来索引
+GDT（全局描述符表） 中的段描述符。</li>
+<li>每个段描述符有：
+<ul>
+<li>基址（Base）</li>
+<li>段限长（Limit）</li>
+<li>访问权限（Read/Write, Ring0~Ring3 等）</li>
+</ul></li>
+</ul>
+<p><strong>支持分页机制（Paging）</strong>：</p>
+<ul>
+<li>将虚拟地址 → 线性地址 → 物理地址，能隔离程序地址空间</li>
+<li>支持内存保护、懒加载（demand paging）等高级特性</li>
+</ul>
+<p><strong>有中断描述符表（IDT）</strong>：</p>
+<ul>
+<li>支持更强的中断管理，异常处理，软中断等</li>
+</ul>
+<p><strong>支持多任务（TSS, 特权级切换）</strong>：</p>
+<ul>
+<li>Task State Segment（TSS）提供任务切换所需上下文保存</li>
+<li>特权级（Ring0 内核，Ring3 用户程序）可防止非法访问</li>
+</ul>
+<p>从实模式进入保护模式需要：</p>
+<ol type="1">
+<li>设置好 GDT（将描述符数组地址传入GDTR寄存器）</li>
+<li>设置 CR0 寄存器的 PE 位（bit 0）为 1</li>
+<li>跳转到 32 位代码段执行</li>
+</ol>
+<h4 id="gdt">GDT</h4>
+<p>GDT（Global Descriptor Table）</p>
+<h5 id="gdtr寄存器">GDTR寄存器</h5>
+<p>首先我们先来看一下GDTR寄存器的含义，其中基地址就是gdt具体的描述符数组的起始地址，而界限描述了描述符数组的大小，由于界限占两个字节，而每个描述符占8字节，所以理论上最多有<code>65536 / 8 = 8192</code>个描述符。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428143119979.png"
+                      class=""
+                >
+<p>一般汇编实现如下：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">lgdt [gdt_descriptor]   ; 加载全局描述符表（GDT）</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">gdt_descriptor:</span><br><span class="line">    dw gdt_end - gdt_start - 1  ; limit，16bytes</span><br><span class="line">    dd gdt_start                ; base，32bytes</span><br></pre></td></tr></table></figure></div>
+<p>GDT核心数据结构是一个描述符数组，每个描述符占8字节。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428141938872.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428150840394.png"
+                      class=""
+                >
+<h5 id="gdt段描述符结构">GDT段描述符结构</h5>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428150926760.png"
+                      class=""
+                >
+<p>其中Access各位表示如下：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428151033734.png"
+                      class=""
+                >
+<ul>
+<li>P：段是否存在于内存中。这个位一定要设为 <code>1</code>
+才能被正常使用。</li>
+<li>DPL：描述符的特权等级，共 2 位。值范围从<code>00</code>（Ring
+0，内核）到 <code>11</code>（Ring 3，用户态）。</li>
+<li>S：
+<ul>
+<li><strong>0</strong>：系统段（如 TSS、LDT、调用门等）。</li>
+<li><strong>1</strong>：普通段（即代码段或数据段）。</li>
+</ul></li>
+<li>E：
+<ul>
+<li><strong>0</strong>：这是一个数据段。</li>
+<li><strong>1</strong>：这是一个代码段，可以执行指令。</li>
+</ul></li>
+<li>DC：如果这是
+<strong>数据段</strong>（E=0）：<strong>0</strong>表示段向上增长（通常情况）。<strong>1</strong>表示段向下增长（如堆栈段）。如果这是
+<strong>代码段</strong>（E=1）：<strong>0</strong>表示<strong>非一致性（non-conforming）</strong>段，只能从相同特权级访问此段。<strong>1</strong>表示<strong>一致性（conforming）</strong>段，可以从更低权限的代码段跳转过来执行此段中的代码（但特权级不会改变）。</li>
+<li>RW：如果是<strong>代码段</strong>（E=1）：<strong>0</strong>表示代码段不可读（不常用）；<strong>1</strong>表示代码段可读（大多数操作系统都设为可读）；两者都不可写。如果是<strong>数据段</strong>（E=0）：<strong>0</strong>表示数据段不可写；<strong>1</strong>表示数据段可读可写（正常的数据段通常设为可写）；两者都可读。</li>
+<li>A：CPU 会在首次访问段时自动设置这一位为 1。如果该位初始为
+0，则第一次访问会触发 CPU
+设置这个位（需要段描述符可写）。如果段描述符是只读的内存区域（比如页表标记只读），就可能触发
+page fault。一般直接置一。</li>
+</ul>
+<p>而flag各位表示如下：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428152445304.png"
+                      class=""
+                >
+<ul>
+<li><p>G：</p>
+<ul>
+<li><strong>0</strong>：limit 的单位是
+<strong>字节（Byte）</strong>。</li>
+<li><strong>1</strong>：limit 的单位是
+<strong>4KB（Page）</strong>。可以更方便地表示大内存段。</li>
+</ul></li>
+<li><p>DB：</p>
+<p><strong>对代码段</strong>（E=1）：</p>
+<ul>
+<li><strong>0</strong>：段中默认是 16 位指令（16
+位保护模式代码段）。</li>
+<li><strong>1</strong>：段中默认是 32 位指令（32
+位保护模式代码段）。</li>
+</ul>
+<p><strong>对数据段</strong>（E=0）：</p>
+<ul>
+<li><strong>0</strong>：使用 16 位偏移。</li>
+<li><strong>1</strong>：使用 32 位偏移。</li>
+</ul></li>
+<li><p>L：</p>
+<p><strong>只用于代码段</strong></p>
+<p><strong>0</strong>：不是 64 位代码段（也就是 16 位或 32 位段）。</p>
+<p><strong>1</strong>：<strong>64
+位代码段</strong>（<strong>仅在长模式下使用</strong>，也就是
+x86_64）。</p></li>
+</ul>
+<blockquote>
+<p>⚠️ 设置了 L=1 时，必须设置 D/B=0（它俩互斥）。</p>
+</blockquote>
+<p>汇编表示如下：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">gdt_start:</span><br><span class="line">gdt_null:               ; 空描述符</span><br><span class="line">    dq 0</span><br><span class="line"></span><br><span class="line">gdt_code:               ; 代码段描述符（base=0, limit=4GB, type=code）</span><br><span class="line">    dw 0xFFFF           ; limit low 16bits</span><br><span class="line">    dw 0x0000           ; base low 16bits</span><br><span class="line">    db 0x00             ; base middle 8bits</span><br><span class="line">    db 10011011b        ; flags 8bits</span><br><span class="line">    db 11001111b        ; limit high 4bits + flags 4bits</span><br><span class="line">    db 0x00             ; base high 8bits</span><br><span class="line"></span><br><span class="line">gdt_end:</span><br></pre></td></tr></table></figure></div>
+<p>实际上GDT
+的第一个描述符（<code>gdt_null</code>）是一个空描述符，它的作用是
+<strong>占位</strong>，为了避免出现无效的段选择子。具体原因：</p>
+<ul>
+<li><strong>段选择子为 0（<code>gdt_null</code>）不被使用</strong>：GDT
+中的第一个描述符是一个保留的空描述符，索引为 0
+的选择子（<code>0x00</code>）从来不会被使用。这样可以防止程序错误地引用
+GDT 中的第一个描述符。</li>
+<li><strong>段选择子从 0x8 开始</strong>：实际有效的段选择子从
+<code>0x08</code> 开始（第二个描述符）。这是因为描述符索引是基于 8
+字节对齐的，所以 <code>gdt_code</code> 对应的选择子就是
+<code>0x08</code>，即在 GDT 中的第一个有效描述符。</li>
+</ul>
+<p><strong>段选择子的计算</strong>：实际上段选择子是由 GDT
+索引（<code>index</code>）计算出来的，公式如下：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Selector = (Index &lt;&lt; 3) | (TI &lt;&lt; 2) | RPL</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>Index</code>: GDT 中段描述符的索引。</li>
+<li><code>TI</code>: 指示该段描述符是来自 GDT 还是 LDT，GDT 的
+<code>TI = 0</code>。</li>
+<li><code>RPL</code>: 请求的特权级（Ring 级别），通常内核模式使用
+<code>RPL = 0</code>。</li>
+</ul>
+<h4 id="cr系列寄存器作用">CR系列寄存器作用</h4>
+<p><strong>CR0 — 控制模式和开关</strong></p>
+<table>
+<thead>
+<tr>
+<th>位名</th>
+<th>位号</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PE</td>
+<td>0</td>
+<td>Protection Enable（置 1 开启保护模式）✅</td>
+</tr>
+<tr>
+<td>MP</td>
+<td>1</td>
+<td>Monitor Coprocessor（浮点协处理）</td>
+</tr>
+<tr>
+<td>EM</td>
+<td>2</td>
+<td>Emulation（禁用 FPU）</td>
+</tr>
+<tr>
+<td>TS</td>
+<td>3</td>
+<td>Task Switched</td>
+</tr>
+<tr>
+<td>ET</td>
+<td>4</td>
+<td>Extension Type（硬件兼容用）</td>
+</tr>
+<tr>
+<td>NE</td>
+<td>5</td>
+<td>Numeric Error（启用内部异常处理）</td>
+</tr>
+<tr>
+<td>WP</td>
+<td>16</td>
+<td>Write Protect（分页写保护）</td>
+</tr>
+<tr>
+<td>AM</td>
+<td>18</td>
+<td>Alignment Mask（内存对齐检查）</td>
+</tr>
+<tr>
+<td>PG</td>
+<td>31</td>
+<td>Paging（置 1 开启分页机制）✅</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CR1 — 未定义（永远保留）</strong></p>
+<p><strong>CR2 — 页面错误地址</strong></p>
+<p>当触发 <strong>页面错误异常（#PF）</strong> 时，<code>CR2</code>
+会保存访问的故障地址</p>
+<p>这是处理分页错误的重要调试信息（比如缺页中断）</p>
+<p><strong>CR3 — 页目录基地址寄存器（也叫 PDBR）</strong></p>
+<p>当开启分页（<code>PG=1</code>）时：</p>
+<ul>
+<li><code>CR3</code> 要设置为 <strong>页目录（Page Directory）</strong>
+的物理地址</li>
+<li>操作系统每次切换进程时，都会更新
+<code>CR3</code>，从而切换虚拟地址映射</li>
+</ul>
+<p><strong>CR4 — 启用新功能</strong></p>
+<table>
+<thead>
+<tr>
+<th>位名</th>
+<th>位号</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PSE</td>
+<td>4</td>
+<td>Page Size Extension（4MB 大页）</td>
+</tr>
+<tr>
+<td>PAE</td>
+<td>5</td>
+<td>Physical Address Extension（36-bit 地址）</td>
+</tr>
+<tr>
+<td>PGE</td>
+<td>7</td>
+<td>Page Global Enable（全局页）</td>
+</tr>
+<tr>
+<td>OSFXSR</td>
+<td>9</td>
+<td>SSE 支持</td>
+</tr>
+<tr>
+<td>...</td>
+<td>...</td>
+<td>更多高级功能</td>
+</tr>
+</tbody>
+</table>
+<h4 id="bios启动方式">BIOS启动方式</h4>
+<p>BIOS 启动后，会寻找第一个可启动设备（通常是硬盘）。然后读取该设备
+<strong>扇区 0（LBA 0）</strong> 的前 <strong>512 字节</strong> 到内存的
+<code>0x7C00</code> 处执行。这 512 字节被称为
+<strong>MBR（主引导记录）</strong>。该主引导记录格式如下：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Offset | 含义</span><br><span class="line">----------------------------</span><br><span class="line">0x000  | 启动代码（最多 446 字节）</span><br><span class="line">0x1BE  | 分区表（4 个分区，每个 16 字节）</span><br><span class="line">0x1FE  | 结束标志 0xAA55</span><br></pre></td></tr></table></figure></div>
+<blockquote>
+<p>所以写的 bootloader 必须非常精简，并以 0xAA55 结尾，才能被 BIOS
+正确识别。</p>
+</blockquote>
+<p>启动时的第一个MB的内存布局如下：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428182429367.png"
+                      class=""
+                >
+<h4 id="bios常用中断">BIOS常用中断</h4>
+<table>
+<thead>
+<tr>
+<th>中断号</th>
+<th>用途</th>
+<th>举例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x10</td>
+<td>显示输出</td>
+<td>打印字符、设置文本/图形模式</td>
+</tr>
+<tr>
+<td>0x13</td>
+<td>磁盘读写</td>
+<td>加载 stage2 / kernel</td>
+</tr>
+<tr>
+<td>0x15</td>
+<td>获取内存信息</td>
+<td>用于内核初始化内存管理</td>
+</tr>
+<tr>
+<td>0x16</td>
+<td>获取键盘输入</td>
+<td>等待用户按键</td>
+</tr>
+</tbody>
+</table>
+<p><strong>0x10中断</strong></p>
+<table>
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 36%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>功能号 (AH)</th>
+<th>功能描述</th>
+<th>输入参数（常用）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x00</code></td>
+<td>设置显示模式（Set Video Mode）</td>
+<td>AL = 模式号（如 0x03 文本）</td>
+</tr>
+<tr>
+<td><code>0x0E</code></td>
+<td>TTY 模式输出字符（Print char）</td>
+<td>AL = 字符，AH = 0x0E，BH = 页号，BL = 颜色</td>
+</tr>
+<tr>
+<td><code>0x13</code></td>
+<td>写字符串（Write string）</td>
+<td>AL=写入方式, ES:BP=字符串地址, CX=字符数</td>
+</tr>
+</tbody>
+</table>
+<p>示例：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mov ah, 0x0E</span><br><span class="line">mov al, &#x27;H&#x27;</span><br><span class="line">int 0x10           ; 打印一个字符</span><br></pre></td></tr></table></figure></div>
+<p><strong>0x13中断</strong></p>
+<table>
+<colgroup>
+<col style="width: 7%" />
+<col style="width: 17%" />
+<col style="width: 75%" />
+</colgroup>
+<thead>
+<tr>
+<th>功能号</th>
+<th>功能描述</th>
+<th>输入参数（常用）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x02</code></td>
+<td>读取扇区</td>
+<td>AL = 扇区数, CH = 柱面, CL = 扇区, DH = 磁头, DL = 驱动器号, ES:BX =
+缓冲区</td>
+</tr>
+<tr>
+<td><code>0x03</code></td>
+<td>写扇区</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>0x08</code></td>
+<td>获取驱动器参数</td>
+<td>DL = 驱动器号（0x00 = floppy, 0x80 = HDD）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>实模式下扇区读写有 BIOS 限制（如最大每次读 127 个扇区）</li>
+<li>地址通过
+<code>CH</code>（柱面）、<code>CL</code>（扇区）、<code>DH</code>（磁头）指定（CHS
+模式）</li>
+</ul>
+<p>示例（读取 1 个扇区）：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">mov ah, 0x02        ; 功能号：读扇区</span><br><span class="line">mov al, 0x01        ; 读取 1 个扇区</span><br><span class="line">mov ch, 0x00        ; 柱面 0</span><br><span class="line">mov cl, 0x02        ; 扇区 2</span><br><span class="line">mov dh, 0x00        ; 磁头 0</span><br><span class="line">mov dl, 0x00        ; 驱动器 0（软盘）</span><br><span class="line">mov bx, 0x8000      ; 缓冲区</span><br><span class="line">mov es, bx</span><br><span class="line">xor bx, bx</span><br><span class="line">int 0x13</span><br><span class="line">jc error            ; 如果 CF = 1，说明出错</span><br></pre></td></tr></table></figure></div>
+<p><strong>0x15中断</strong></p>
+<table>
+<thead>
+<tr>
+<th>功能号 (AX)</th>
+<th>功能描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0xE820</code></td>
+<td>获取可用内存映射（现代方式）</td>
+</tr>
+<tr>
+<td><code>0xE801</code></td>
+<td>获取内存大小（老方式）</td>
+</tr>
+<tr>
+<td><code>0x88</code></td>
+<td>获取扩展内存大小（单位 KB）</td>
+</tr>
+</tbody>
+</table>
+<p>示例：获取扩展内存</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mov ah, 0x88</span><br><span class="line">int 0x15</span><br><span class="line">; AX = 扩展内存大小（KB），最大到 65535KB = 64MB</span><br></pre></td></tr></table></figure></div>
+<p><strong>0x16中断</strong></p>
+<table>
+<thead>
+<tr>
+<th>功能号 (AH)</th>
+<th>功能描述</th>
+<th>输出寄存器</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x00</code></td>
+<td>等待并读取按键</td>
+<td>AH = 扫描码，AL = ASCII</td>
+</tr>
+<tr>
+<td><code>0x01</code></td>
+<td>检查是否有键按下</td>
+<td>ZF = 1 表示无按键</td>
+</tr>
+<tr>
+<td><code>0x02</code></td>
+<td>获取键盘状态</td>
+<td>AL = 状态字节</td>
+</tr>
+</tbody>
+</table>
+<p>示例：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mov ah, 0x00</span><br><span class="line">int 0x16</span><br><span class="line">; 等待用户按下任意键，返回的 ASCII 在 AL 中</span><br></pre></td></tr></table></figure></div>
+<h4 id="加载流程设计">加载流程设计</h4>
+<p>一般而言采用两阶段引导加载，因为一个扇区的512字节实在太少了</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">BIOS --&gt; bootloader (stage1, 512字节) --&gt; stage2 loader (几个扇区) --&gt; 加载 &amp; 跳转 kernel</span><br></pre></td></tr></table></figure></div>
+<p>实际开发中需要 stage2的原因如下：</p>
+<table>
+<colgroup>
+<col style="width: 41%" />
+<col style="width: 58%" />
+</colgroup>
+<thead>
+<tr>
+<th>原因</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>bootloader 的大小限制</strong></td>
+<td>MBR（第一个扇区）只有 512 字节，其中 BIOS 要求最后两个字节是
+<code>0x55AA</code>，真正能用的只有 <strong>446
+字节左右</strong>，太小了，根本放不下文件系统解析、GDT、分页、ELF解析等功能。</td>
+</tr>
+<tr>
+<td><strong>内核格式可能是 ELF/复杂结构</strong></td>
+<td>操作系统内核常用的是 <code>ELF</code> 格式，需要解析段表（program
+headers）、加载多个段、重定位。bootloader 不足以处理这些格式。</td>
+</tr>
+<tr>
+<td><strong>加载多个扇区太麻烦</strong></td>
+<td><code>boot.bin</code> 不支持 FAT、EXT
+等文件系统，无法定位内核的位置，只能靠硬编码 LBA 扇区号，比较脆弱。</td>
+</tr>
+<tr>
+<td><strong>需要更灵活的设置（分页、多核、多任务）</strong></td>
+<td>stage2
+可以做更复杂的初始化，比如启用分页、加载多核、准备内核参数等，boot.bin
+装不下这些逻辑。</td>
+</tr>
+<tr>
+<td><strong>保持职责清晰</strong></td>
+<td>boot 只负责最小化地进入一个“干净的 32 位环境”，stage2
+才开始进行高级的系统初始化和内核加载。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ld链接脚本">ld链接脚本</h4>
+<p><code>ld</code> 是 GNU
+的链接器（Linker），它把多个目标文件（<code>.o</code>
+文件）链接成一个最终的可执行程序。<code>.ld</code> 文件告诉链接器：</p>
+<ul>
+<li>程序从哪里开始执行（<code>ENTRY(...)</code>）</li>
+<li>各个段（<code>.text</code>, <code>.data</code>,
+<code>.bss</code>）应该放到内存的哪个地址</li>
+<li>各个段的排列顺序和对齐方式</li>
+</ul>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">ENTRY(_start)       /* 程序入口，定义了主函数 */</span><br><span class="line"></span><br><span class="line">SECTIONS &#123;</span><br><span class="line">    . = 0x1000;      /* 从内存地址 0x1000 开始加载 */</span><br><span class="line"></span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text)     /* 收集所有 .text 段（代码段） */</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    .rodata : &#123;</span><br><span class="line">        *(.rodata)   /* 只读数据，比如字符串常量 */</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    .data : &#123;</span><br><span class="line">        *(.data)     /* 已初始化的数据段 */</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    .bss : &#123;</span><br><span class="line">        *(.bss COMMON) /* 未初始化的数据段（清零） */</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<table>
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 69%" />
+</colgroup>
+<thead>
+<tr>
+<th>语法</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ENTRY(_start)</code></td>
+<td>指定程序入口为 <code>_start</code> 标签</td>
+</tr>
+<tr>
+<td><code>.</code></td>
+<td>当前地址指针，<code>. = 0x1000</code> 表示链接从 0x1000 开始</td>
+</tr>
+<tr>
+<td><code>.text : &#123; *(.text) &#125;</code></td>
+<td>把所有目标文件里的 <code>.text</code> 段收集放入 <code>.text</code>
+区</td>
+</tr>
+<tr>
+<td><code>*(...)</code></td>
+<td>星号表示“所有目标文件中”的匹配段</td>
+</tr>
+<tr>
+<td><code>.bss COMMON</code></td>
+<td><code>COMMON</code> 表示未初始化的变量也放进 <code>.bss</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="构成启动盘镜像">构成启动盘镜像</h4>
+<p>一般使用dd指令来构建启动盘镜像，基本格式为<code>dd if="输入文件" of="输出文件" bs="数据块" count="数量"</code>，seek=n表示从文件偏移n×bs开始写。我们启动过程一般需要以如下方式构建启动盘镜像。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">dd</span> <span class="keyword">if</span>=/dev/zero of=floppy.img bs=512 count=2880                    <span class="comment"># 创建空白软盘镜像（512 * 2880 = 1.44MB）</span></span><br><span class="line"><span class="built_in">dd</span> <span class="keyword">if</span>=boot.bin of=floppy.img bs=512 count=1 conv=notrunc           <span class="comment"># 写入 bootloader</span></span><br><span class="line"><span class="built_in">dd</span> <span class="keyword">if</span>=stage2.bin of=floppy.img bs=512 count=2 seek=1 conv=notrunc  <span class="comment"># 写入 stage2（2 扇区 = 1024 字节）</span></span><br><span class="line"><span class="built_in">dd</span> <span class="keyword">if</span>=kernel.bin of=floppy.img bs=512 seek=3 conv=notrunc          <span class="comment"># 写入 kernel（从第3扇区）</span></span><br></pre></td></tr></table></figure></div>
+<p>所以后续我们写好boot.asm，stage2.asm，kernel.c后就可以靠makefile一键编译打包好成一个软盘，然后用qemu启动。</p>
+<h4 id="扇区地址结构chs">扇区地址结构CHS</h4>
+<p>这个结构使用柱面（Cylinder）、磁头（Head）和扇区（Sector）来定位数据。</p>
+<ul>
+<li><strong>柱面
+(Cylinder)</strong>：硬盘或软盘的物理圆柱体，所有具有相同轨道位置的扇区属于同一个柱面。</li>
+<li><strong>磁头
+(Head)</strong>：硬盘或软盘的磁头，负责读取和写入数据。通常有多个磁头，分布在多个柱面上。</li>
+<li><strong>扇区
+(Sector)</strong>：硬盘或软盘的最小数据单元，一个扇区通常为 512
+字节。</li>
+</ul>
+<p>硬盘的物理布局通常是以“柱面 × 磁头 × 扇区”进行划分的。</p>
+<p><strong>地址计算</strong></p>
+<p>假设有如下的磁盘参数：</p>
+<ul>
+<li><strong>柱面数 (C)</strong>：通常取决于硬盘或软盘的容量。</li>
+<li><strong>磁头数
+(H)</strong>：也取决于硬盘或软盘的结构，一般来说，硬盘的每个磁盘面会有多个磁头。</li>
+<li><strong>扇区数
+(S)</strong>：每个磁头的一个柱面上有多个扇区，通常一个柱面有 63
+个扇区（对于传统的硬盘，软盘是 18）。</li>
+</ul>
+<p>每个扇区的物理地址可以通过以下公式计算：</p>
+<ul>
+<li><strong>柱面 (Cylinder) =
+<code>address / (heads \* sectors)</code></strong></li>
+<li><strong>磁头 (Head) =
+<code>(address / sectors) % heads</code></strong></li>
+<li><strong>扇区 (Sector) = <code>address % sectors</code></strong></li>
+</ul>
+<p>QEMU 模拟的软盘与真实硬盘的物理参数有所不同。QEMU
+默认模拟的软盘参数通常是标准的 1.44MB 软盘格式，具体来说，它的常见 CHS
+参数如下：</p>
+<ul>
+<li><p><strong>磁头数 (Heads)</strong>：通常为
+2（即双面软盘）。</p></li>
+<li><p><strong>每柱面扇区数 (Sectors per Cylinder)</strong>：通常为 18
+个扇区。</p></li>
+<li><p><strong>柱面数 (Cylinders)</strong>：软盘总共约 80
+个柱面，计算方法是：<code>总扇区数 / (扇区数/柱面 * 磁头数)</code>。例如，1.44MB
+软盘总共有 2880 个扇区（1.44MB = 1440KB，1 扇区 = 512 字节，2880 =
+1440KB / 512B）。所以柱面数为： <span class="math display">\[
+2880 ÷ (18 \times 2) = 80 \text{ 柱面}
+\]</span></p></li>
+</ul>
+<p>所以 QEMU 模拟的 1.44MB 软盘的 CHS 参数通常为：</p>
+<ul>
+<li><strong>柱面数 (Cylinder)</strong>：80</li>
+<li><strong>磁头数 (Head)</strong>：2</li>
+<li><strong>扇区数 (Sector)</strong>：18</li>
+</ul>
+<p>我们可以通过<code>qemu-img info floppy.img</code>来查看磁盘的基本信息。</p>
+<h3 id="调试方法">调试方法</h3>
+<p>这里我们采用qemu虚拟化平台来跑我们的内核，在qemu启动时加上-s选项就可以启动一个调试的服务在1234端口，我们可以用gdb来进行连接调试。这里layout
+asm来查看原始的汇编代码，layout regs来查看寄存器情况。</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-i386 -fda $(TARGET)  -s -S</span><br><span class="line"></span><br><span class="line"><span class="built_in">sudo</span> gdb kernel.elf \</span><br><span class="line">        -ex <span class="string">&#x27;target remote localhost:1234&#x27;</span> \</span><br><span class="line">        -ex <span class="string">&#x27;set architecture i8086&#x27;</span> \</span><br><span class="line">        -ex <span class="string">&#x27;layout asm&#x27;</span> \</span><br><span class="line">        -ex <span class="string">&#x27;layout regs&#x27;</span> \</span><br><span class="line">        -ex <span class="string">&#x27;break *(0x7c00)&#x27;</span> \</span><br><span class="line">        -ex <span class="string">&#x27;continue&#x27;</span></span><br></pre></td></tr></table></figure></div>
+<p>但实际发现即使我们指定了i8086的架构，gdb还是会以32位进行解析，<code>gdb</code>不执行分段:偏移计算，所以这里用了一个好用的<a class="link" 
+ target="_blank" rel="noopener" href="https://ternet.fr/media/gdb_init_real_mode.txt" >脚本<i class="fa-solid fa-arrow-up-right ml-[0.2em] font-light align-text-top text-[0.7em] link-icon"></i></a>来扩充gdb显示16位下的assembly。其中这个脚本里我们需要把里面的<code>set architecture i8086</code>的注释取消掉。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428204029759.png"
+                      class=""
+                >
+<p>还需要搭配使用两个文件，将这两个文件以及上面给的脚本放在运行gdb的同一个目录下（也可以绝对路径直接指定好）：</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;&lt;?xml version=&quot;1.0&quot;?&gt;&lt;!DOCTYPE target SYSTEM &quot;gdb-target.dtd&quot;&gt;&lt;target&gt;&lt;architecture&gt;i8086&lt;/architecture&gt;&lt;xi:include href=&quot;i386-32bit.xml&quot;/&gt;&lt;/target&gt;&#x27;</span> &gt; target.xml</span><br><span class="line">wget https://raw.githubusercontent.com/qemu/qemu/master/gdb-xml/i386-32bit.xml</span><br></pre></td></tr></table></figure></div>
+<p>新的使用方式如下，在使用前需要关闭其它gdb插件，比如pwndbg和gef等，否则会报double
+free错误：</p>
+<div class="highlight-container" data-rel="Bash"><figure class="iseeu highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#! /usr/bin/bash</span></span><br><span class="line"></span><br><span class="line">gdb -ix <span class="string">&quot;gdb_init_real_mode.txt&quot;</span> \</span><br><span class="line">    -ex <span class="string">&quot;set tdesc filename target.xml&quot;</span> \</span><br><span class="line">    -ex <span class="string">&quot;target remote localhost:1234&quot;</span> \</span><br><span class="line">    -ex <span class="string">&quot;br *0x7c00&quot;</span> -ex <span class="string">&quot;c&quot;</span></span><br></pre></td></tr></table></figure></div>
+<p>然后就能进行调试，可以正常显示16位的寄存器。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428211052544.png"
+                      class=""
+                >
+<p>实际后面调试时还是会存在gdb错误解析的问题，比如我们切换到保护模式之后，CS代码段寄存器存的0x8应该是表示<strong>选择子</strong>，但实际由于用了上面的实模式显示，所以会在code段显示到别的地方（但IP还是正确的，就是每次执行后我们都要手动打印对应地址的指令比较麻烦）。实际上我们切换到保护模式后就可以退出这个real-mode-gdb了。这里我观察了下扩展脚本的源码，发现问题如下，其$rip一开始就设置成实模式的寻址方式，那么后面code展现就会出现问题。</p>
+<div class="highlight-container" data-rel="Txt"><figure class="iseeu highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">define compute_regs</span><br><span class="line">  set $rax = ((unsigned long)$eax &amp; 0xFFFF)</span><br><span class="line">  set $rbx = ((unsigned long)$ebx &amp; 0xFFFF)</span><br><span class="line">  set $rcx = ((unsigned long)$ecx &amp; 0xFFFF)</span><br><span class="line">  set $rdx = ((unsigned long)$edx &amp; 0xFFFF)</span><br><span class="line">  set $rsi = ((unsigned long)$esi &amp; 0xFFFF)</span><br><span class="line">  set $rdi = ((unsigned long)$edi &amp; 0xFFFF)</span><br><span class="line">  set $rbp = ((unsigned long)$ebp &amp; 0xFFFF)</span><br><span class="line">  set $rsp = ((unsigned long)$esp &amp; 0xFFFF)</span><br><span class="line">  set $rcs = ((unsigned long)$cs &amp; 0xFFFF)</span><br><span class="line">  set $rds = ((unsigned long)$ds &amp; 0xFFFF)</span><br><span class="line">  set $res = ((unsigned long)$es &amp; 0xFFFF)</span><br><span class="line">  set $rss = ((unsigned long)$ss &amp; 0xFFFF)</span><br><span class="line">  set $rip = ((((unsigned long)$cs &amp; 0xFFFF) &lt;&lt; 4) + ((unsigned long)$eip &amp; 0xFFFF)) &amp; $ADDRESS_MASK</span><br><span class="line">  set $r_ss_sp = ((((unsigned long)$ss &amp; 0xFFFF) &lt;&lt; 4) + ((unsigned long)$esp &amp; 0xFFFF)) &amp; $ADDRESS_MASK</span><br><span class="line">  set $r_ss_bp = ((((unsigned long)$ss &amp; 0xFFFF) &lt;&lt; 4) + ((unsigned long)$ebp &amp; 0xFFFF)) &amp; $ADDRESS_MASK</span><br><span class="line">end</span><br><span class="line"></span><br><span class="line">.......</span><br><span class="line">define context</span><br><span class="line">  printf &quot;---------------------------[ STACK ]---\n&quot;</span><br><span class="line">  _dump_memw $r_ss_sp 8</span><br><span class="line">  printf &quot;\n&quot;</span><br><span class="line">  set $_a = $r_ss_sp + 16</span><br><span class="line">  _dump_memw $_a 8</span><br><span class="line">  printf &quot;\n&quot;</span><br><span class="line">  printf &quot;---------------------------[ DS:SI ]---\n&quot;</span><br><span class="line">  print_data $ds $rsi</span><br><span class="line">  printf &quot;---------------------------[ ES:DI ]---\n&quot;</span><br><span class="line">  print_data $es $rdi</span><br><span class="line"></span><br><span class="line">  printf &quot;----------------------------[ CPU ]----\n&quot;</span><br><span class="line">  print_regs</span><br><span class="line">  print_eflags</span><br><span class="line">  printf &quot;---------------------------[ CODE ]----\n&quot;</span><br><span class="line"></span><br><span class="line">  set $_code_size = $CODE_SIZE</span><br><span class="line"></span><br><span class="line">  # disassemble</span><br><span class="line">  # first call x/i with an address</span><br><span class="line">  # subsequent calls to x/i will increment address</span><br><span class="line">  if ($_code_size &gt; 0)</span><br><span class="line">    x /i $rip</span><br><span class="line">    set $_code_size--</span><br><span class="line">  end</span><br><span class="line">  while ($_code_size &gt; 0)</span><br><span class="line">    x /i</span><br><span class="line">    set $_code_size--</span><br><span class="line">  end</span><br><span class="line">end</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line">define hook-stop</span><br><span class="line">  compute_regs</span><br><span class="line">  if ($SHOW_CONTEXT &gt; 0)</span><br><span class="line">    context</span><br><span class="line">  end</span><br><span class="line">end</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>那么我们只需将脚本经过如下修改，就可以让code最后显示正确了，这里默认cs为0说明是实模式，因为在保护模式下0号段选择器是空。</p>
+<div class="highlight-container" data-rel="Text"><figure class="iseeu highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">define compute_regs</span><br><span class="line">  set $rax = ((unsigned long)$eax &amp; 0xFFFF)</span><br><span class="line">  set $rbx = ((unsigned long)$ebx &amp; 0xFFFF)</span><br><span class="line">  set $rcx = ((unsigned long)$ecx &amp; 0xFFFF)</span><br><span class="line">  set $rdx = ((unsigned long)$edx &amp; 0xFFFF)</span><br><span class="line">  set $rsi = ((unsigned long)$esi &amp; 0xFFFF)</span><br><span class="line">  set $rdi = ((unsigned long)$edi &amp; 0xFFFF)</span><br><span class="line">  set $rbp = ((unsigned long)$ebp &amp; 0xFFFF)</span><br><span class="line">  set $rsp = ((unsigned long)$esp &amp; 0xFFFF)</span><br><span class="line">  set $rcs = ((unsigned long)$cs &amp; 0xFFFF)</span><br><span class="line">  set $rds = ((unsigned long)$ds &amp; 0xFFFF)</span><br><span class="line">  set $res = ((unsigned long)$es &amp; 0xFFFF)</span><br><span class="line">  set $rss = ((unsigned long)$ss &amp; 0xFFFF)</span><br><span class="line">  if $rcs &gt; 0</span><br><span class="line">    set $rip = ((unsigned long)$eip &amp; 0xFFFF) </span><br><span class="line">    set $r_ss_sp = ((unsigned long)$esp &amp; 0xFFFF) </span><br><span class="line">    set $r_ss_bp = ((unsigned long)$ebp &amp; 0xFFFF)</span><br><span class="line">    set architecture i386</span><br><span class="line">  else</span><br><span class="line">    set $rip = ((((unsigned long)$cs &amp; 0xFFFF) &lt;&lt; 4) + ((unsigned long)$eip &amp; 0xFFFF)) &amp; $ADDRESS_MASK</span><br><span class="line">    set $r_ss_sp = ((((unsigned long)$ss &amp; 0xFFFF) &lt;&lt; 4) + ((unsigned long)$esp &amp; 0xFFFF)) &amp; $ADDRESS_MASK</span><br><span class="line">    set $r_ss_bp = ((((unsigned long)$ss &amp; 0xFFFF) &lt;&lt; 4) + ((unsigned long)$ebp &amp; 0xFFFF)) &amp; $ADDRESS_MASK</span><br><span class="line">    set architecture i8086</span><br><span class="line">  end</span><br><span class="line">end</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>也可以在 QEMU Monitor（通常是 <code>Ctrl-Alt-2</code> 切换到 QEMU
+Monitor 窗口）里使用下面的指令来查看寄存器信息。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">info registers</span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250428211923276.png"
+                      class=""
+                >
+<h3 id="bootloader编写">bootloader编写</h3>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br></pre></td><td class="code"><pre><span class="line">; boot.asm - 启动程序（16 位实模式）</span><br><span class="line"></span><br><span class="line">[org 0x7C00]             ; BIOS 会把这段代码加载到 0x7C00</span><br><span class="line">[BITS 16]</span><br><span class="line"></span><br><span class="line">start:</span><br><span class="line">    cli                 ; 关中断</span><br><span class="line">    xor ax, ax</span><br><span class="line">    mov ds, ax</span><br><span class="line">    mov es, ax</span><br><span class="line">    mov ss, ax</span><br><span class="line">    mov sp, 0x7000      ; 设置堆栈</span><br><span class="line"></span><br><span class="line">    ; 读取 stage2 (加载 stage2.asm 编译后的镜像) 到 0x8000</span><br><span class="line">    mov ah, 0x02         ; BIOS function: read sector</span><br><span class="line">    mov al, 2            ; 读取 2 个扇区</span><br><span class="line">    mov ch, 0            ; 柱面</span><br><span class="line">    mov cl, 2            ; 起始扇区（第2个扇区）</span><br><span class="line">    mov dh, 0            ; 磁头</span><br><span class="line">    mov dl, 0x00         ; 软盘</span><br><span class="line">    mov bx, 0x8000       ; 加载地址</span><br><span class="line">    int 0x13</span><br><span class="line">    jc disk_error</span><br><span class="line"></span><br><span class="line">    ; 读取 kernel (加载 kernel.c 编译后的镜像) 到 0x10000</span><br><span class="line">    mov ah, 0x02         ; BIOS function: read sector</span><br><span class="line">    mov al, 5           ; 读取 5 个扇区</span><br><span class="line">    mov ch, 0            ; 柱面</span><br><span class="line">    mov cl, 4            ; 起始扇区（第4个扇区）</span><br><span class="line">    mov dh, 0            ; 磁头</span><br><span class="line">    mov dl, 0x00         ; 软盘</span><br><span class="line">    mov bx, 0x9000       ; 加载地址</span><br><span class="line">    int 0x13</span><br><span class="line">    jc disk_error</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    lgdt [gdt_descriptor]   ; 加载全局描述符表（GDT）</span><br><span class="line"></span><br><span class="line">    ; 开启保护模式</span><br><span class="line">    mov eax, cr0</span><br><span class="line">    or eax, 1</span><br><span class="line">    mov cr0, eax</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    ; 使用远跳转更新 CS</span><br><span class="line">    jmp 0x08:protected_mode_entry</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[BITS 32]</span><br><span class="line">protected_mode_entry:</span><br><span class="line">    ; 设置段寄存器（CS 已经在 far jump 中设置了）</span><br><span class="line">    mov ax, 0x10</span><br><span class="line">    mov ds, ax</span><br><span class="line">    mov es, ax</span><br><span class="line">    mov fs, ax</span><br><span class="line">    mov gs, ax</span><br><span class="line">    mov ss, ax</span><br><span class="line"></span><br><span class="line">    mov esp, 0x90000         ; 设置新栈</span><br><span class="line"></span><br><span class="line">    jmp 0x8000    ; 跳转到 stage2 加载地址</span><br><span class="line"></span><br><span class="line">disk_error:</span><br><span class="line">    hlt</span><br><span class="line">    jmp $</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">; ----- GDT -----</span><br><span class="line">gdt_start:</span><br><span class="line">gdt_null:               ; 空描述符</span><br><span class="line">    dq 0</span><br><span class="line"></span><br><span class="line">gdt_code:               ; 代码段描述符（base=0, limit=4GB, type=code）</span><br><span class="line">    dw 0xFFFF           ; limit low 16bits</span><br><span class="line">    dw 0x0000           ; base low 16bits</span><br><span class="line">    db 0x00             ; base middle 8bits</span><br><span class="line">    db 10011010b        ; access bytes 8bits</span><br><span class="line">    db 11001111b        ; limit high 4bits + flags 4bits</span><br><span class="line">    db 0x00             ; base high 8bits</span><br><span class="line"></span><br><span class="line">gdt_data:</span><br><span class="line">    dw 0xFFFF</span><br><span class="line">    dw 0x0000</span><br><span class="line">    db 0x00</span><br><span class="line">    db 10010010b   ; P=1, DPL=0, S=1(data), DC=0(grows up), RW=1</span><br><span class="line">    db 11001111b   ; G=1, D/B=1, limit_high=0xF</span><br><span class="line">    db 0x00</span><br><span class="line"></span><br><span class="line">gdt_end:</span><br><span class="line"></span><br><span class="line">gdt_descriptor:</span><br><span class="line">    dw gdt_end - gdt_start      ; limit</span><br><span class="line">    dd gdt_start                ; base</span><br><span class="line"></span><br><span class="line">; ----- 填充到 510 字节 -----</span><br><span class="line">times 510 - ($ - $$) db 0</span><br><span class="line">dw 0xAA55                     ; MBR 魔数</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">; stage2.asm</span><br><span class="line"></span><br><span class="line">[BITS 32]</span><br><span class="line">start:</span><br><span class="line">    jmp 0x08:0x9000   ; 跳转到 kernel_main</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel.c</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">clear_screen</span><span class="params">()</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">print_string</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *str)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">    clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line">    print_string(<span class="string">&quot;Hello, Kernel!&quot;</span>);  <span class="comment">// 打印一行字符</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123; &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">clear_screen</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">short</span> *video = (<span class="type">unsigned</span> <span class="type">short</span> *) <span class="number">0xB8000</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">80</span> * <span class="number">25</span>; i++) &#123;</span><br><span class="line">        video[i] = <span class="number">0x0F20</span>;  <span class="comment">// 清屏，0x0F 是前景色，0x20 是空格</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">print_string</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *str)</span> &#123;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">short</span> *video = (<span class="type">unsigned</span> <span class="type">short</span> *) <span class="number">0xB8000</span>;</span><br><span class="line">    <span class="keyword">while</span> (*str) &#123;</span><br><span class="line">        *video = (<span class="number">0x0F</span> &lt;&lt; <span class="number">8</span>) | *str;  <span class="comment">// 设置字符和颜色</span></span><br><span class="line">        video++;</span><br><span class="line">        str++;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="Makefile"><figure class="iseeu highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># makefile</span></span><br><span class="line">DIR := <span class="variable">$(<span class="built_in">shell</span> pwd)</span></span><br><span class="line">LINK_LD := <span class="variable">$(DIR)</span>/linker.ld</span><br><span class="line">TARGET := <span class="variable">$(DIR)</span>/focus-os.img</span><br><span class="line"></span><br><span class="line"><span class="meta"><span class="keyword">.PHONY</span>: all clean run</span></span><br><span class="line"></span><br><span class="line"><span class="section">all: <span class="variable">$(TARGET)</span></span></span><br><span class="line"></span><br><span class="line"><span class="section">boot.bin: boot.asm</span></span><br><span class="line">	nasm -f bin boot.asm -o boot.bin</span><br><span class="line"></span><br><span class="line"><span class="section">stage2.bin: stage2.asm</span></span><br><span class="line">	nasm -f bin stage2.asm -o stage2.bin</span><br><span class="line"></span><br><span class="line"><span class="section">kernel.o: kernel.c</span></span><br><span class="line">	gcc -m32 -g -ffreestanding -c kernel.c -o kernel.o</span><br><span class="line"></span><br><span class="line"><span class="section">kernel.bin: kernel.o linker.ld</span></span><br><span class="line">	ld -m elf_i386 -g -T <span class="variable">$(LINK_LD)</span> -o kernel.elf kernel.o</span><br><span class="line">	objcopy -O binary kernel.elf kernel.bin</span><br><span class="line"></span><br><span class="line"><span class="variable">$(TARGET)</span>: boot.bin kernel.bin stage2.bin</span><br><span class="line">	dd if=/dev/zero of=<span class="variable">$(TARGET)</span> bs=512 count=2880                    </span><br><span class="line">	dd if=boot.bin of=<span class="variable">$(TARGET)</span> bs=512 count=1 conv=notrunc           </span><br><span class="line">	dd if=stage2.bin of=<span class="variable">$(TARGET)</span> bs=512 count=2 seek=1 conv=notrunc  </span><br><span class="line">	dd if=kernel.bin of=<span class="variable">$(TARGET)</span> bs=512 count=5 seek=3 conv=notrunc          </span><br><span class="line"></span><br><span class="line"><span class="section">run:</span></span><br><span class="line">	qemu-system-i386 -fda <span class="variable">$(TARGET)</span>  -s -S</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="section">clean:</span></span><br><span class="line">	rm -f *.bin *.o *.elf <span class="variable">$(TARGET)</span></span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"># linker.ld</span><br><span class="line">ENTRY(kernel_main)       /* 程序入口，定义了主函数 */</span><br><span class="line"></span><br><span class="line">SECTIONS &#123;</span><br><span class="line">    . = 0x0;      /* 从内存地址 0x0 开始加载 */</span><br><span class="line"></span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text)     /* 收集所有 .text 段（代码段） */</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    .rodata : &#123;</span><br><span class="line">        *(.rodata)   /* 只读数据，比如字符串常量 */</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    .data : &#123;</span><br><span class="line">        *(.data)     /* 已初始化的数据段 */</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    .bss : &#123;</span><br><span class="line">        *(.bss COMMON) /* 未初始化的数据段（清零） */</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>我们一步一步拆开来看，首先<code>[org 0x7C00]</code>会让BIOS把这段代码加载到固定的0x7c00地址处，即我们的IP从0x7c00开始，然后后面的<code>[BITS 16]</code>指定了目前是16位的实模式。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">; boot.asm - 启动程序（16 位实模式）</span><br><span class="line"></span><br><span class="line">[org 0x7C00]             ; BIOS 会把这段代码加载到 0x7C00</span><br><span class="line">[BITS 16]</span><br><span class="line"></span><br><span class="line">start:</span><br><span class="line">    cli                 ; 关中断</span><br><span class="line">    xor ax, ax</span><br><span class="line">    mov ds, ax</span><br><span class="line">    mov es, ax</span><br><span class="line">    mov ss, ax</span><br><span class="line">    mov sp, 0x7000      ; 设置堆栈</span><br></pre></td></tr></table></figure></div>
+<p>然后是通过从软盘读取对应的其它部分到内存，这部分需要在切换到保护模式之前完成，因为到了保护模式之后就不能用BIOS的int
+0x13中断来加载内存了。这里加载部分需要配合后面虚拟软盘设计进行填入参数，这里我们只用先知道可以把别的编译好的二进制程序加载到对应内存中即可，后面我们就可以通过固定的地址跳转来转到别的二进制程序中。这里我们先采用软盘模式启动，所以这里dl设置为0。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">; 读取 stage2 (加载 stage2.asm 编译后的镜像) 到 0x8000</span><br><span class="line">    mov ah, 0x02         ; BIOS function: read sector</span><br><span class="line">    mov al, 2            ; 读取 2 个扇区</span><br><span class="line">    mov ch, 0            ; 柱面</span><br><span class="line">    mov cl, 2            ; 起始扇区（第2个扇区）</span><br><span class="line">    mov dh, 0            ; 磁头</span><br><span class="line">    mov dl, 0x00         ; 软盘</span><br><span class="line">    mov bx, 0x8000       ; 加载地址</span><br><span class="line">    int 0x13</span><br><span class="line">    jc disk_error</span><br><span class="line"></span><br><span class="line">    ; 读取 kernel (加载 kernel.c 编译后的镜像) 到 0x10000</span><br><span class="line">    mov ah, 0x02         ; BIOS function: read sector</span><br><span class="line">    mov al, 5           ; 读取 5 个扇区</span><br><span class="line">    mov ch, 0            ; 柱面</span><br><span class="line">    mov cl, 4            ; 起始扇区（第4个扇区）</span><br><span class="line">    mov dh, 0            ; 磁头</span><br><span class="line">    mov dl, 0x00         ; 软盘</span><br><span class="line">    mov bx, 0x9000       ; 加载地址</span><br><span class="line">    int 0x13</span><br><span class="line">    jc disk_error</span><br></pre></td></tr></table></figure></div>
+<p>实际上我们在进行调试时，遇到int的中断，需要手动在它后面一个指令打断点再continue，否则si/ni会跳转到一些奇怪的地方。这里我们跟进到boot.asm的int
+0x13之后，发现确实把stage2.asm的内容加载到了0x8000位置处。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250429121228091.png"
+                      class=""
+                >
+<p>然后加载GDT后修改cr0开启保护模式，用远跳转跳到<strong>protected_mode_entry</strong>处并更新CS为我们的<strong>Selector
+1</strong>。GDT表的设置主要是先把第一个8字节处置空，然后我们用到两个描述符，一个存代码一个存数据。其中我们limit位都设置的很大，为0x11ffff，并且base都置零，这里不同的gdt描述符的区域可以重叠，后续到了内核才会对不同内存段进行区分，这里的描述符区别在于access
+bytes和后面flags里规定的读写权限以及一些配置。然后最后需要有一个<strong>gdt_descriptor</strong>，其base字段指向gdb描述符表。然后就可以<code>lgdt [gdt_descriptor]</code>来加载全局描述符表了。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">lgdt [gdt_descriptor]   ; 加载全局描述符表（GDT）</span><br><span class="line"></span><br><span class="line">    ; 开启保护模式</span><br><span class="line">    mov eax, cr0</span><br><span class="line">    or eax, 1</span><br><span class="line">    mov cr0, eax</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    ; 使用远跳转更新 CS</span><br><span class="line">    jmp 0x08:protected_mode_entry</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line">; ----- GDT -----</span><br><span class="line">gdt_start:</span><br><span class="line">gdt_null:               ; 空描述符</span><br><span class="line">    dq 0</span><br><span class="line"></span><br><span class="line">gdt_code:               ; 代码段描述符（base=0, type=code）</span><br><span class="line">    dw 0xFFFF           ; limit low 16bits</span><br><span class="line">    dw 0x0000           ; base low 16bits</span><br><span class="line">    db 0x00             ; base middle 8bits</span><br><span class="line">    db 10011010b        ; access bytes 8bits</span><br><span class="line">    db 11001111b        ; limit high 4bits + flags 4bits</span><br><span class="line">    db 0x00             ; base high 8bits</span><br><span class="line"></span><br><span class="line">gdt_data:</span><br><span class="line">    dw 0xFFFF</span><br><span class="line">    dw 0x0000</span><br><span class="line">    db 0x00</span><br><span class="line">    db 10010010b   ; P=1, DPL=0, S=1(data), DC=0(grows up), RW=1</span><br><span class="line">    db 11001111b   ; G=1, D/B=1, limit_high=0xF</span><br><span class="line">    db 0x00</span><br><span class="line"></span><br><span class="line">gdt_end:</span><br><span class="line"></span><br><span class="line">gdt_descriptor:</span><br><span class="line">    dw gdt_end - gdt_start      ; limit</span><br><span class="line">    dd gdt_start                ; base</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>然后进入保护模式后，就可以跳转到stage2进行执行，跳转之前需要设置好各个段寄存器指向gdt_data，然后把esp指向新的栈空间。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[BITS 32]</span><br><span class="line">protected_mode_entry:</span><br><span class="line">    ; 设置段寄存器（CS 已经在 far jump 中设置了）</span><br><span class="line">    mov ax, 0x10</span><br><span class="line">    mov ds, ax</span><br><span class="line">    mov es, ax</span><br><span class="line">    mov fs, ax</span><br><span class="line">    mov gs, ax</span><br><span class="line">    mov ss, ax</span><br><span class="line"></span><br><span class="line">    mov esp, 0x90000         ; 设置新栈</span><br><span class="line"></span><br><span class="line">    jmp 0x8000    ; 跳转到 stage2 加载地址</span><br></pre></td></tr></table></figure></div>
+<p>stage2目前先不用加入别的功能，先直接跳转到内核。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">; stage2.asm</span><br><span class="line"></span><br><span class="line">[BITS 32]</span><br><span class="line">start:</span><br><span class="line">    jmp 0x08:0x9000   ; 跳转到 kernel_main</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>最后就能进入进行执行，注意这里我们不能使用c的一些标准库进行输出，而是得往0xB8000这个<strong>Video
+Memory</strong>的RAM中写入，其格式是一个字节表示颜色，一个字节表示字符，所以我们可以用short的数据类型存每个字符。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel.c</span></span><br><span class="line"><span class="comment">// 函数声明</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">clear_screen</span><span class="params">()</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">print_string</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *str)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">    clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line">    print_string(<span class="string">&quot;Hello, Kernel!&quot;</span>);  <span class="comment">// 打印一行字符</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123; &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">clear_screen</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">short</span> *video = (<span class="type">unsigned</span> <span class="type">short</span> *) <span class="number">0xB8000</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">80</span> * <span class="number">25</span>; i++) &#123;</span><br><span class="line">        video[i] = <span class="number">0x0F20</span>;  <span class="comment">// 清屏，0x0F 是前景色，0x20 是空格</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">print_string</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *str)</span> &#123;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">short</span> *video = (<span class="type">unsigned</span> <span class="type">short</span> *) <span class="number">0xB8000</span>;</span><br><span class="line">    <span class="keyword">while</span> (*str) &#123;</span><br><span class="line">        *video = (<span class="number">0x0F</span> &lt;&lt; <span class="number">8</span>) | *str;  <span class="comment">// 设置字符和颜色</span></span><br><span class="line">        video++;</span><br><span class="line">        str++;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>之后就是需要链接编译程序后执行，使用到的makefile如下。其中最重要的部分是最后生成软盘这个输出目标。用的是dd指令，首先创建了一个空的软盘，然后往第一扇区写入boot.bin，长度为一个扇区；往第二扇区写入stage2.bin，长度为两个扇区；往第四扇区写入kernel.bin，长度为5个扇区。那么之前调用0x13中断从软盘映射到内存的一些参数就可以填进去了。其中run的伪目标开的-s和-S是用来调试的，在本地起1234端口提供调试服务。如果开了-S，qemu会在一开始进去时就卡住等待调试。</p>
+<div class="highlight-container" data-rel="Makefile"><figure class="iseeu highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">DIR := <span class="variable">$(<span class="built_in">shell</span> pwd)</span></span><br><span class="line">LINK_LD := <span class="variable">$(DIR)</span>/linker.ld</span><br><span class="line">TARGET := <span class="variable">$(DIR)</span>/focus-os.img</span><br><span class="line"></span><br><span class="line"><span class="meta"><span class="keyword">.PHONY</span>: all clean run</span></span><br><span class="line"></span><br><span class="line"><span class="section">all: <span class="variable">$(TARGET)</span></span></span><br><span class="line"></span><br><span class="line"><span class="section">boot.bin: boot.asm</span></span><br><span class="line">	nasm -f bin boot.asm -o boot.bin</span><br><span class="line"></span><br><span class="line"><span class="section">stage2.bin: stage2.asm</span></span><br><span class="line">	nasm -f bin stage2.asm -o stage2.bin</span><br><span class="line"></span><br><span class="line"><span class="section">kernel.o: kernel.c</span></span><br><span class="line">	gcc -m32 -g -ffreestanding -c kernel.c -o kernel.o</span><br><span class="line"></span><br><span class="line"><span class="section">kernel.bin: kernel.o linker.ld</span></span><br><span class="line">	ld -m elf_i386 -g -T <span class="variable">$(LINK_LD)</span> -o kernel.elf kernel.o</span><br><span class="line">	objcopy -O binary kernel.elf kernel.bin</span><br><span class="line"></span><br><span class="line"><span class="variable">$(TARGET)</span>: boot.bin kernel.bin stage2.bin</span><br><span class="line">	dd if=/dev/zero of=<span class="variable">$(TARGET)</span> bs=512 count=2880                    </span><br><span class="line">	dd if=boot.bin of=<span class="variable">$(TARGET)</span> bs=512 count=1 conv=notrunc           </span><br><span class="line">	dd if=stage2.bin of=<span class="variable">$(TARGET)</span> bs=512 count=2 seek=1 conv=notrunc  </span><br><span class="line">	dd if=kernel.bin of=<span class="variable">$(TARGET)</span> bs=512 count=5 seek=3 conv=notrunc          </span><br><span class="line"></span><br><span class="line"><span class="section">run:</span></span><br><span class="line">	qemu-system-i386 -fda <span class="variable">$(TARGET)</span>  -s -S</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="section">clean:</span></span><br><span class="line">	rm -f *.bin *.o *.elf <span class="variable">$(TARGET)</span></span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>最后就可以跑通在屏幕上显示我们的内容。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/image-20250429153050724.png"
+                      class=""
+                >
+<h3 id="参考资料">参考资料</h3>
+<p>https://cloud.tencent.com/developer/ask/sof/112517341</p>
+<p>https://www.cnblogs.com/jiangbo4444/p/17079748.html</p>
+<p>https://wiki.osdev.org/Bootloader</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 从零开始搭建自制操作系统——基础概念&amp;bootloader编写</li>
+        <li><strong>作者:</strong> collectcrop</li>
+        <li><strong>创建于
+                :</strong> 2025-04-29 16:04:27</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2025-04-29 16:04:49
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://collectcrop.github.io/2025/04/29/从零开始搭建自制操作系统——基础概念-bootloader编写/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/OS/">#OS</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/debug/">#debug</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/02/22/kernel-pwn初探/" title="kernel pwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="kernel pwn初探" class="!max-w-none">
+  <span class="title">kernel pwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/16/seq-operations搭配pt-regs的kernel利用手法/" title="seq_operations搭配pt_regs的kernel利用手法" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="seq_operations搭配pt_regs的kernel利用手法" class="!max-w-none">
+  <span class="title">seq_operations搭配pt_regs的kernel利用手法</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/09/ret2usr利用手法以及常见保护机制绕过浅析/" title="ret2usr利用手法以及常见保护机制绕过浅析" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="ret2usr利用手法以及常见保护机制绕过浅析" class="!max-w-none">
+  <span class="title">ret2usr利用手法以及常见保护机制绕过浅析</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/02/22/kernel-pwn初探/" title="kernel pwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="kernel pwn初探" class="!max-w-none">
+  <span class="title">kernel pwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/16/seq-operations搭配pt-regs的kernel利用手法/" title="seq_operations搭配pt_regs的kernel利用手法" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="seq_operations搭配pt_regs的kernel利用手法" class="!max-w-none">
+  <span class="title">seq_operations搭配pt_regs的kernel利用手法</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2025/04/12/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3modprobe-path%E6%8F%90%E6%9D%83%E6%96%B9%E5%BC%8F/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">深入理解modprobe_path提权方式</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">从零开始搭建自制操作系统——基础概念&amp;bootloader编写</div>
+		<ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5"><span class="nav-text">基础概念</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%9E%E6%A8%A1%E5%BC%8F%E4%B8%8E%E4%BF%9D%E6%8A%A4%E6%A8%A1%E5%BC%8F"><span class="nav-text">实模式与保护模式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#gdt"><span class="nav-text">GDT</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#gdtr%E5%AF%84%E5%AD%98%E5%99%A8"><span class="nav-text">GDTR寄存器</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#gdt%E6%AE%B5%E6%8F%8F%E8%BF%B0%E7%AC%A6%E7%BB%93%E6%9E%84"><span class="nav-text">GDT段描述符结构</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#cr%E7%B3%BB%E5%88%97%E5%AF%84%E5%AD%98%E5%99%A8%E4%BD%9C%E7%94%A8"><span class="nav-text">CR系列寄存器作用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#bios%E5%90%AF%E5%8A%A8%E6%96%B9%E5%BC%8F"><span class="nav-text">BIOS启动方式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#bios%E5%B8%B8%E7%94%A8%E4%B8%AD%E6%96%AD"><span class="nav-text">BIOS常用中断</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8A%A0%E8%BD%BD%E6%B5%81%E7%A8%8B%E8%AE%BE%E8%AE%A1"><span class="nav-text">加载流程设计</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ld%E9%93%BE%E6%8E%A5%E8%84%9A%E6%9C%AC"><span class="nav-text">ld链接脚本</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9E%84%E6%88%90%E5%90%AF%E5%8A%A8%E7%9B%98%E9%95%9C%E5%83%8F"><span class="nav-text">构成启动盘镜像</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%89%87%E5%8C%BA%E5%9C%B0%E5%9D%80%E7%BB%93%E6%9E%84chs"><span class="nav-text">扇区地址结构CHS</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E8%AF%95%E6%96%B9%E6%B3%95"><span class="nav-text">调试方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#bootloader%E7%BC%96%E5%86%99"><span class="nav-text">bootloader编写</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-text">参考资料</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2025&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 28 篇文章
+                    </span>
+                    
+                        <span>
+                            共 158.8k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>
