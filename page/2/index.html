@@ -577,7 +577,7 @@
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">28</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -658,7 +658,7 @@
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">28</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -673,6 +673,89 @@
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/">
+                            ret2usr利用手法以及常见保护机制绕过浅析
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            ret2usr利用手法以及常见保护机制绕过浅析
+ret2usr
+在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。
+这里仍以2018 强网杯 -
+core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。
+1...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Sun Mar 09 2025 17:05:31 GMT+0800">
+                
+                    2025-03-09
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/blog/tags/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                        <li>
+                            | 
+                            <a href="/blog/tags/kernel/">kernel</a>&nbsp;
+                        </li>
+                    
+                        <li>
+                            | 
+                            <a href="/blog/tags/bypass/">bypass</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/">阅读全文<span class="seo-reader-text">ret2usr利用手法以及常见保护机制绕过浅析</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1411,83 +1494,6 @@ Buffers（通常简称为protobuf）是由Google开发的一种语言中立、�
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/blog/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/">
-                            solidity&amp;blockchain初探
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            solidity这个语言广泛运用与智能合约的编写，想要入门区块链就得先了解这个语言。该语言其实与c语言用法类似。在solidity语言中，标识执行账户是用地址实现的，比如我们MetaMask中创建的Account的地址或是某个合约的地址。
-1.一些基本概念与工具站
-1）账户
-外部账户
-外部账户是由人创建的，可以存储以太币，是由公钥和私钥控制的账户。每个外部账户拥有一对公私钥，这对密钥...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Tue Oct 08 2024 00:04:22 GMT+0800">
-                
-                    2024-10-08
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/blog/categories/BlockChain/">BlockChain</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/blog/tags/BlockChain/">BlockChain</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/blog/tags/solidity/">solidity</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/blog/2024/10/08/solidity-blockchain%E5%88%9D%E6%8E%A2/">阅读全文<span class="seo-reader-text">solidity&amp;blockchain初探</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1518,11 +1524,11 @@ Buffers（通常简称为protobuf）是由Google开发的一种语言中立、�
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 28 篇文章
+                        共撰写了 29 篇文章
                     </span>
                     
                         <span>
-                            共 158.8k 字
+                            共 166k 字
                         </span>
                     
                 </p>

@@ -750,7 +750,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">28</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -831,7 +831,7 @@ mjx-container[display="true"] + br {
         <div class="label text-third-text-color text-sm">分类</div>
     </a>
     <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
-        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">28</div>
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">29</div>
         <div class="label text-third-text-color text-sm">文章</div>
     </a>
 </div>
@@ -846,6 +846,82 @@ mjx-container[display="true"] + br {
 			<div class="main-content">
 				<div class="home-content-container">
     <ul class="home-article-list">
+        
+            <li class="home-article-item">
+
+                
+
+                
+
+                
+                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
+                    <h3 class="home-article-title">
+                        <a href="/blog/2025/05/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E4%B8%AD%E6%96%AD%E7%AE%A1%E7%90%86/">
+                            从零开始搭建自制操作系统——中断管理
+                        </a>
+                    </h3>
+
+                    <div class="home-article-content markdown-body">
+                        
+                            
+                            这里我们的目标是实现一个32位的操作系统，所以后面介绍相关的内容默认都是32位下的。
+基本概念
+IDT表
+中断描述符表 ( IDT ) 用于告知 CPU中断服务程序(ISR)
+的位置（每个中断向量对应一个）。它的结构类似于全局描述符表（GDT）。
+IDT的结构是由 CPU
+架构规范定义的，所以对于某一类 CPU（比如
+x86），结构是固定的。IDT 的结构必须符合 CPU
+要...
+                        
+                    </div>
+
+                    <div class="home-article-meta-info-container">
+    <div class="home-article-meta-info">
+        <span><i class="fa-solid fa-calendars"></i>&nbsp;
+            <span class="home-article-date" data-date="Thu May 08 2025 10:54:55 GMT+0800">
+                
+                    2025-05-08
+                
+            </span>
+        </span>
+        
+            <span class="home-article-category">
+                <i class="fa-solid fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/OS/">OS</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+        
+        
+            <span class="home-article-tag">
+                <i class="fa-solid fa-tags"></i>&nbsp;
+                <ul>
+                    
+                        <li>
+                            
+                            <a href="/blog/tags/OS/">OS</a>&nbsp;
+                        </li>
+                    
+                </ul>
+            </span>
+        
+    </div>
+
+    <a href="/blog/2025/05/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E4%B8%AD%E6%96%AD%E7%AE%A1%E7%90%86/">阅读全文<span class="seo-reader-text">从零开始搭建自制操作系统——中断管理</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
+</div>
+
+                </div>
+            </li>
         
             <li class="home-article-item">
 
@@ -1587,89 +1663,6 @@ Ret2dir（Return-to-Direct Mapping）是一种 内核利用
                 </div>
             </li>
         
-            <li class="home-article-item">
-
-                
-
-                
-
-                
-                <div class="flex flex-col gap-5 px-7 pb-7 pt-7">
-                    <h3 class="home-article-title">
-                        <a href="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/">
-                            ret2usr利用手法以及常见保护机制绕过浅析
-                        </a>
-                    </h3>
-
-                    <div class="home-article-content markdown-body">
-                        
-                            
-                            ret2usr利用手法以及常见保护机制绕过浅析
-ret2usr
-在SMAP、SMEP以及kpti保护未开启时，内核空间可以访问或执行用户空间的数据，那我们其实可以直接返回到用户空间执行函数，从而避免构造较为复杂的内核ROP链。
-这里仍以2018 强网杯 -
-core为例，这题中虽然开了kaslr，但是我们不需要利用一些手法来泄露地址，init脚本中本身就给我们提供了一些利用点。
-1...
-                        
-                    </div>
-
-                    <div class="home-article-meta-info-container">
-    <div class="home-article-meta-info">
-        <span><i class="fa-solid fa-calendars"></i>&nbsp;
-            <span class="home-article-date" data-date="Sun Mar 09 2025 17:05:31 GMT+0800">
-                
-                    2025-03-09
-                
-            </span>
-        </span>
-        
-            <span class="home-article-category">
-                <i class="fa-solid fa-folders"></i>&nbsp;
-            <ul>
-                
-                
-                    
-                        
-                        <li>
-                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
-                        </li>
-                    
-                    
-                
-            </ul>
-        </span>
-        
-        
-            <span class="home-article-tag">
-                <i class="fa-solid fa-tags"></i>&nbsp;
-                <ul>
-                    
-                        <li>
-                            
-                            <a href="/blog/tags/pwn/">pwn</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/blog/tags/kernel/">kernel</a>&nbsp;
-                        </li>
-                    
-                        <li>
-                            | 
-                            <a href="/blog/tags/bypass/">bypass</a>&nbsp;
-                        </li>
-                    
-                </ul>
-            </span>
-        
-    </div>
-
-    <a href="/blog/2025/03/09/ret2usr%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A7%81%E4%BF%9D%E6%8A%A4%E6%9C%BA%E5%88%B6%E7%BB%95%E8%BF%87%E6%B5%85%E6%9E%90/">阅读全文<span class="seo-reader-text">ret2usr利用手法以及常见保护机制绕过浅析</span>&nbsp;<i class="fa-solid fa-angle-right"></i></a>
-</div>
-
-                </div>
-            </li>
-        
     </ul>
 
     <div class="home-paginator px-7 py-5">
@@ -1700,11 +1693,11 @@ core为例，这题中虽然开了kaslr，但是我们不需要利用一些手�
                 
                 <p class="post-count space-x-0.5">
                     <span>
-                        共撰写了 28 篇文章
+                        共撰写了 29 篇文章
                     </span>
                     
                         <span>
-                            共 158.8k 字
+                            共 166k 字
                         </span>
                     
                 </p>
