@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2025/06/08/从零开始搭建自制操作系统——内核线程调度简单实现/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="在进行实现进程和线程的实现之前，我们先处理几个之前遗留下来的问题。 分页后跳转处理 之前的实现中遗留了一个问题，就是我们开启分页后执行流还是在物理地址的恒等映射的前4MB上的，并没有切换到高虚拟地址处执行。这里我们先实现一下一开启分页就跳转到对应地址。这里我选择的是重新布局kernel.c，并将入口设置为kernel_init函数，从而一加载kernel就初始化堆管理并开启分页，之后我们vmm">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从零开始搭建自制操作系统——内核线程调度简单实现">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="在进行实现进程和线程的实现之前，我们先处理几个之前遗留下来的问题。 分页后跳转处理 之前的实现中遗留了一个问题，就是我们开启分页后执行流还是在物理地址的恒等映射的前4MB上的，并没有切换到高虚拟地址处执行。这里我们先实现一下一开启分页就跳转到对应地址。这里我选择的是重新布局kernel.c，并将入口设置为kernel_init函数，从而一加载kernel就初始化堆管理并开启分页，之后我们vmm">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607204127152.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607204224495.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607171949570.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607205415960.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607210002335.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607210031156.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250608001955246.png">
+<meta property="article:published_time" content="2025-06-08T13:54:12.000Z">
+<meta property="article:modified_time" content="2025-06-08T13:54:28.358Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="OS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607204127152.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            从零开始搭建自制操作系统——内核线程调度简单实现 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"zh-CN","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    归档
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    标签
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分类
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    关于
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    友情链接
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                归档
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                标签
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                分类
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                关于
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">友情链接</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">33</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">34</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">从零开始搭建自制操作系统——内核线程调度简单实现</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2025-06-08 21:54:12</span>
+        <span class="mobile">2025-06-08 21:54:12</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2025-06-08 21:54:28</span>
+            <span class="mobile">2025-06-08 21:54:28</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/OS/">OS</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/OS/">OS</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>3.3k 字</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>14 分钟</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>在进行实现进程和线程的实现之前，我们先处理几个之前遗留下来的问题。</p>
+<h4 id="分页后跳转处理">分页后跳转处理</h4>
+<p>之前的实现中遗留了一个问题，就是我们开启分页后执行流还是在物理地址的恒等映射的前4MB上的，并没有切换到高虚拟地址处执行。这里我们先实现一下一开启分页就跳转到对应地址。这里我选择的是重新布局kernel.c，并将入口设置为<strong>kernel_init</strong>函数，从而一加载kernel就初始化堆管理并开启分页，之后我们<strong>vmm_init</strong>里就可以借助<strong>kernel_main</strong>函数的地址进行跳转了。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">kernel_init</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">    pmm_init(MEMORY_MAP_ADDR);      <span class="comment">// 初始化物理内存管理</span></span><br><span class="line">    vmm_init();                     <span class="comment">// 初始化虚拟内存管理，开启分页</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">(<span class="type">void</span>)</span>&#123;</span><br><span class="line">    clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line">    idt_install();</span><br><span class="line">    irq_remap();</span><br><span class="line">    isr_install();</span><br><span class="line">    irq_install();</span><br><span class="line">    kheap_init();                   <span class="comment">// 初始化堆管理</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;sti&quot;</span>)</span>;    <span class="comment">// 开中断</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123; </span><br><span class="line">        <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;hlt&quot;</span>)</span>;  <span class="comment">// 节省CPU</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p><strong>vmm.c</strong>的更改如下，主要加了一个跳转：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">extern</span> <span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">()</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">vmm_init</span><span class="params">()</span> &#123;</span><br><span class="line">    kernel_page_directory = (<span class="type">page_table_t</span>*)pmm_alloc_page();</span><br><span class="line">    <span class="keyword">if</span> (kernel_page_directory == <span class="number">0</span>) &#123;</span><br><span class="line">        kernel_printf(<span class="string">&quot;vmm_init: failed to allocate page directory\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">memset</span>(kernel_page_directory, <span class="number">0</span>, PAGE_SIZE);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建一个页表：映射 0x00000000 - 0x00400000, 前4MB恒等映射，虚拟地址就为物理地址</span></span><br><span class="line">    <span class="type">page_table_t</span>* identity_pt = (<span class="type">page_table_t</span>*)pmm_alloc_page();</span><br><span class="line">    <span class="built_in">memset</span>(identity_pt, <span class="number">0</span>, PAGE_SIZE);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; PAGE_ENTRIES; i++) &#123;</span><br><span class="line">        identity_pt-&gt;entries[i] = (i * PAGE_SIZE) | PAGE_FLAGS;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 页目录第 0 项 → 恒等映射</span></span><br><span class="line">    kernel_page_directory-&gt;entries[<span class="number">0</span>] = ((<span class="type">uint32_t</span>)identity_pt) | PAGE_FLAGS;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 页目录第 768 项 → 高地址映射：0xC0000000 起点（768*4MB）</span></span><br><span class="line">    kernel_page_directory-&gt;entries[<span class="number">768</span>] = ((<span class="type">uint32_t</span>)identity_pt) | PAGE_FLAGS;</span><br><span class="line"></span><br><span class="line">    enable_paging(kernel_page_directory);</span><br><span class="line">    <span class="comment">// 跳转到分页后高地址映射处执行</span></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;jmp *%0&quot;</span> :: <span class="string">&quot;r&quot;</span>(kernel_main+<span class="number">0xC0000000</span>))</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>之后把ld的入口函数改一下即可，这里需要注意的是，我们这样设置后，当我们跳转到虚拟地址执行时，会丢失掉调试符号。我们可以手动在gdb里add-symbol-file重新加载一下kernel.elf到地址<strong>0xc0100000</strong>处。</p>
+<h4 id="栈设置">栈设置</h4>
+<p>我们一开始是在bootloader阶段设置好了esp的值为某一个物理地址，那么当我们启用分页后，理应尽可能少的利用前4MB的恒等映射，而是将其切换到别的虚拟地址处。</p>
+<p>我们需要把栈设置到某个虚拟地址处，由于是函数调用，切换栈后会丢失原来的返回地址信息，所以需要事先把返回地址存到某个寄存器中然后最后跳转回去。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> KERNEL_STACK_SIZE 4096</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> KERNEL_BASE 0xC0100000</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">(<span class="type">void</span>)</span>&#123;</span><br><span class="line">    switch_to_kernel_stack();       <span class="comment">// 切换到内核栈</span></span><br><span class="line">    clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line">    idt_install();</span><br><span class="line">    irq_remap();</span><br><span class="line">    isr_install();</span><br><span class="line">    irq_install();</span><br><span class="line">    kheap_init();                   <span class="comment">// 初始化堆管理</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;sti&quot;</span>)</span>;    <span class="comment">// 开中断</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123; </span><br><span class="line">        <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;hlt&quot;</span>)</span>;  <span class="comment">// 节省CPU</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">switch_to_kernel_stack</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">uintptr_t</span> stack_top = (<span class="type">uintptr_t</span>)kernel_stack + KERNEL_STACK_SIZE + KERNEL_BASE;</span><br><span class="line">    <span class="type">uintptr_t</span> return_addr;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 获取返回地址</span></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span> <span class="params">(</span></span><br><span class="line"><span class="params">        <span class="string">&quot;mov 4(%%ebp), %0\n&quot;</span>   <span class="comment">// 从当前 ebp 栈帧中获取返回地址</span></span></span><br><span class="line"><span class="params">        : <span class="string">&quot;=r&quot;</span>(return_addr)</span></span><br><span class="line"><span class="params">    )</span>;</span><br><span class="line">    <span class="comment">// 切换到新栈并跳转</span></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span> <span class="params">(</span></span><br><span class="line"><span class="params">        <span class="string">&quot;mov %0, %%esp\n&quot;</span></span></span><br><span class="line"><span class="params">        <span class="string">&quot;mov %0, %%ebp\n&quot;</span>      </span></span><br><span class="line"><span class="params">        <span class="string">&quot;jmp *%1\n&quot;</span>            <span class="comment">// 跳转到保存的返回地址</span></span></span><br><span class="line"><span class="params">        :</span></span><br><span class="line"><span class="params">        : <span class="string">&quot;r&quot;</span>(stack_top), <span class="string">&quot;r&quot;</span>(return_addr)</span></span><br><span class="line"><span class="params">    )</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h4 id="内核线程实现">内核线程实现</h4>
+<h5 id="多线程执行实现">多线程执行实现</h5>
+<p>这里我们先实现一个最简单的内核线程控制，调度策略是顺序调度，每个线程分得相同的时间片。</p>
+<p>首先可以设计一下管理线程的结构体，这里一开始主要只用到4个字段，<strong>stack</strong>主要用来存内核线程的栈指针，后续我们会为每个新建的线程用内核堆管理器分配1页内存作为<strong>stack</strong>；<strong>state</strong>是我们的线程状态，参考一些现有的操作系统这里分成了4种，方便后续调度器使用；<strong>time_slice</strong>是每个线程的时间片，后续就是在线程耗尽其拥有的时间片后进行顺序调度；<strong>next</strong>是一个链表的指针域，方便后续使用循环链表进行逐个线程依次调度。其中由于每个线程在触发调度切换时，需要保存当前线程的<strong>context</strong>（也就是所有寄存器状态），而被调度的新的线程需要从中加载自己之前的<strong>context</strong>，所以我们还需要知道<strong>context</strong>结构体的地址。这里我们可以直接把<strong>context</strong>存到栈底，节省空间。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// thread/thread.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">ifndef</span> THREAD_H</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> THREAD_H</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;stdint.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MAX_THREADS 4</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> KERNEL_STACK_SIZE 4096</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span>&#123;</span></span><br><span class="line">    THREAD_READY,</span><br><span class="line">    THREAD_RUNNING,</span><br><span class="line">    THREAD_BLOCKED,</span><br><span class="line">    THREAD_EXITED,</span><br><span class="line">&#125; <span class="type">thread_state_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">thread_context</span> &#123;</span></span><br><span class="line">    <span class="type">uint32_t</span> edi, esi, ebp, esp, ebx, edx, ecx, eax; <span class="comment">// pusha 顺序</span></span><br><span class="line">    <span class="type">uint32_t</span> eip;</span><br><span class="line">    <span class="type">uint32_t</span> eflags;</span><br><span class="line">&#125; <span class="type">thread_context_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">thread</span> &#123;</span></span><br><span class="line">    <span class="type">uint8_t</span>* <span class="built_in">stack</span>;             <span class="comment">// 栈顶指针（用于切换）</span></span><br><span class="line">    <span class="type">thread_state_t</span> state;              <span class="comment">// READY, RUNNING, BLOCKED, etc.</span></span><br><span class="line">    <span class="type">int</span> time_slice;       <span class="comment">// 剩余时间片</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">thread</span>* <span class="title">next</span>;</span>  <span class="comment">// 用于连接成调度队列</span></span><br><span class="line">&#125; <span class="type">thread_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 返回线程上下文的位置</span></span><br><span class="line"><span class="type">static</span> <span class="keyword">inline</span> <span class="type">thread_context_t</span>* <span class="title function_">thread_get_context</span><span class="params">(<span class="type">thread_t</span>* t)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> (<span class="type">thread_context_t</span>*)(t-&gt;<span class="built_in">stack</span> + KERNEL_STACK_SIZE - <span class="keyword">sizeof</span>(<span class="type">thread_context_t</span>));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 初始化线程</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">thread_init</span><span class="params">()</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建一个线程</span></span><br><span class="line"><span class="comment">// entry: 线程入口函数;</span></span><br><span class="line"><span class="comment">// 返回值：线程ID</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">thread_create</span><span class="params">(<span class="type">void</span> (*entry)(<span class="type">void</span>))</span>; </span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure></div>
+<p>创建线程的函数需要传入一个函数指针作为线程入口，这里我们维护了一个线程数组来管理线程，新线程的创立会从这个数组中找state为<strong>THREAD_EXITED</strong>的线程进行占用，并初始化<strong>context</strong>的eip，esp等字段。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// thread/thread.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;thread.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;heap.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;scheduler.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">thread_t</span> threads[MAX_THREADS];</span><br><span class="line"><span class="type">void</span> <span class="title function_">thread_init</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; MAX_THREADS; i++)&#123;</span><br><span class="line">        threads[i].state = THREAD_EXITED;</span><br><span class="line">    &#125;</span><br><span class="line">        </span><br><span class="line">    scheduler_init();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">thread_create</span><span class="params">(<span class="type">void</span> (*entry)(<span class="type">void</span>))</span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; MAX_THREADS; i++)&#123;</span><br><span class="line">        <span class="type">thread_t</span> *t = &amp;threads[i];</span><br><span class="line">        <span class="keyword">if</span> (t-&gt;state == THREAD_EXITED) &#123;</span><br><span class="line">            t-&gt;<span class="built_in">stack</span> = (<span class="type">uint8_t</span> *)kmalloc(KERNEL_STACK_SIZE);</span><br><span class="line">            scheduler_add(t);</span><br><span class="line">            <span class="type">uint32_t</span> *stack_top = t-&gt;<span class="built_in">stack</span> + KERNEL_STACK_SIZE;</span><br><span class="line">            <span class="type">thread_context_t</span> *ctx = thread_get_context(t);</span><br><span class="line">            ctx-&gt;eip = (<span class="type">uint32_t</span>) entry;</span><br><span class="line">            ctx-&gt;eflags = <span class="number">0x202</span>;</span><br><span class="line">            ctx-&gt;esp = (<span class="type">uint32_t</span>) stack_top - <span class="keyword">sizeof</span>(<span class="type">thread_context_t</span>);</span><br><span class="line">            <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>然后是调度器的实现，<strong>scheduler_add</strong>主要是往就绪循环链表中添加一个新的线程，<strong>schedule</strong>核心调度逻辑就是将正在执行的线程状态设置为就绪（<strong>READY</strong>），保存其此时的<strong>context</strong>，然后读取新的被调度的线程的<strong>context</strong>，将状态设置为<strong>RUNNING</strong>并切换过去执行。</p>
+<p><strong>save_context</strong>的实现主要依赖于之前实现的isr的通用入口保存的寄存器状态，我们的线程被时钟中断打断时，就会直接跳转到对应注册好的irq入口执行，硬件会自动将一些关键寄存器保存push入栈（比如关键的eip），然后我们还会手动push中断号以及错误码入栈。这里除了esp保存的并不直接是前一个线程执行的esp以外，其它寄存器状态都完全是前一个线程的<strong>context</strong>。而esp相对于真实值的偏移也是固定的，因为前面多push的值的数量是确定的，我们恢复esp时需要手动加上偏移来适配。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">ifndef</span> SCHEDULER_H</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SCHEDULER_H</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;thread.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;heap.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> DEFAULT_SLICE 5</span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">thread_t</span>* current_thread = <span class="literal">NULL</span>;</span><br><span class="line"><span class="type">static</span> <span class="type">thread_t</span>* ready_queue = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">scheduler_init</span><span class="params">()</span>;      <span class="comment">// 初始化线程调度器</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">scheduler_add</span><span class="params">(<span class="type">thread_t</span>* thread)</span>;   <span class="comment">// 添加线程</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">schedule</span><span class="params">()</span>;            <span class="comment">// 调度线程</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// thread/scheduler.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;thread.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;scheduler.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;isr.h&quot;</span></span></span><br><span class="line"><span class="type">void</span> <span class="title function_">scheduler_init</span><span class="params">()</span> &#123;</span><br><span class="line">    ready_queue = <span class="literal">NULL</span>;</span><br><span class="line">    current_thread = <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">scheduler_add</span><span class="params">(<span class="type">thread_t</span>* thread)</span> &#123;</span><br><span class="line">    thread-&gt;state = THREAD_READY;</span><br><span class="line">    thread-&gt;time_slice = DEFAULT_SLICE;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!ready_queue) &#123;</span><br><span class="line">        ready_queue = thread;</span><br><span class="line">        thread-&gt;next = thread;  <span class="comment">// 环形链表</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="type">thread_t</span>* temp = ready_queue;</span><br><span class="line">        <span class="keyword">while</span> (temp-&gt;next != ready_queue)   <span class="comment">// 找到尾节点</span></span><br><span class="line">            temp = temp-&gt;next;</span><br><span class="line"></span><br><span class="line">        temp-&gt;next = thread;</span><br><span class="line">        thread-&gt;next = ready_queue;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// extern void save_context(thread_context_t* ctx,registers_t r);</span></span><br><span class="line"><span class="keyword">extern</span> <span class="type">void</span> <span class="title function_">load_context</span><span class="params">(<span class="type">thread_context_t</span>* ctx)</span>;</span><br><span class="line"><span class="comment">// Round-Robin Scheduling</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">schedule</span><span class="params">(<span class="type">registers_t</span>* r)</span> &#123;     <span class="comment">// r: irq中断发生时保存的寄存器</span></span><br><span class="line">    <span class="type">thread_t</span>* prev = current_thread;  <span class="comment">// 暂存旧线程指针</span></span><br><span class="line">    <span class="keyword">if</span> (!current_thread) &#123;</span><br><span class="line">        current_thread = ready_queue;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        current_thread-&gt;state = THREAD_READY;</span><br><span class="line">        current_thread = current_thread-&gt;next;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    current_thread-&gt;state = THREAD_RUNNING;</span><br><span class="line">    current_thread-&gt;time_slice = DEFAULT_SLICE;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (prev) </span><br><span class="line">        save_context(thread_get_context(prev),r);</span><br><span class="line">    load_context(thread_get_context(current_thread));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">save_context</span><span class="params">(<span class="type">thread_context_t</span>* ctx, <span class="type">registers_t</span>* r)</span> &#123;</span><br><span class="line">    ctx-&gt;edi = r-&gt;edi;</span><br><span class="line">    ctx-&gt;esi = r-&gt;esi;</span><br><span class="line">    ctx-&gt;ebp = r-&gt;ebp;</span><br><span class="line">    ctx-&gt;esp = (r-&gt;esp+<span class="number">0x14</span>);</span><br><span class="line">    ctx-&gt;ebx = r-&gt;ebx;</span><br><span class="line">    ctx-&gt;edx = r-&gt;edx;</span><br><span class="line">    ctx-&gt;ecx = r-&gt;ecx;</span><br><span class="line">    ctx-&gt;eax = r-&gt;eax;</span><br><span class="line">    ctx-&gt;eip = r-&gt;eip;</span><br><span class="line">    ctx-&gt;eflags = r-&gt;eflags;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607204127152.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607204224495.png"
+                      class=""
+                >
+<p>其中<strong>load_context</strong>由汇编实现，这里我们需要利用一个通用寄存器（这里选用的是eax），先设置好其它寄存器的值，尤其是把目标跳转的eip需要push入栈，最后再还原eax的值。这里比较巧妙的是esp的还原，因为我们后续需要利用栈来存eflags和eip，所以不可避免的会修改esp的值并往较低地址处写入内容，那这是否会有一种情况我们<strong>push</strong>的值会<strong>破坏掉线程后面需要利用</strong>到的值呢？事实上正常函数执行时，其局部变量地址都是高于esp的，所以我们的<strong>push</strong>并不会影响线程的执行。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">; thread_switch.asm</span><br><span class="line"></span><br><span class="line">global load_context</span><br><span class="line"></span><br><span class="line">; 参数: [esp + 4] = ctx</span><br><span class="line">load_context:</span><br><span class="line">    mov eax, [esp + 4]</span><br><span class="line"></span><br><span class="line">    mov edi, [eax + 0]</span><br><span class="line">    mov esi, [eax + 4]</span><br><span class="line">    mov ebp, [eax + 8]</span><br><span class="line">    mov esp, [eax + 12]</span><br><span class="line">    mov ebx, [eax + 16]</span><br><span class="line">    mov edx, [eax + 20]</span><br><span class="line">    mov ecx, [eax + 24]</span><br><span class="line">    push dword [eax + 36]    ; eflags</span><br><span class="line">    popfd</span><br><span class="line"></span><br><span class="line">    mov eax, [eax + 32]</span><br><span class="line">    push eax</span><br><span class="line">    mov eax, [eax + 28] </span><br><span class="line">    ret               ; 返回到 ctx-&gt;eip</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>最后加入两个线程执行看看结果，发现可以正常交错打印字符。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">(<span class="type">void</span>)</span>&#123;</span><br><span class="line">    switch_to_kernel_stack();       <span class="comment">// 切换到内核栈</span></span><br><span class="line">    clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line">    idt_install();</span><br><span class="line">    irq_remap();</span><br><span class="line">    isr_install();</span><br><span class="line">    irq_install();</span><br><span class="line">    kheap_init();                   <span class="comment">// 初始化堆管理</span></span><br><span class="line">    thread_init();          <span class="comment">// 初始化线程管理</span></span><br><span class="line"></span><br><span class="line">    thread_create(thread_a);</span><br><span class="line">    thread_create(thread_b);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;sti&quot;</span>)</span>;    <span class="comment">// 开中断</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123; </span><br><span class="line">        <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;hlt&quot;</span>)</span>;  <span class="comment">// 节省CPU</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">thread_a</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        kernel_printf(<span class="string">&quot;A&quot;</span>);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000000</span>; i++);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">thread_b</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        kernel_printf(<span class="string">&quot;B&quot;</span>);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000000</span>; i++);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607171949570.png"
+                      class=""
+                >
+<h5 id="增加线程返回处理">增加线程返回处理</h5>
+<p>上述线程是在死循环中执行的，所以没什么问题，但是肯定不是所有的线程都是会一直持续下去。我们之前进入线程一直都是在load_context里面直接根据context进行跳转。但如果执行到了一个线程的ret，那么会直接返回到一个非法的地址崩溃。所以我们需要为线程的结束设置一个处理函数。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607205415960.png"
+                      class=""
+                >
+<p>由于线程退出我们需要<strong>回收线程栈所占的内存</strong>以及将退出的线程<strong>从调度就绪列表中移除</strong>，一开始我们是维护了一个next指针域来实现一个循环链表，但这样在链表中移除某个线程时会比较麻烦，所以我就加了一个prev域来维护一个双向循环链表。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607210002335.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250607210031156.png"
+                      class=""
+                >
+<p>然后遇到的问题是，我们如何让我们的<strong>thread</strong>在退出时不会直接崩溃，而是回来调用<strong>thread_exit</strong>进行统一处理。这里其实我们可以往外套一层<strong>thread_start</strong>来进行包装整个线程执行，其接受线程入口函数指针作为参数，然后<strong>thread_start</strong>在执行完线程函数后会调用<strong>thread_exit</strong>，这样就能让线程正常退出了。我们所需要微调的就是一开始创建线程时的context赋值，这里我们需要把eip设置为<strong>thread_start</strong>入口，然后手动将参数写入栈中。之前定位esp是通过栈底地址减去<strong>context</strong>结构体大小得到的，这里由于需要腾出存func参数的空间，所以干脆直接指定栈底到实际可用栈底的偏移<strong>STACK_OFFSET</strong>，预留一部分空间在中间。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> STACK_OFFSET 0x40</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">thread_create</span><span class="params">(<span class="type">void</span> (*entry)(<span class="type">void</span>))</span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; MAX_THREADS; i++)&#123;</span><br><span class="line">        <span class="type">thread_t</span> *t = &amp;threads[i];</span><br><span class="line">        <span class="keyword">if</span> (t-&gt;state == THREAD_EXITED) &#123;</span><br><span class="line">            t-&gt;<span class="built_in">stack</span> = (<span class="type">uint8_t</span> *)kmalloc(KERNEL_STACK_SIZE);</span><br><span class="line">            scheduler_add(t);</span><br><span class="line">            <span class="type">uint32_t</span> *stack_top = t-&gt;<span class="built_in">stack</span> + KERNEL_STACK_SIZE;</span><br><span class="line">            <span class="type">thread_context_t</span> *ctx = thread_get_context(t);</span><br><span class="line">            ctx-&gt;eip = (<span class="type">uint32_t</span>) thread_start;         </span><br><span class="line">            ctx-&gt;eflags = <span class="number">0x202</span>;</span><br><span class="line">            ctx-&gt;esp = (<span class="type">uint32_t</span>) stack_top - STACK_OFFSET;</span><br><span class="line">            ((<span class="type">uint32_t</span>*)(ctx-&gt;esp))[<span class="number">1</span>] = (<span class="type">uint32_t</span>)entry;  <span class="comment">// 参数: func</span></span><br><span class="line">            <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">thread_start</span><span class="params">(<span class="type">void</span> (*func)(<span class="type">void</span>))</span> &#123;</span><br><span class="line">    func();            <span class="comment">// 执行线程函数</span></span><br><span class="line">    thread_exit();     <span class="comment">// 自动调用退出处理</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>然后就是实现具体的退出函数，主要就是把线程的状态修改为退出，并把对应线程从调度链表中删除，最后回收线程栈。这里需要注意一开始要把中断关掉，避免在退出或调度时又有新的中断打断执行导致无法预期的情况发生，最后可以在<strong>load_context</strong>中ret到对应线程执行地址前再打开中断。</p>
+<p>后面的<strong>schedule</strong>函数逻辑也需要进行微调，因为退出的线程调用<strong>schedule</strong>时实际上不需要保存对应寄存器状态，直接切换即可。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">thread_exit</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">asm</span> (<span class="string">&quot;cli&quot;</span>);    <span class="comment">// 关中断</span></span><br><span class="line">    kernel_printf(<span class="string">&quot;\nThread finished!\n&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 标记该线程已结束，等待回收</span></span><br><span class="line">    current_thread-&gt;state = THREAD_EXITED;</span><br><span class="line">    thread_remove(current_thread);</span><br><span class="line">    <span class="comment">// 回收线程栈</span></span><br><span class="line">    kfree(current_thread-&gt;<span class="built_in">stack</span>);</span><br><span class="line">    schedule(<span class="literal">NULL</span>);  <span class="comment">// 直接调度下一个线程</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>);   <span class="comment">// 如果 schedule 没有返回，保险起见留个死循环</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">thread_remove</span><span class="params">(<span class="type">thread_t</span>* thread)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!thread || !ready_queue) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (thread-&gt;next == thread) &#123;</span><br><span class="line">        <span class="comment">// 只有一个线程在队列中</span></span><br><span class="line">        ready_queue = <span class="literal">NULL</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 调整前后指针，断开 thread</span></span><br><span class="line">        thread-&gt;prev-&gt;next = thread-&gt;next;</span><br><span class="line">        thread-&gt;next-&gt;prev = thread-&gt;prev;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">schedule</span><span class="params">(<span class="type">registers_t</span>* r)</span> &#123;     <span class="comment">// r: irq中断发生时保存的寄存器</span></span><br><span class="line">    <span class="keyword">asm</span> (<span class="string">&quot;cli&quot;</span>);</span><br><span class="line">    <span class="type">thread_t</span>* prev = current_thread;  <span class="comment">// 暂存旧线程指针</span></span><br><span class="line">    <span class="keyword">if</span> (!current_thread) &#123;</span><br><span class="line">        current_thread = ready_queue;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (current_thread-&gt;state == THREAD_RUNNING)&#123;</span><br><span class="line">            current_thread-&gt;state = THREAD_READY;</span><br><span class="line">            current_thread = current_thread-&gt;next;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span>(current_thread-&gt;state == THREAD_EXITED)&#123;</span><br><span class="line">            current_thread = current_thread-&gt;next;</span><br><span class="line">            prev-&gt;next = <span class="literal">NULL</span>;</span><br><span class="line">            prev-&gt;prev = <span class="literal">NULL</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    current_thread-&gt;state = THREAD_RUNNING;</span><br><span class="line">    current_thread-&gt;time_slice = DEFAULT_SLICE;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (prev&amp;&amp;prev-&gt;state!=THREAD_EXITED) </span><br><span class="line">        save_context(thread_get_context(prev),r);</span><br><span class="line">    load_context(thread_get_context(current_thread));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/image-20250608001955246.png"
+                      class=""
+                >
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 从零开始搭建自制操作系统——内核线程调度简单实现</li>
+        <li><strong>作者:</strong> collectcrop</li>
+        <li><strong>创建于
+                :</strong> 2025-06-08 21:54:12</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2025-06-08 21:54:28
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://collectcrop.github.io/2025/06/08/从零开始搭建自制操作系统——内核线程调度简单实现/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/OS/">#OS</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——物理内存管理器-简单分页机制实现/" title="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现</span>
+</a><a class="recommended-article-item" href="/blog/2025/05/08/从零开始搭建自制操作系统——中断管理/" title="从零开始搭建自制操作系统——中断管理" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——中断管理" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——中断管理</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/19/CUDA编程模型初探/" title="CUDA编程模型初探" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="CUDA编程模型初探" class="!max-w-none">
+  <span class="title">CUDA编程模型初探</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——物理内存管理器-简单分页机制实现/" title="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现</span>
+</a><a class="recommended-article-item" href="/blog/2025/05/08/从零开始搭建自制操作系统——中断管理/" title="从零开始搭建自制操作系统——中断管理" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——中断管理" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——中断管理</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">从零开始搭建自制操作系统——简单内核堆分配器实现</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">从零开始搭建自制操作系统——内核线程调度简单实现</div>
+		<ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%86%E9%A1%B5%E5%90%8E%E8%B7%B3%E8%BD%AC%E5%A4%84%E7%90%86"><span class="nav-text">分页后跳转处理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%A0%88%E8%AE%BE%E7%BD%AE"><span class="nav-text">栈设置</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E5%AE%9E%E7%8E%B0"><span class="nav-text">内核线程实现</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%A4%9A%E7%BA%BF%E7%A8%8B%E6%89%A7%E8%A1%8C%E5%AE%9E%E7%8E%B0"><span class="nav-text">多线程执行实现</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%A2%9E%E5%8A%A0%E7%BA%BF%E7%A8%8B%E8%BF%94%E5%9B%9E%E5%A4%84%E7%90%86"><span class="nav-text">增加线程返回处理</span></a></li></ol></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2025&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 34 篇文章
+                    </span>
+                    
+                        <span>
+                            共 187.1k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>

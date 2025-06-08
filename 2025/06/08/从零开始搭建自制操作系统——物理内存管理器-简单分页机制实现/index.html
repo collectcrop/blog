@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2025/06/08/从零开始搭建自制操作系统——物理内存管理器-简单分页机制实现/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="这里开始我了解到其实可以选择用GRUB作为bootloader来加载入自制的内核，不过既然我打算从零开始实现一个学习用的操作系统，这里就用自己写的bootloader。实际上我一开始实现的bootloader还有些小问题可以优化。 bootloader优化 启用A20总线 之前我们实现的bootloader并没有手动启用A20总线，这里对 https:&#x2F;&#x2F;wiki.osdev.org&#x2F;A2">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从零开始搭建自制操作系统——物理内存管理器&amp;简单分页机制实现">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="这里开始我了解到其实可以选择用GRUB作为bootloader来加载入自制的内核，不过既然我打算从零开始实现一个学习用的操作系统，这里就用自己写的bootloader。实际上我一开始实现的bootloader还有些小问题可以优化。 bootloader优化 启用A20总线 之前我们实现的bootloader并没有手动启用A20总线，这里对 https:&#x2F;&#x2F;wiki.osdev.org&#x2F;A2">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509170147949.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509213316618.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509213434987.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509221352390.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509233045245.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250518235419035.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250512105214571.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250512142132051.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250512142223887.png">
+<meta property="article:published_time" content="2025-06-08T13:48:17.000Z">
+<meta property="article:modified_time" content="2025-06-08T13:52:41.864Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="OS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509170147949.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            从零开始搭建自制操作系统——物理内存管理器&amp;简单分页机制实现 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"zh-CN","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    归档
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    标签
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分类
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    关于
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    友情链接
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                归档
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                标签
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                分类
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                关于
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">友情链接</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">33</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">34</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">从零开始搭建自制操作系统——物理内存管理器&amp;简单分页机制实现</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2025-06-08 21:48:17</span>
+        <span class="mobile">2025-06-08 21:48:17</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2025-06-08 21:52:41</span>
+            <span class="mobile">2025-06-08 21:52:41</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/OS/">OS</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/OS/">OS</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>7.6k 字</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>35 分钟</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>这里开始我了解到其实可以选择用<strong>GRUB</strong>作为bootloader来加载入自制的内核，不过既然我打算从零开始实现一个学习用的操作系统，这里就用自己写的bootloader。实际上我一开始实现的<strong>bootloader</strong>还有些小问题可以优化。</p>
+<h3 id="bootloader优化">bootloader优化</h3>
+<h4 id="启用a20总线">启用A20总线</h4>
+<p>之前我们实现的bootloader并没有手动启用A20总线，这里对
+https://wiki.osdev.org/A20_Line
+这里给出的启动A20总线的汇编代码给出解释。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br></pre></td><td class="code"><pre><span class="line">;	out:</span><br><span class="line">;		ax - state (0 - disabled, 1 - enabled)</span><br><span class="line">get_a20_state:</span><br><span class="line">	pushf</span><br><span class="line">	push si</span><br><span class="line">	push di</span><br><span class="line">	push ds</span><br><span class="line">	push es</span><br><span class="line">	cli</span><br><span class="line"></span><br><span class="line">	mov ax, 0x0000					;	0x0000:0x0500(0x00000500) -&gt; ds:si</span><br><span class="line">	mov ds, ax</span><br><span class="line">	mov si, 0x0500</span><br><span class="line"></span><br><span class="line">	not ax							;	0xffff:0x0510(0x00100500) -&gt; es:di</span><br><span class="line">	mov es, ax</span><br><span class="line">	mov di, 0x0510</span><br><span class="line"></span><br><span class="line">	mov al, [ds:si]					;	save old values</span><br><span class="line">	mov byte [.BufferBelowMB], al</span><br><span class="line">	mov al, [es:di]</span><br><span class="line">	mov byte [.BufferOverMB], al</span><br><span class="line"></span><br><span class="line">	mov ah, 1						;	check byte [0x00100500] == byte [0x0500]</span><br><span class="line">	mov byte [ds:si], 0</span><br><span class="line">	mov byte [es:di], 1</span><br><span class="line">	mov al, [ds:si]</span><br><span class="line">	cmp al, [es:di]</span><br><span class="line">	jne .exit</span><br><span class="line">	dec ah</span><br><span class="line">.exit:</span><br><span class="line">	mov al, [.BufferBelowMB]</span><br><span class="line">	mov [ds:si], al</span><br><span class="line">	mov al, [.BufferOverMB]</span><br><span class="line">	mov [es:di], al</span><br><span class="line">	shr ax, 8</span><br><span class="line">	sti</span><br><span class="line">	pop es</span><br><span class="line">	pop ds</span><br><span class="line">	pop di</span><br><span class="line">	pop si</span><br><span class="line">	popf</span><br><span class="line">	ret</span><br><span class="line">	</span><br><span class="line">	.BufferBelowMB:	db 0</span><br><span class="line">	.BufferOverMB	db 0</span><br><span class="line"></span><br><span class="line">;	out:</span><br><span class="line">;		ax - a20 support bits (bit #0 - supported on keyboard controller; bit #1 - supported with bit #1 of port 0x92)</span><br><span class="line">;		cf - set on error</span><br><span class="line">query_a20_support:</span><br><span class="line">	push bx</span><br><span class="line">	clc</span><br><span class="line"></span><br><span class="line">	mov ax, 0x2403</span><br><span class="line">	int 0x15</span><br><span class="line">	jc .error</span><br><span class="line"></span><br><span class="line">	test ah, ah</span><br><span class="line">	jnz .error</span><br><span class="line"></span><br><span class="line">	mov ax, bx</span><br><span class="line">	pop bx</span><br><span class="line">	ret</span><br><span class="line">.error:</span><br><span class="line">	stc</span><br><span class="line">	pop bx</span><br><span class="line">	ret</span><br><span class="line"></span><br><span class="line">enable_a20_keyboard_controller:</span><br><span class="line">	cli</span><br><span class="line"></span><br><span class="line">	call .wait_io1</span><br><span class="line">	mov al, 0xad</span><br><span class="line">	out 0x64, al</span><br><span class="line">	</span><br><span class="line">	call .wait_io1</span><br><span class="line">	mov al, 0xd0</span><br><span class="line">	out 0x64, al</span><br><span class="line">	</span><br><span class="line">	call .wait_io2</span><br><span class="line">	in al, 0x60</span><br><span class="line">	push eax</span><br><span class="line">	</span><br><span class="line">	call .wait_io1</span><br><span class="line">	mov al, 0xd1</span><br><span class="line">	out 0x64, al</span><br><span class="line">	</span><br><span class="line">	call .wait_io1</span><br><span class="line">	pop eax</span><br><span class="line">	or al, 2</span><br><span class="line">	out 0x60, al</span><br><span class="line">	</span><br><span class="line">	call .wait_io1</span><br><span class="line">	mov al, 0xae</span><br><span class="line">	out 0x64, al</span><br><span class="line">	</span><br><span class="line">	call .wait_io1</span><br><span class="line">	sti</span><br><span class="line">	ret</span><br><span class="line">.wait_io1:</span><br><span class="line">	in al, 0x64</span><br><span class="line">	test al, 2</span><br><span class="line">	jnz .wait_io1</span><br><span class="line">	ret</span><br><span class="line">.wait_io2:</span><br><span class="line">	in al, 0x64</span><br><span class="line">	test al, 1</span><br><span class="line">	jz .wait_io2</span><br><span class="line">	ret</span><br><span class="line"></span><br><span class="line">;	out:</span><br><span class="line">;		cf - set on error</span><br><span class="line">enable_a20:</span><br><span class="line">	clc									;	clear cf</span><br><span class="line">	pusha</span><br><span class="line">	mov bh, 0							;	clear bh</span><br><span class="line"></span><br><span class="line">	call get_a20_state</span><br><span class="line">	jc .fast_gate</span><br><span class="line"></span><br><span class="line">	test ax, ax</span><br><span class="line">	jnz .done</span><br><span class="line"></span><br><span class="line">	call query_a20_support</span><br><span class="line">	mov bl, al</span><br><span class="line">	test bl, 1							;	enable A20 using keyboard controller</span><br><span class="line">	jnz .keybord_controller</span><br><span class="line"></span><br><span class="line">	test bl, 2							;	enable A20 using fast A20 gate</span><br><span class="line">	jnz .fast_gate</span><br><span class="line">.bios_int:</span><br><span class="line">	mov ax, 0x2401</span><br><span class="line">	int 0x15</span><br><span class="line">	jc .fast_gate</span><br><span class="line">	test ah, ah</span><br><span class="line">	jnz .failed</span><br><span class="line">	call get_a20_state</span><br><span class="line">	test ax, ax</span><br><span class="line">	jnz .done</span><br><span class="line">.fast_gate:</span><br><span class="line">	in al, 0x92</span><br><span class="line">	test al, 2</span><br><span class="line">	jnz .done</span><br><span class="line"></span><br><span class="line">	or al, 2</span><br><span class="line">	and al, 0xfe</span><br><span class="line">	out 0x92, al</span><br><span class="line"></span><br><span class="line">	call get_a20_state</span><br><span class="line">	test ax, ax</span><br><span class="line">	jnz .done</span><br><span class="line"></span><br><span class="line">	test bh, bh							;	test if there was an attempt using the keyboard controller</span><br><span class="line">	jnz .failed</span><br><span class="line">.keybord_controller:</span><br><span class="line">	call enable_a20_keyboard_controller</span><br><span class="line">	call get_a20_state</span><br><span class="line">	test ax, ax</span><br><span class="line">	jnz .done</span><br><span class="line"></span><br><span class="line">	mov bh, 1							;	flag enable attempt with keyboard controller</span><br><span class="line"></span><br><span class="line">	test bl, 2</span><br><span class="line">	jnz .fast_gate</span><br><span class="line">	jmp .failed</span><br><span class="line">.failed:</span><br><span class="line">	stc</span><br><span class="line">.done:</span><br><span class="line">	popa</span><br><span class="line">	ret</span><br></pre></td></tr></table></figure></div>
+<p>这段代码模块划分清晰，大致包含：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">enable_a20</span><br><span class="line">├── get_a20_state          ; 检查当前是否启用了 A20（比较内存内容）</span><br><span class="line">├── query_a20_support      ; 使用 BIOS 查询系统支持哪些 A20 启用方式</span><br><span class="line">├── enable_a20_keyboard_controller  ; 使用键盘控制器开启 A20</span><br><span class="line">├── fallback: port 0x92 Fast A20 Gate 或 BIOS int 0x15</span><br></pre></td></tr></table></figure></div>
+<p><code>get_a20_state</code> – 检查 A20 是否已经启用</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mov ds, 0x0000</span><br><span class="line">mov si, 0x0500</span><br><span class="line">mov es, 0xFFFF</span><br><span class="line">mov di, 0x0510</span><br></pre></td></tr></table></figure></div>
+<p>对比 <code>0x00000500</code> 和 <code>0x00100510</code>
+两个地址是否是 <strong>两个不同位置</strong>：</p>
+<ul>
+<li>如果 A20 <strong>未启用</strong>，访问 <code>0x00100510</code> 会
+wrap 到 <code>0x00000510</code>，写入值一样</li>
+<li>如果 A20 <strong>启用</strong>，则能看到两个地址独立</li>
+</ul>
+<p>通过这两个地址互写不同的值，然后判断它们是否相等来判断 A20 状态。</p>
+<p><code>query_a20_support</code> – 用 <code>int 0x15, ax=0x2403</code>
+检查系统支持的 A20 开启方式</p>
+<p>BIOS 返回 <code>BX</code> 的位表示支持方式：</p>
+<table>
+<thead>
+<tr>
+<th>Bit</th>
+<th>方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>键盘控制器（KBC）</td>
+</tr>
+<tr>
+<td>1</td>
+<td>快速 A20 端口（0x92）</td>
+</tr>
+</tbody>
+</table>
+<p>这部分是用于判断优先使用哪种方法开启 A20。</p>
+<p><code>enable_a20_keyboard_controller</code> – 用键盘控制器方式开启
+A20</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">out 0x64, 0xAD    ; 禁用键盘</span><br><span class="line">out 0x64, 0xD0    ; 命令: 读输出端口</span><br><span class="line">in  al, 0x60      ; 读取当前值</span><br><span class="line">or  al, 2         ; 设置 A20（bit1）</span><br><span class="line">out 0x64, 0xD1    ; 命令: 写输出端口</span><br><span class="line">out 0x60, al      ; 写入修改值</span><br><span class="line">out 0x64, 0xAE    ; 重新启用键盘</span><br></pre></td></tr></table></figure></div>
+<p>这种方式比较传统但慢，兼容性较好。</p>
+<p><code>.fast_gate</code> – 使用端口 <code>0x92</code> 快速开启
+A20（现代推荐）</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">in al, 0x92</span><br><span class="line">or al, 2      ; 设置 A20 enable（bit1）</span><br><span class="line">and al, 0xFE  ; 清除重启位（bit0）</span><br><span class="line">out 0x92, al</span><br></pre></td></tr></table></figure></div>
+<p>这种方式不经过键盘控制器，简单、快速，现代系统普遍支持。</p>
+<p><code>enable_a20</code> – 主函数流程逻辑总结</p>
+<ol type="1">
+<li><strong>尝试检测是否已经开启 A20</strong>，如果是，直接返回。</li>
+<li><strong>查询系统支持的开启方式</strong>。</li>
+<li>优先尝试：
+<ul>
+<li>BIOS <code>int 15h</code>（启用 A20）</li>
+<li>快速端口（0x92）</li>
+<li>键盘控制器（慢）</li>
+</ul></li>
+<li>每次尝试后重新调用 <code>get_a20_state</code>
+检查是否启用成功。</li>
+<li>若都失败，返回 CF=1 代表失败。</li>
+</ol>
+<p>但实际上当我进行调试时发现，在一开始get_a20_state时，两者就已经相等，直接跳转到.done了，这是因为<strong>QEMU、VirtualBox、VMware
+等虚拟机</strong>几乎都会提前启用 A20。</p>
+<h4 id="获取可用内存">获取可用内存</h4>
+<p><code>INT 15h, AX=E820h</code>是 BIOS
+提供的一个服务，用于返回系统物理内存的分布情况（即内存映射表），告诉你哪些内存是可用的、保留的、ACPI
+的、设备的等等。这对后续实现物理内存分配器具有重要作用。</p>
+<p>调用方式如下：</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mov ax, 0xe820        ; 功能号</span><br><span class="line">mov edx, 0x534D4150   ; &quot;SMAP&quot; 魔数，必须设定，否则调用失败</span><br><span class="line">mov ecx, 20           ; 请求的数据结构大小（bytes）</span><br><span class="line">mov ebx, 0            ; 第一次调用时 EBX = 0，之后 BIOS 会填充下一个索引</span><br><span class="line">mov es:di, buffer     ; 内存缓冲区，用于接受返回的结构体</span><br><span class="line"></span><br><span class="line">int 0x15</span><br></pre></td></tr></table></figure></div>
+<p>返回值</p>
+<table>
+<thead>
+<tr>
+<th>寄存器</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CF</td>
+<td>清除，表示成功（即 CF=0）</td>
+</tr>
+<tr>
+<td>EAX</td>
+<td>返回 <code>0x534D4150</code>（"SMAP"），确认有效响应</td>
+</tr>
+<tr>
+<td>ECX</td>
+<td>返回实际写入的字节数（一般为 20）</td>
+</tr>
+<tr>
+<td>EBX</td>
+<td>下一个结构的索引（递归查询用，传入 0 获取第一个）</td>
+</tr>
+<tr>
+<td>ES:DI</td>
+<td>缓冲区里存放了以下结构体：</td>
+</tr>
+</tbody>
+</table>
+<p>结构体格式（20字节，每次读取）</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="type">uint64_t</span> base_addr;     <span class="comment">// 基地址 (低地址 + 高地址)</span></span><br><span class="line">    <span class="type">uint64_t</span> length;        <span class="comment">// 长度（bytes）</span></span><br><span class="line">    <span class="type">uint32_t</span> type;          <span class="comment">// 类型（1 表示可用）</span></span><br><span class="line">&#125; __attribute__((packed)) E820Entry;</span><br></pre></td></tr></table></figure></div>
+<table>
+<thead>
+<tr>
+<th>Type 值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>可用内存（可用于加载内核）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>保留区（系统/设备使用）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ACPI 可恢复内存</td>
+</tr>
+<tr>
+<td>4</td>
+<td>ACPI NVS</td>
+</tr>
+<tr>
+<td>5+</td>
+<td>保留</td>
+</tr>
+</tbody>
+</table>
+<p>我们可以用如下方式进行循环读取到0x5000地址处，每个结构体大小为20字节，其中我们把读取的个数存在0x4FFE地址处。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">get_memory_map:</span><br><span class="line">	push es</span><br><span class="line">; 设置 ES:DI = 0x5000</span><br><span class="line">    mov ax, 0x500</span><br><span class="line">    mov es, ax</span><br><span class="line">    xor di, di               ; ES:DI = 0x5000</span><br><span class="line"></span><br><span class="line">    xor ebx, ebx             ; 初始化 continuation value 为 0</span><br><span class="line">    mov word [0x4FFE], 0	 ; 保存 entry 总数</span><br><span class="line"></span><br><span class="line">.get_next_entry:</span><br><span class="line">    mov eax, 0xE820</span><br><span class="line">    mov edx, 0x534D4150      ; &#x27;SMAP&#x27;</span><br><span class="line">    mov ecx, 20              ; 请求返回结构大小为 20 字节（不含 ACPI）</span><br><span class="line">    mov dword [es:di + 20], 1 ; 保证 type 有默认值</span><br><span class="line">    int 0x15</span><br><span class="line">    jc .done                 ; 如果调用失败，跳出</span><br><span class="line"></span><br><span class="line">    cmp eax, 0x534D4150</span><br><span class="line">    jne .done                ; 如果返回的签名不正确，退出</span><br><span class="line"></span><br><span class="line">    add di, 20               ; 下一个结构体写入位置（每个是 20 字节）</span><br><span class="line">	inc word [0x4FFE]	 	 ; 增加 entry 统计数量</span><br><span class="line"></span><br><span class="line">    test ebx, ebx</span><br><span class="line">    jne .get_next_entry      ; 如果 EBX 非 0，则还有更多条目</span><br><span class="line"></span><br><span class="line">.done:</span><br><span class="line">	pop es</span><br><span class="line">    ret</span><br></pre></td></tr></table></figure></div>
+<p>之后我们写一个打印这个结构体的函数，就可以看到对应空闲可分配的物理内存了（type=1）。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509170147949.png"
+                      class=""
+                >
+<h4 id="更换内核加载地址">更换内核加载地址</h4>
+<p>自己搓的小内核从0x9000-0x9FC00的大约75KB，这点大小可能以后会不够用，所以最好将其加载到0x100000处。这里我们开启A20总线后，实际上我们就可以通过段寄存器加偏移访问到1MB以上的内存了，比如<code>ES:BX = 0xFFFF:0x10 =&gt; 0x100000</code>。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">; boot.asm</span><br><span class="line">; 读取 kernel (加载 kernel.c 编译后的镜像) 到 0x100000</span><br><span class="line">    mov ah, 0x02         ; BIOS function: read sector</span><br><span class="line">    mov al, 20           ; 读取 20 个扇区</span><br><span class="line">    mov ch, 0            ; 柱面</span><br><span class="line">    mov cl, 4            ; 起始扇区（第4个扇区）</span><br><span class="line">    mov dh, 0            ; 磁头</span><br><span class="line">    mov dl, 0x00         ; 软盘</span><br><span class="line">          </span><br><span class="line">	mov bx, 0xffff	     ; 加载地址0x100000 , 0xffff * 16 + 0x10 = 0x100000</span><br><span class="line">	mov es, bx</span><br><span class="line">	mov bx, 0x10</span><br><span class="line">    int 0x13</span><br><span class="line">    jc disk_error</span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509213316618.png"
+                      class=""
+                >
+<p>这里stage2跳转到内核需要进行一些修改，<code>retf</code> 是
+<strong>远返回</strong> 指令，会从栈顶弹出 offset 和
+segment（段选择器）并跳转。所以通过先 push 目标段地址、再 push
+目标偏移，就可以模拟远跳转。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">; stage2.asm</span><br><span class="line"></span><br><span class="line">[BITS 32]</span><br><span class="line">start:</span><br><span class="line">    mov eax, 0x100000     ; 内核入口地址</span><br><span class="line">    push dword 0x08       ; 代码段选择器</span><br><span class="line">    push eax              ; 入口地址</span><br><span class="line">    retf                  ; 执行远返回，相当于 jmp 0x08:0x100000</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>然后把<strong>linker.ld</strong>的加载起始地址换成0x100000，就可以正确进入内核执行了。</p>
+<p>但这里还有个调试的问题，这里<strong>real-mode-gdb</strong>打印时是根据IP的地址进行打印，这里我们所以看到的code又从0地址处开始了，实际上执行还是正常的。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509213434987.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509221352390.png"
+                      class=""
+                >
+<p>那我们看到<strong>gdb_init_real_mode.txt</strong>里是怎么定义的，这里打印CODE是用<code>x /i $rip</code>，这里我们改成<strong>eip</strong>即可。调试相关内容可见<a
+href="https://collectcrop.github.io/blog/2025/04/29/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5-bootloader%E7%BC%96%E5%86%99/#%E8%B0%83%E8%AF%95%E6%96%B9%E6%B3%95">第一章节</a>。</p>
+<div class="highlight-container" data-rel="Plaintext"><figure class="iseeu highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">define context</span><br><span class="line">  printf &quot;---------------------------[ STACK ]---\n&quot;</span><br><span class="line">  _dump_memw $r_ss_sp 8</span><br><span class="line">  printf &quot;\n&quot;</span><br><span class="line">  set $_a = $r_ss_sp + 16</span><br><span class="line">  _dump_memw $_a 8</span><br><span class="line">  printf &quot;\n&quot;</span><br><span class="line">  printf &quot;---------------------------[ DS:SI ]---\n&quot;</span><br><span class="line">  print_data $ds $rsi</span><br><span class="line">  printf &quot;---------------------------[ ES:DI ]---\n&quot;</span><br><span class="line">  print_data $es $rdi</span><br><span class="line"></span><br><span class="line">  printf &quot;----------------------------[ CPU ]----\n&quot;</span><br><span class="line">  print_regs</span><br><span class="line">  print_eflags</span><br><span class="line">  printf &quot;---------------------------[ CODE ]----\n&quot;</span><br><span class="line"></span><br><span class="line">  set $_code_size = $CODE_SIZE</span><br><span class="line"></span><br><span class="line">  # disassemble</span><br><span class="line">  # first call x/i with an address</span><br><span class="line">  # subsequent calls to x/i will increment address</span><br><span class="line">  if ($_code_size &gt; 0)</span><br><span class="line">    x /i $rip</span><br><span class="line">    set $_code_size--</span><br><span class="line">  end</span><br><span class="line">  while ($_code_size &gt; 0)</span><br><span class="line">    x /i</span><br><span class="line">    set $_code_size--</span><br><span class="line">  end</span><br><span class="line">end</span><br></pre></td></tr></table></figure></div>
+<h3 id="pmm实现">PMM实现</h3>
+<h4 id="bitmap方案">bitmap方案</h4>
+<p>pmm是一个物理内存的分配器，是后续实现slub等内存分配器的基础，所以我们要先进行实现。这里比较简单高效的方法是维护一个位图，一个二进制位表示一个内存页是否被分配出去。但实际上我们维护的<strong>bitmap</strong>是一个一个字节存在数组里的，每个<strong>bitmap</strong>表项代表8个物理页面。</p>
+<p>这里我为了方便，选择把第一个可用entry完全交给内核使用。其中我把<strong>MAX_PHYS_MEM_SIZE</strong>直接写死到宏了，而不是通过之前得到的<strong>memory_map</strong>来获取最大可用物理空间大小，这是因为<strong>bitmap</strong>的定义此时只能在声明时指定其大小，目前还没有堆管理机制的动态内存可供分配，这里就简单的先手动指定一下，这时我们需要注意要进行边界检查，因为<strong>memory_map</strong>得到的内存段可能会超过<strong>bitmap</strong>的大小，从而在<strong>clear_bit</strong>时发生越界写。这里自己实现的简易<strong>printf</strong>函数调用了之前实现的<strong>screen.c</strong>里的输出到显存的接口。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/pmm.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 初始化 PMM</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_init</span><span class="params">(<span class="type">uint32_t</span> mem_size)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 分配一个物理页面（返回物理地址）</span></span><br><span class="line"><span class="type">void</span>* <span class="title function_">pmm_alloc_page</span><span class="params">()</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 释放一个物理页面</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_free_page</span><span class="params">(<span class="type">void</span>* p)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 打印 PMM 的信息</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_print_info</span><span class="params">()</span>;</span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/pmm.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;pmm.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;screen.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;common.h&quot;</span>  <span class="comment">// 如果你有通用打印接口</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;layout.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_SIZE 4096</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MAX_PHYS_MEM_SIZE (1024 * 1024 * 128) <span class="comment">// 128MB</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BITMAP_SIZE (MAX_PHYS_MEM_SIZE / PAGE_SIZE / 8)</span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">uint8_t</span> bitmap[BITMAP_SIZE];</span><br><span class="line"><span class="type">static</span> <span class="type">uint32_t</span> total_pages;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义内存映射表结构</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">MemoryMapEntry</span> &#123;</span></span><br><span class="line">    <span class="type">uint64_t</span> base_addr;</span><br><span class="line">    <span class="type">uint64_t</span> length;</span><br><span class="line">    <span class="type">uint32_t</span> type;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">set_bit</span><span class="params">(<span class="type">uint32_t</span> bit)</span> &#123;</span><br><span class="line">    bitmap[bit / <span class="number">8</span>] |= (<span class="number">1</span> &lt;&lt; (bit % <span class="number">8</span>));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">clear_bit</span><span class="params">(<span class="type">uint32_t</span> bit)</span> &#123;</span><br><span class="line">    bitmap[bit / <span class="number">8</span>] &amp;= ~(<span class="number">1</span> &lt;&lt; (bit % <span class="number">8</span>));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">test_bit</span><span class="params">(<span class="type">uint32_t</span> bit)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> bitmap[bit / <span class="number">8</span>] &amp; (<span class="number">1</span> &lt;&lt; (bit % <span class="number">8</span>));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// pmm_init：初始化内存管理</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_init</span><span class="params">(<span class="type">uint32_t</span> memory_map_addr)</span> &#123;</span><br><span class="line">    <span class="type">uint16_t</span> entry_count = *(<span class="type">uint16_t</span>*)MEMORY_MAP_COUNT_ADDR;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">MemoryMapEntry</span>* <span class="title">mmap</span> =</span> (<span class="keyword">struct</span> MemoryMapEntry*)memory_map_addr;</span><br><span class="line">    total_pages = BITMAP_SIZE * <span class="number">8</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 1. 所有页默认全部标记为“已使用”</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; BITMAP_SIZE; i++) &#123;</span><br><span class="line">        bitmap[i] = <span class="number">0xFF</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. 遍历 memory map，只将 type==1 的区域设为“可用，从第二个entry开始，把第一个entry保留给内核使用”</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">1</span>; i &lt; entry_count; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (mmap[i].type != <span class="number">1</span>) <span class="keyword">continue</span>;</span><br><span class="line"></span><br><span class="line">        <span class="type">uint64_t</span> base = mmap[i].base_addr;</span><br><span class="line">        <span class="type">uint64_t</span> length = mmap[i].length;</span><br><span class="line"></span><br><span class="line">        <span class="type">uint32_t</span> start_page = base / PAGE_SIZE;</span><br><span class="line">        <span class="type">uint32_t</span> end_page = (base + length) / PAGE_SIZE;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">uint32_t</span> j = start_page; j &lt; end_page; j++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (j/<span class="number">8</span>&gt;=BITMAP_SIZE) <span class="keyword">break</span>;            <span class="comment">// 避免索引超出位图大小</span></span><br><span class="line">            clear_bit(j);  <span class="comment">// 标记为“空闲”</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3. 保留内核占用页</span></span><br><span class="line">    <span class="keyword">extern</span> <span class="type">uint32_t</span> kernel_end;</span><br><span class="line">    <span class="type">uint32_t</span> used_pages = ((<span class="type">uint32_t</span>)&amp;kernel_end + PAGE_SIZE - <span class="number">1</span>) / PAGE_SIZE;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; used_pages; i++) &#123;</span><br><span class="line">        set_bit(i);  <span class="comment">// 保留内核占用页</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span>* <span class="title function_">pmm_alloc_page</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; total_pages; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!test_bit(i)) &#123;</span><br><span class="line">            set_bit(i);</span><br><span class="line">            <span class="keyword">return</span> (<span class="type">void</span>*)(i * PAGE_SIZE);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>; <span class="comment">// no free page</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_free_page</span><span class="params">(<span class="type">void</span>* addr)</span> &#123;</span><br><span class="line">    <span class="type">uint32_t</span> index = (<span class="type">uint32_t</span>)addr / PAGE_SIZE;</span><br><span class="line">    clear_bit(index);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_print_info</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">const</span> <span class="type">int</span> pages_per_row = <span class="number">64</span>;</span><br><span class="line">    kernel_printf(<span class="string">&quot;Physical Memory Bitmap (#=used, .=free):\n&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; total_pages; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (i % pages_per_row == <span class="number">0</span>) &#123;</span><br><span class="line">            kernel_printf(<span class="string">&quot;\n%u: &quot;</span>, i);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        print_char(test_bit(i) ? <span class="string">&#x27;#&#x27;</span> : <span class="string">&#x27;.&#x27;</span>); <span class="comment">// &#x27;#&#x27; 表示已占用，&#x27;.&#x27; 表示空闲</span></span><br><span class="line">    &#125;</span><br><span class="line">    kernel_printf(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/kernel.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;idt.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;isr.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;irq.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;screen.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;info.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;layout.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;pmm.h&quot;</span></span></span><br><span class="line"><span class="comment">// #include &quot;keyboard.h&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">    clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line">    print_string(<span class="string">&quot;Hello, Kernel!\n&quot;</span>);  <span class="comment">// 打印一行字符</span></span><br><span class="line">    print_memory_map();</span><br><span class="line">    idt_install();</span><br><span class="line">    irq_remap();</span><br><span class="line">    isr_install();</span><br><span class="line">    irq_install();</span><br><span class="line">    </span><br><span class="line">    pmm_init(MEMORY_MAP_ADDR);      <span class="comment">//  初始化物理内存管理</span></span><br><span class="line">    <span class="comment">// pmm_print_info();</span></span><br><span class="line">    <span class="type">void</span>* page1 = pmm_alloc_page();</span><br><span class="line">    kernel_printf(<span class="string">&quot;Allocated page: %x\n&quot;</span>,page1);</span><br><span class="line">    <span class="type">void</span>* page2 = pmm_alloc_page();</span><br><span class="line">    kernel_printf(<span class="string">&quot;Allocated page: %x\n&quot;</span>,page2);</span><br><span class="line">    pmm_free_page(page1);</span><br><span class="line">    pmm_free_page(page2);</span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;sti&quot;</span>)</span>;    <span class="comment">// 开中断</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123; </span><br><span class="line">        <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;hlt&quot;</span>)</span>;  <span class="comment">// 节省CPU</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/layout.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MEMORY_MAP_COUNT_ADDR 0x4FFE</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MEMORY_MAP_ADDR 0x5000</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STAGE2_ADDR 0x8000</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> KERNEL_ADDR 0x9000</span></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// lib/printf.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;screen.h&quot;</span> </span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdarg.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">kernel_printf</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *format, ...)</span> &#123;</span><br><span class="line">    va_list args;</span><br><span class="line">    va_start(args, format);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (*format) &#123;</span><br><span class="line">        <span class="keyword">if</span> (*format == <span class="string">&#x27;%&#x27;</span>) &#123;</span><br><span class="line">            format++;</span><br><span class="line">            <span class="keyword">if</span> (*format == <span class="string">&#x27;d&#x27;</span>) &#123;</span><br><span class="line">                <span class="type">int</span> val = va_arg(args, <span class="type">int</span>);</span><br><span class="line">                print_dec(val);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (*format == <span class="string">&#x27;u&#x27;</span>) &#123;</span><br><span class="line">                <span class="type">unsigned</span> <span class="type">int</span> val = va_arg(args, <span class="type">unsigned</span> <span class="type">int</span>);</span><br><span class="line">                print_unsigned(val);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (*format == <span class="string">&#x27;x&#x27;</span>) &#123;</span><br><span class="line">                <span class="type">unsigned</span> <span class="type">int</span> val = va_arg(args, <span class="type">unsigned</span> <span class="type">int</span>);</span><br><span class="line">                print_hex(val);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (*format == <span class="string">&#x27;l&#x27;</span> &amp;&amp; *(format + <span class="number">1</span>) == <span class="string">&#x27;l&#x27;</span> &amp;&amp; *(format + <span class="number">2</span>) == <span class="string">&#x27;x&#x27;</span>) &#123;</span><br><span class="line">                format += <span class="number">2</span>;  <span class="comment">// skip &quot;ll&quot;</span></span><br><span class="line">                <span class="type">unsigned</span> <span class="type">long</span> <span class="type">long</span> val = va_arg(args, <span class="type">unsigned</span> <span class="type">long</span> <span class="type">long</span>);</span><br><span class="line">                print_hex64(val);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (*format == <span class="string">&#x27;s&#x27;</span>) &#123;</span><br><span class="line">                <span class="type">const</span> <span class="type">char</span> *str = va_arg(args, <span class="type">const</span> <span class="type">char</span> *);</span><br><span class="line">                print_string(str);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (*format == <span class="string">&#x27;c&#x27;</span>) &#123;</span><br><span class="line">                <span class="type">char</span> c = (<span class="type">char</span>)va_arg(args, <span class="type">int</span>);</span><br><span class="line">                print_char(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                print_char(<span class="string">&#x27;%&#x27;</span>);</span><br><span class="line">                print_char(*format);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            print_char(*format);</span><br><span class="line">        &#125;</span><br><span class="line">        format++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    va_end(args);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250509233045245.png"
+                      class=""
+                >
+<h4 id="buddy-system方案">buddy system方案</h4>
+<p>实际上直接用bitmap方案实现物理内存分配存在诸多问题，比如分配效率较低，每次都需要遍历bitmap来查找第一段可用的内存，尤其是当内存快占用满时效率很低。所以可以换用buddy
+system方案。核心思路就是用链表管理不同的连续的页块，连续的大小都为2的幂次，当某个大小的链表为空而又有新的内存分配申请时，就会往高一级大小的链表取大块进行拆分，如果高一级链表也为空，就逐个向上找有块的链表。释放时也会判断与其相邻的块是否空闲，空闲则合并了放入较大大小的链表。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/pmm.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MAX_ORDER 10  <span class="comment">// 支持最大2^10=1024页的块（即4MB）</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_SIZE 4096</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MAX_PAGES (512 * 1024 * 1024 / 4096)  <span class="comment">// 512MB / 4KB = 131072 页</span></span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Page</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Page</span>* <span class="title">next</span>;</span></span><br><span class="line">    <span class="type">uint8_t</span> order;     <span class="comment">// 当前块的阶</span></span><br><span class="line">    <span class="type">uint8_t</span> used;      <span class="comment">// 是否已被分配</span></span><br><span class="line">    <span class="type">uint8_t</span> is_head;  <span class="comment">// 是否为块的起始页</span></span><br><span class="line">&#125; Page;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PageLinkList</span>  &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Page</span>* <span class="title">head</span>;</span>      <span class="comment">// 链表头节点</span></span><br><span class="line">    <span class="type">uint32_t</span> count;         <span class="comment">// 当前空闲链表长度</span></span><br><span class="line">&#125; PageLinkList;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 初始化 PMM</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_init</span><span class="params">(<span class="type">uint32_t</span> mem_size)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 分配一个物理页面（返回物理地址）</span></span><br><span class="line"><span class="type">void</span>* <span class="title function_">pmm_alloc_page</span><span class="params">()</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 分配多个物理页面（返回物理地址）</span></span><br><span class="line"><span class="type">void</span>* <span class="title function_">pmm_alloc_pages</span><span class="params">(<span class="type">uint32_t</span> count)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 释放一个块</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_free_page</span><span class="params">(Page* p)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 打印 PMM 的信息</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_print_info</span><span class="params">()</span>;</span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/pmm.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;pmm.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;screen.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;common.h&quot;</span>  <span class="comment">// 如果你有通用打印接口</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;layout.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;panic.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义内存映射表结构</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">MemoryMapEntry</span> &#123;</span></span><br><span class="line">    <span class="type">uint64_t</span> base_addr;</span><br><span class="line">    <span class="type">uint64_t</span> length;</span><br><span class="line">    <span class="type">uint32_t</span> type;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> Page page_array[MAX_PAGES];               <span class="comment">// 页结构数组，这里用Page类型是因为方便后续直接加入free链表</span></span><br><span class="line"><span class="type">static</span> PageLinkList free_list[MAX_ORDER+<span class="number">1</span>];           <span class="comment">// 每阶空闲链表</span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">uint32_t</span> total_pages;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">add_to_free_list</span><span class="params">(Page* p, <span class="type">uint8_t</span> order)</span> &#123;         <span class="comment">// 插入到链表头部</span></span><br><span class="line">    <span class="keyword">if</span> (p == <span class="literal">NULL</span>||order &gt; MAX_ORDER||!p-&gt;is_head) <span class="keyword">return</span>;</span><br><span class="line">    p-&gt;next = free_list[order].head;</span><br><span class="line">    free_list[order].head = p;</span><br><span class="line">    free_list[order].count++;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">remove_from_free_list</span><span class="params">(Page* p, <span class="type">uint8_t</span> order)</span> &#123;       <span class="comment">// 从链表中删除指定节点</span></span><br><span class="line">    <span class="keyword">if</span> (p == <span class="literal">NULL</span>||order &gt; MAX_ORDER||!p-&gt;is_head) <span class="keyword">return</span>;</span><br><span class="line">    <span class="keyword">if</span> (p == free_list[order].head) &#123;       <span class="comment">// 删除头节点</span></span><br><span class="line">        free_list[order].head = p-&gt;next;</span><br><span class="line">        free_list[order].count--;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">for</span> (Page* cur = free_list[order].head; cur-&gt;next; cur = cur-&gt;next)&#123;</span><br><span class="line">        <span class="keyword">if</span> (cur-&gt;next == p) &#123;</span><br><span class="line">            cur-&gt;next = p-&gt;next;</span><br><span class="line">            free_list[order].count--;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Page* <span class="title function_">fetch_from_free_list</span><span class="params">(<span class="type">uint8_t</span> order)</span> &#123;         <span class="comment">// 从链表中获取指定阶的块，取链表头节点</span></span><br><span class="line">    <span class="keyword">if</span> (order &gt; MAX_ORDER) <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">    <span class="keyword">if</span> (free_list[order].count==<span class="number">0</span>) <span class="keyword">return</span> <span class="literal">NULL</span>;      <span class="comment">// 空链表</span></span><br><span class="line">    Page *p = free_list[order].head;</span><br><span class="line">    free_list[order].head = p-&gt;next;</span><br><span class="line">    free_list[order].count--;</span><br><span class="line">    <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_init</span><span class="params">(<span class="type">uint32_t</span> memory_map_addr)</span> &#123;</span><br><span class="line">    <span class="type">uint16_t</span> entry_count = *(<span class="type">uint16_t</span>*)MEMORY_MAP_COUNT_ADDR;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">MemoryMapEntry</span>* <span class="title">mmap</span> =</span> (<span class="keyword">struct</span> MemoryMapEntry*)memory_map_addr;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 1. 初始化所有页状态</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; MAX_PAGES; i++) &#123;</span><br><span class="line">        page_array[i].used = <span class="number">1</span>;  <span class="comment">// 默认全部占用</span></span><br><span class="line">        page_array[i].order = <span class="number">0</span>;</span><br><span class="line">        page_array[i].next = <span class="literal">NULL</span>;</span><br><span class="line">        page_array[i].is_head = <span class="number">0</span>;      </span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; MAX_ORDER; i++) &#123;</span><br><span class="line">        free_list[i].head = <span class="literal">NULL</span>;</span><br><span class="line">        free_list[i].count = <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. 标记 memory map 中 type==1 的区域为可用（跳过第一个 entry，保留给内核）</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">extern</span> <span class="type">uint32_t</span> kernel_end;</span><br><span class="line">    <span class="type">uint32_t</span> kernel_pages = ((<span class="type">uint32_t</span>)&amp;kernel_end + PAGE_SIZE - <span class="number">1</span>) / PAGE_SIZE;        <span class="comment">// 内核使用的最大页号</span></span><br><span class="line">    kernel_printf(<span class="string">&quot;kernel_end: %x\n&quot;</span>, &amp;kernel_end);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">1</span>; i &lt; entry_count; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (mmap[i].type != <span class="number">1</span>) <span class="keyword">continue</span>;</span><br><span class="line"></span><br><span class="line">        <span class="type">uint32_t</span> base = mmap[i].base_addr;</span><br><span class="line">        <span class="type">uint32_t</span> length = mmap[i].length;</span><br><span class="line"></span><br><span class="line">        <span class="type">uint32_t</span> start_page = base / PAGE_SIZE;</span><br><span class="line">        <span class="type">uint32_t</span> end_page = (base + length) / PAGE_SIZE;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="type">uint32_t</span> j = start_page; j &lt; end_page &amp;&amp; j &lt; MAX_PAGES; ) &#123;</span><br><span class="line">            <span class="keyword">if</span> (j &lt; kernel_pages) &#123;</span><br><span class="line">                j = kernel_pages;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="type">uint32_t</span> order = MAX_ORDER;</span><br><span class="line">            <span class="keyword">while</span> (order &gt; <span class="number">0</span>) &#123;                 <span class="comment">// 从最大阶开始，找到第一个可以分配的块</span></span><br><span class="line">                <span class="type">uint32_t</span> block_size = <span class="number">1</span> &lt;&lt; order;</span><br><span class="line">                <span class="keyword">if</span> (j % block_size == <span class="number">0</span> &amp;&amp; j + block_size &lt;= end_page) <span class="keyword">break</span>;       <span class="comment">// 模除保证对齐</span></span><br><span class="line">                order--;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            page_array[j].order = order;</span><br><span class="line">            page_array[j].used = <span class="number">0</span>;</span><br><span class="line">            page_array[j].is_head = <span class="number">1</span>;</span><br><span class="line">            <span class="comment">// 头部插入新节点，最后插入链表的节点在分配时最先获取</span></span><br><span class="line">            add_to_free_list(&amp;page_array[j], order);</span><br><span class="line"></span><br><span class="line">            j += (<span class="number">1</span> &lt;&lt; order);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">uint8_t</span> <span class="title function_">pmm_get_order</span><span class="params">(<span class="type">uint32_t</span> count)</span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint8_t</span> i = <span class="number">0</span>; i &lt;= MAX_ORDER; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (count &lt;= (<span class="number">1</span> &lt;&lt; i)) &#123;</span><br><span class="line">            <span class="keyword">return</span> i;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    panic(<span class="string">&quot;pmm_get_order: too many pages requested&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">void</span>* <span class="title function_">pmm_alloc_pages</span><span class="params">(<span class="type">uint32_t</span> count)</span> &#123;     <span class="comment">// 申请 count 个页</span></span><br><span class="line">    <span class="type">uint8_t</span> order = pmm_get_order(count);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint8_t</span> current_order = order; current_order &lt;= MAX_ORDER; current_order++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (free_list[current_order].count &gt; <span class="number">0</span>) &#123;         <span class="comment">// 可以找到合适的块</span></span><br><span class="line">            Page* block = fetch_from_free_list(current_order);      <span class="comment">// 取出链表头节点</span></span><br><span class="line"></span><br><span class="line">            <span class="comment">// 拆分直到需要的 order,多余的块加回链表</span></span><br><span class="line">            <span class="keyword">while</span> (current_order &gt; order) &#123;</span><br><span class="line">                current_order--;</span><br><span class="line">                Page* buddy = &amp;page_array[block - page_array + (<span class="number">1</span> &lt;&lt; current_order)];   <span class="comment">// 后半段</span></span><br><span class="line">                buddy-&gt;order = current_order;</span><br><span class="line">                buddy-&gt;used = <span class="number">0</span>;</span><br><span class="line">                buddy-&gt;is_head = <span class="number">1</span>;</span><br><span class="line">                <span class="comment">// 将拆出来的较小的块加入链表</span></span><br><span class="line">                add_to_free_list(buddy, current_order);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            block-&gt;used = <span class="number">1</span>;</span><br><span class="line">            block-&gt;order = order;</span><br><span class="line">            block-&gt;next = <span class="literal">NULL</span>;</span><br><span class="line">            <span class="comment">// block-&gt;is_head = 1;   取出的可以保证一定是块起点</span></span><br><span class="line">            <span class="keyword">return</span> (<span class="type">void</span>*)((block - page_array) * PAGE_SIZE);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>; <span class="comment">// 分配失败</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span>* <span class="title function_">pmm_alloc_page</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> pmm_alloc_pages(<span class="number">1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_free_page</span><span class="params">(Page* p)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (p == <span class="literal">NULL</span> || p-&gt;used == <span class="number">0</span> || p-&gt;is_head == <span class="number">0</span>) panic(<span class="string">&quot;pmm_free_page: invalid page&quot;</span>);</span><br><span class="line">    <span class="type">uint8_t</span> order = p-&gt;order;</span><br><span class="line">    p-&gt;used = <span class="number">0</span>;</span><br><span class="line">    p-&gt;next = free_list[order].head;</span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> page_idx = p - page_array;         <span class="comment">// 计算页号</span></span><br><span class="line">    <span class="keyword">while</span> (order &lt; MAX_ORDER) &#123;</span><br><span class="line">        <span class="type">uint32_t</span> buddy_idx = page_idx ^ (<span class="number">1</span> &lt;&lt; order);        <span class="comment">// 找到可能进行合并的相邻块</span></span><br><span class="line">        Page* buddy = &amp;page_array[buddy_idx];</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 如果 buddy 也空闲，并且在同一阶，且对齐正确</span></span><br><span class="line">        <span class="keyword">if</span> (!buddy-&gt;used &amp;&amp; buddy-&gt;order == order) &#123;</span><br><span class="line">            <span class="comment">// 从该阶链表中移除 buddy</span></span><br><span class="line">            remove_from_free_list(buddy, order);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 合并：取较小页号为新块的起点</span></span><br><span class="line">            <span class="keyword">if</span> (buddy_idx &lt; page_idx) &#123;</span><br><span class="line">                p-&gt;is_head = <span class="number">0</span>;     <span class="comment">// 标记为非块起点</span></span><br><span class="line">                page_idx = buddy_idx;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">else</span> &#123;</span><br><span class="line">                buddy-&gt;is_head = <span class="number">0</span>;     <span class="comment">// 标记为非块起点</span></span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            order++;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">break</span>; <span class="comment">// 无法合并，停止</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 最终将合并后块加入 free_list[order]</span></span><br><span class="line">    Page* merged_page = &amp;page_array[page_idx];</span><br><span class="line">    merged_page-&gt;used = <span class="number">0</span>;</span><br><span class="line">    merged_page-&gt;order = order;</span><br><span class="line">    merged_page-&gt;is_head = <span class="number">1</span>;</span><br><span class="line">    add_to_free_list(merged_page, order);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">pmm_print_info</span><span class="params">()</span>&#123;</span><br><span class="line">    kernel_printf(<span class="string">&quot;pmm info:\n&quot;</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt;= MAX_ORDER; i++)&#123;</span><br><span class="line">        kernel_printf(<span class="string">&quot;size %d (%d): &quot;</span>, <span class="number">1</span> &lt;&lt; i, free_list[i].count);</span><br><span class="line">        <span class="type">uint32_t</span> cnt = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (Page* p = free_list[i].head; p; p = p-&gt;next)&#123;   </span><br><span class="line">            <span class="keyword">if</span> (cnt&gt;=<span class="number">7</span>) &#123;      <span class="comment">// 显示前7个</span></span><br><span class="line">                kernel_printf(<span class="string">&quot;...&quot;</span>);</span><br><span class="line">                <span class="keyword">break</span>;   </span><br><span class="line">            &#125;      </span><br><span class="line">            cnt++;</span><br><span class="line">            kernel_printf(<span class="string">&quot;%x -&gt; &quot;</span>, (p - page_array)* PAGE_SIZE);       <span class="comment">// 输出地址</span></span><br><span class="line">        &#125;</span><br><span class="line">        kernel_printf(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p><strong>buddy判断</strong></p>
+<p>假设你有一个块从页号 <code>page_idx</code> 开始，大小为
+<code>2^order</code>：</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint32_t</span> buddy_idx = page_idx ^ (<span class="number">1</span> &lt;&lt; order);</span><br></pre></td></tr></table></figure></div>
+<p>这个异或操作就是计算 buddy 的位置。</p>
+<ul>
+<li>例如：<code>page_idx = 8</code>, <code>order = 2</code>（块大小 4）
+<ul>
+<li><code>buddy_idx = 8 ^ 4 = 12</code>，所以 <code>8~11</code>
+是一个块，它的 buddy 是 <code>12~15</code></li>
+</ul></li>
+</ul>
+<p>最后在kernel.c中添加如下内容进行测试是否可以正确维护链表。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line"><span class="comment">// print_string(&quot;Hello, Kernel!\n&quot;);  // 打印一行字符</span></span><br><span class="line">print_memory_map();</span><br><span class="line">idt_install();</span><br><span class="line">irq_remap();</span><br><span class="line">isr_install();</span><br><span class="line">irq_install();</span><br><span class="line"></span><br><span class="line">pmm_init(MEMORY_MAP_ADDR);      <span class="comment">// 初始化物理内存管理</span></span><br><span class="line">pmm_print_info();</span><br></pre></td></tr></table></figure></div>
+<p>这里我们通过在<strong>make run</strong>对应的指令中加入-m
+x就可以指定给虚拟机分配的内存。并把头文件的<strong>MAX_PAGES</strong>宏设置为512MB对应的页数。然后跑起来后就能看到有很多1024的块，计算后也很接近512MB。正常工作！</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250518235419035.png"
+                      class=""
+                >
+<h3 id="简单分页机制实现">简单分页机制实现</h3>
+<h4 id="虚拟地址映射">虚拟地址映射</h4>
+<p>由于我们设计的是32位的操作系统，所以这里用到的是两级页表。由于一页的大小是<strong>0x1000</strong>，32位下一个地址占4字节，所以一个页表下能存
+<span class="math inline">\(4096/4=1024=2^{10}\)</span>
+这么多地址，如果这个页表里面用来存下一级页表的地址，就可以构成二级页表。由于我们要把一个32位的虚拟地址映射成为物理地址，我们需要索引到一个页表的项的下标，需要用掉10位，最后的12位又需要保留作为页内的偏移。所以实际上我们的物理地址可以拆分为<code>10-bit 页目录索引</code>
++ <code>10-bit 页表索引</code> +
+<code>12-bit 页内偏移</code>进行映射，而且最多只能用到二级页表。最多能映射
+<span class="math inline">\(2^{20} 页 × 2^{12} 字节 = 2^{32} 字节 =
+4GB\)</span> 的内存。</p>
+<p>实际上我们的地址翻译最终是由硬件进行实现的，在x86架构下，我们需要做的是把页目录设置好后，将其地址加载进<strong>cr3</strong>寄存器，然后最后设置好<strong>cr0</strong>寄存器的值，打开分页功能。这里我们需要知道的是，硬件需要事先知道页表结构分为了几级，之后才可以正确翻译地址。分页结构由
+CPU 模式决定：</p>
+<table>
+<colgroup>
+<col style="width: 44%" />
+<col style="width: 10%" />
+<col style="width: 17%" />
+<col style="width: 27%" />
+</colgroup>
+<thead>
+<tr>
+<th>模式</th>
+<th>名称</th>
+<th>特征</th>
+<th>页表结构</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>实模式</td>
+<td>无分页</td>
+<td>20位地址（1MB）</td>
+<td>无页表</td>
+</tr>
+<tr>
+<td><strong>保护模式 (32位)</strong></td>
+<td>分页模式</td>
+<td>CR0.PG=1</td>
+<td><strong>两级页表（10+10+12）</strong></td>
+</tr>
+<tr>
+<td><strong>PAE 模式 (Physical Address Extension)</strong></td>
+<td>高地址分页</td>
+<td>启用 CR4.PAE=1</td>
+<td>三级页表</td>
+</tr>
+<tr>
+<td><strong>长模式 (64位)</strong></td>
+<td>64位分页</td>
+<td>启用 IA-32e 模式</td>
+<td><strong>四级页表（9+9+9+9+12）</strong></td>
+</tr>
+</tbody>
+</table>
+<p>而页表项（Page Table
+Entry）中也包含一系列的控制位，硬件最后会根据控制位来确定其行为，比如对一个只读的内存写入就会触发<strong>Page
+Fault</strong> 缺页异常。32位下常见的控制位如下：</p>
+<table>
+<colgroup>
+<col style="width: 6%" />
+<col style="width: 34%" />
+<col style="width: 59%" />
+</colgroup>
+<thead>
+<tr>
+<th>位数</th>
+<th>名称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>P（Present）</td>
+<td>页面是否存在</td>
+</tr>
+<tr>
+<td>1</td>
+<td>R/W（Read/Write）</td>
+<td><code>0</code> = 只读，<code>1</code> = 可读可写</td>
+</tr>
+<tr>
+<td>2</td>
+<td>U/S（User/Supervisor）</td>
+<td><code>0</code> = 仅内核访问，<code>1</code> = 用户态也可访问</td>
+</tr>
+<tr>
+<td>3</td>
+<td>PWT</td>
+<td>Page-level Write-Through</td>
+</tr>
+<tr>
+<td>4</td>
+<td>PCD</td>
+<td>Page-level Cache Disable</td>
+</tr>
+<tr>
+<td>5</td>
+<td>A（Accessed）</td>
+<td>是否被访问过</td>
+</tr>
+<tr>
+<td>6</td>
+<td>D（Dirty）</td>
+<td>是否被写过（仅在页表中）</td>
+</tr>
+</tbody>
+</table>
+<p>然后就可以开始着手实现我们的分页机制。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/vmm.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_PRESENT   0x1     <span class="comment">// 页存在</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_RW        0x2     <span class="comment">// 可读写</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_USER      0x4     <span class="comment">// 用户态</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_FLAGS     (PAGE_PRESENT | PAGE_RW)  <span class="comment">// 默认属性</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_SIZE      0x1000  <span class="comment">// 4KB</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_ENTRIES   1024    <span class="comment">// 每个页表/目录有 1024 项</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="type">uint32_t</span> <span class="type">page_entry_t</span>;  <span class="comment">// 页目录项或页表项</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="type">page_entry_t</span> entries[PAGE_ENTRIES];</span><br><span class="line">&#125; __attribute__((aligned(PAGE_SIZE))) <span class="type">page_table_t</span>;     <span class="comment">// 页表</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">vmm_init</span><span class="params">()</span>;        <span class="comment">// 初始化虚拟内存管理</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">map_page</span><span class="params">(<span class="type">uint32_t</span> virt_addr, <span class="type">uint32_t</span> phys_addr, <span class="type">uint32_t</span> flags)</span>;      <span class="comment">// 映射页</span></span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/vmm.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;vmm.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;pmm.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;string.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;common.h&quot;</span></span></span><br><span class="line"><span class="type">page_table_t</span>* kernel_page_directory __attribute__((aligned(PAGE_SIZE)));</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">vmm_init</span><span class="params">()</span> &#123;</span><br><span class="line">    kernel_page_directory = (<span class="type">page_table_t</span>*)pmm_alloc_page();</span><br><span class="line">    <span class="keyword">if</span> (kernel_page_directory == <span class="number">0</span>) &#123;</span><br><span class="line">        kernel_printf(<span class="string">&quot;vmm_init: failed to allocate page directory\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">memset</span>(kernel_page_directory, <span class="number">0</span>, PAGE_SIZE);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建一个页表：映射 0x00000000 - 0x00400000, 前4MB恒等映射，虚拟地址就为物理地址</span></span><br><span class="line">    <span class="type">page_table_t</span>* identity_pt = (<span class="type">page_table_t</span>*)pmm_alloc_page();</span><br><span class="line">    <span class="built_in">memset</span>(identity_pt, <span class="number">0</span>, PAGE_SIZE);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; PAGE_ENTRIES; i++) &#123;</span><br><span class="line">        identity_pt-&gt;entries[i] = (i * PAGE_SIZE) | PAGE_FLAGS;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 页目录第 0 项 → 恒等映射</span></span><br><span class="line">    kernel_page_directory-&gt;entries[<span class="number">0</span>] = ((<span class="type">uint32_t</span>)identity_pt) | PAGE_FLAGS;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 页目录第 768 项 → 高地址映射：0xC0000000 起点（768*4MB）</span></span><br><span class="line">    kernel_page_directory-&gt;entries[<span class="number">768</span>] = ((<span class="type">uint32_t</span>)identity_pt) | PAGE_FLAGS;</span><br><span class="line"></span><br><span class="line">    enable_paging(kernel_page_directory);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">enable_paging</span><span class="params">(<span class="type">page_table_t</span>* kernel_page_directory)</span> &#123;</span><br><span class="line">    <span class="comment">// 设置页目录</span></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;mov %0, %%cr3&quot;</span> :: <span class="string">&quot;r&quot;</span> (kernel_page_directory))</span>;</span><br><span class="line">    <span class="comment">// 开启分页</span></span><br><span class="line">    <span class="type">uint32_t</span> cr0;</span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;mov %%cr0, %0&quot;</span> : <span class="string">&quot;=r&quot;</span> (cr0))</span>;</span><br><span class="line">    cr0 |= <span class="number">0x80000000</span>;  <span class="comment">// 设置PG位,开两级页表</span></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;mov %0, %%cr0&quot;</span> :: <span class="string">&quot;r&quot;</span> (cr0))</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">map_page</span><span class="params">(<span class="type">uint32_t</span> virt_addr, <span class="type">uint32_t</span> phys_addr, <span class="type">uint32_t</span> flags)</span> &#123;</span><br><span class="line">    <span class="type">uint32_t</span> pd_index = virt_addr &gt;&gt; <span class="number">22</span>;             <span class="comment">// 前10位,页目录索引</span></span><br><span class="line">    <span class="type">uint32_t</span> pt_index = (virt_addr &gt;&gt; <span class="number">12</span>) &amp; <span class="number">0x03FF</span>;  <span class="comment">// 中间10位，页表索引</span></span><br><span class="line"></span><br><span class="line">    <span class="type">page_table_t</span>* page_table;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 获取页目录项</span></span><br><span class="line">    <span class="keyword">if</span> (!(kernel_page_directory-&gt;entries[pd_index] &amp; PAGE_PRESENT)) &#123;</span><br><span class="line">        <span class="comment">// 页目录项不存在，分配一个页目录</span></span><br><span class="line">        page_table = (<span class="type">page_table_t</span>*)pmm_alloc_page();</span><br><span class="line">        <span class="built_in">memset</span>(page_table, <span class="number">0</span>, PAGE_SIZE);</span><br><span class="line"></span><br><span class="line">        kernel_page_directory-&gt;entries[pd_index] =</span><br><span class="line">            ((<span class="type">uint32_t</span>)page_table) | flags | PAGE_PRESENT;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 页目录已存在</span></span><br><span class="line">        page_table = (<span class="type">page_table_t</span>*)(kernel_page_directory-&gt;entries[pd_index] &amp; <span class="number">0xFFFFF000</span>);       <span class="comment">// 需要去除最后的flag位</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 设置页表项</span></span><br><span class="line">    <span class="keyword">if</span> (!(page_table-&gt;entries[pt_index] &amp; PAGE_PRESENT)) &#123;          <span class="comment">// 不存在对应页表项</span></span><br><span class="line">        page_table-&gt;entries[pt_index] = (phys_addr &amp; <span class="number">0xFFFFF000</span>) | flags | PAGE_PRESENT;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 可加日志：虚拟地址重复映射</span></span><br><span class="line">        kernel_printf(<span class="string">&quot;map_page: virt_addr %x already exists\n&quot;</span>, virt_addr);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 性能优化：TLB刷新只刷新单页（如果支持）</span></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span> <span class="params">(<span class="string">&quot;invlpg (%0)&quot;</span> :: <span class="string">&quot;r&quot;</span> (virt_addr) : <span class="string">&quot;memory&quot;</span>)</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">unmap_page</span><span class="params">(<span class="type">page_table_t</span>* pd, <span class="type">uint32_t</span> virt_addr)</span> &#123;</span><br><span class="line">    <span class="type">uint32_t</span> pd_idx = (virt_addr &gt;&gt; <span class="number">22</span>) &amp; <span class="number">0x3FF</span>;</span><br><span class="line">    <span class="type">uint32_t</span> pt_idx = (virt_addr &gt;&gt; <span class="number">12</span>) &amp; <span class="number">0x3FF</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">page_table_t</span>* pt = (<span class="type">page_table_t</span>*)(pd-&gt;entries[pd_idx] &amp; <span class="number">0xFFFFF000</span>);</span><br><span class="line">    <span class="keyword">if</span> (!pt) <span class="keyword">return</span>; <span class="comment">// 页表不存在</span></span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> entry = pt-&gt;entries[pt_idx];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (entry &amp; PAGE_PRESENT) &#123;</span><br><span class="line">        <span class="type">uint32_t</span> phys_addr = entry &amp; <span class="number">0xFFFFF000</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 1. 取消页表项</span></span><br><span class="line">        pt-&gt;entries[pt_idx] = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 2. 归还物理页</span></span><br><span class="line">        pmm_free_page(phys_addr);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 3. 刷新 TLB（防止虚地址缓存未失效）</span></span><br><span class="line">        <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;invlpg (%0)&quot;</span> :: <span class="string">&quot;r&quot;</span> (virt_addr) : <span class="string">&quot;memory&quot;</span>)</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<p>这里的页目录和页表所占用的页都由之前实现的<strong>pmm</strong>来进行分配，其中初始化时我们将第一个页目录项下的所有页表进行恒等映射，也就是虚拟地址映射到相同的物理地址，这样前4MB内存建立了恒等映射后，我们刚切换成页表模式后，就不会因为执行下一个指令而立即触发缺页异常。之后我们往高地址<strong>0xC0000000</strong>处也映射了前4MB内存，这方便我们后续跳转到高虚拟地址处执行，取消掉前面4MB的恒等映射。</p>
+<p>这样当我们执行完<strong>vmm_init</strong>切换页表后，仍然可以在低地址处正常执行下一个指令，而且在虚拟地址高地址处也可以正确解析到对应代码。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250512105214571.png"
+                      class=""
+                >
+<h4 id="panic实现">panic实现</h4>
+<p>为了后续我们缺页异常处理时遇到一些错误情况可以直接停止系统运行，这里先实现一个panic函数，可以打印错误信息，后续可以扩展到打印当前堆栈。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/panic.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">panic</span><span class="params">(<span class="type">const</span> <span class="type">char</span>* msg)</span>;</span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/panic.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span> <span class="comment">// 假设你有 screen_print()</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">panic</span><span class="params">(<span class="type">const</span> <span class="type">char</span>* message)</span> &#123;</span><br><span class="line">    <span class="comment">// 停止中断，防止系统进一步运行</span></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span> <span class="params">(<span class="string">&quot;cli&quot;</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 打印信息（可用你自己写的 printf 或 screen_write）</span></span><br><span class="line">    kernel_printf(<span class="string">&quot;\n[!! KERNEL PANIC !!]\n&quot;</span>);</span><br><span class="line">    kernel_printf(<span class="string">&quot; %s\n&quot;</span>, message);</span><br><span class="line">    kernel_printf(<span class="string">&quot; System halted.\n&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 死循环+HLT指令让CPU停下</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;hlt&quot;</span>)</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></div>
+<h4 id="缺页异常实现">缺页异常实现</h4>
+<p>缺页异常通常发生由以下四点触发：</p>
+<ul>
+<li><p><strong>访问了一个尚未映射的虚拟地址</strong></p></li>
+<li><p><strong>访问了没有权限的页面（如写一个只读页）</strong></p></li>
+<li><p><strong>访问了被页保护（protection
+bits）限制的页面</strong></p></li>
+<li><p><strong>页表条目存在但页框没加载到内存（如 demand
+paging）</strong></p></li>
+</ul>
+<p>当发生 Page Fault 异常时，<strong>CPU
+会自动把“访问失败的虚拟地址”放入
+<code>CR2</code></strong>，供异常处理函数使用。</p>
+<p>而且触发 page fault 时，CPU
+会自动压栈错误码（<code>uint32_t</code>），含义如下：</p>
+<table>
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 17%" />
+<col style="width: 76%" />
+</colgroup>
+<thead>
+<tr>
+<th>Bit</th>
+<th>名称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>P（Present）</td>
+<td>0 = 页不存在（没映射）；1 = 页存在（但访问违规）</td>
+</tr>
+<tr>
+<td>1</td>
+<td>W/R</td>
+<td>0 = 读引起；1 = 写引起</td>
+</tr>
+<tr>
+<td>2</td>
+<td>U/S</td>
+<td>0 = CPL=0（内核）；1 = CPL=3（用户）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>RSVD</td>
+<td>页表中保留位被错误设置（对某些 CPU 有效）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>I/D</td>
+<td>0 = 数据访问；1 = 指令执行（仅某些CPU支持执行权限）</td>
+</tr>
+</tbody>
+</table>
+<p>首先为缺页异常（14）写一个回调函数，先从cr2读取到触发缺页异常的地址，然后从传入的寄存器状态可以得到<strong>error_code</strong>，用来判断是由什么触发了缺页异常，进而分别进行处理。一般而言缺页异常都会发生在用户态，内核态的内存一开始就需要全部映射好。所以要进行判断触发缺页异常的地址是否在合理的用户态地址范围内，由于<strong>0xC0000000</strong>开始的虚拟地址一般用来存内核，所以我们将范围限制在<strong>0x1000-0xC0000000</strong>之间，低虚拟地址保留是因为处理addr为<strong>null</strong>的情况。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/isr.c</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">isr_install</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="built_in">memset</span>(interrupt_handlers, <span class="number">0</span>, <span class="keyword">sizeof</span>(<span class="type">isr_t</span>) * <span class="number">256</span>);</span><br><span class="line">    idt_set_gate(<span class="number">0</span>, (<span class="type">uint32_t</span>)isr0, <span class="number">0x08</span>, <span class="number">0x8E</span>);  <span class="comment">// div 0 fault</span></span><br><span class="line">    idt_set_gate(<span class="number">6</span>, (<span class="type">uint32_t</span>)isr6, <span class="number">0x08</span>, <span class="number">0x8E</span>);    <span class="comment">// invalid opcode fault</span></span><br><span class="line">    idt_set_gate(<span class="number">13</span>, (<span class="type">uint32_t</span>)isr13, <span class="number">0x08</span>, <span class="number">0x8E</span>);       <span class="comment">// General Protection Fault</span></span><br><span class="line">    idt_set_gate(<span class="number">14</span>, (<span class="type">uint32_t</span>)isr14, <span class="number">0x08</span>, <span class="number">0x8E</span>);      <span class="comment">// Page Fault</span></span><br><span class="line">    idt_set_gate(<span class="number">0x20</span>, (<span class="type">uint32_t</span>)irq0, <span class="number">0x08</span>, <span class="number">0x8E</span>);       <span class="comment">// IRQ0,timer</span></span><br><span class="line">    idt_set_gate(<span class="number">0x21</span>, (<span class="type">unsigned</span>)irq1, <span class="number">0x08</span>, <span class="number">0x8E</span>);        <span class="comment">/// IRQ1,keyboard</span></span><br><span class="line"></span><br><span class="line">    register_interrupt_handler(<span class="number">0</span>, divide_by_zero_handler);</span><br><span class="line">    register_interrupt_handler(<span class="number">6</span>, invalid_opcode_handler);</span><br><span class="line">    register_interrupt_handler(<span class="number">13</span>, general_protection_fault_handler);</span><br><span class="line">    register_interrupt_handler(<span class="number">14</span>, page_fault_handler);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">page_fault_handler</span><span class="params">(<span class="type">registers_t</span> *regs)</span> &#123;</span><br><span class="line">    <span class="type">uint32_t</span> faulting_address;</span><br><span class="line">    <span class="type">uint32_t</span> new_physical_page;</span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;mov %%cr2, %0&quot;</span> : <span class="string">&quot;=r&quot;</span>(faulting_address))</span>;     <span class="comment">// 获取触发缺页异常的虚拟地址</span></span><br><span class="line">    <span class="type">uint32_t</span> err_code = regs-&gt;err_code;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> present   = err_code &amp; <span class="number">0x1</span>;        <span class="comment">// P 位，0表示页不存在</span></span><br><span class="line">    <span class="type">int</span> rw        = err_code &amp; <span class="number">0x2</span>;        <span class="comment">// W/R 位</span></span><br><span class="line">    <span class="type">int</span> us        = err_code &amp; <span class="number">0x4</span>;        <span class="comment">// U/S 位</span></span><br><span class="line">    <span class="type">int</span> reserved  = err_code &amp; <span class="number">0x8</span>;        <span class="comment">// RSVD 位</span></span><br><span class="line">    <span class="type">int</span> id        = err_code &amp; <span class="number">0x10</span>;       <span class="comment">// I/D 位（少数CPU）</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 调试信息打印</span></span><br><span class="line">    kernel_printf(<span class="string">&quot;Page fault at 0x%x (err_code: 0x%x): &quot;</span>, faulting_address, err_code);</span><br><span class="line">    <span class="keyword">if</span> (!present)  kernel_printf(<span class="string">&quot;page not present, &quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (rw)       kernel_printf(<span class="string">&quot;write, &quot;</span>);</span><br><span class="line">    <span class="keyword">else</span>          kernel_printf(<span class="string">&quot;read, &quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (us)       kernel_printf(<span class="string">&quot;user-mode, &quot;</span>);</span><br><span class="line">    <span class="keyword">else</span>          kernel_printf(<span class="string">&quot;kernel-mode, &quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (reserved) kernel_printf(<span class="string">&quot;RSVD bit set, &quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (id)       kernel_printf(<span class="string">&quot;instruction fetch, &quot;</span>);</span><br><span class="line">    kernel_printf(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line"></span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 分情况处理</span></span><br><span class="line">    <span class="keyword">if</span> (present == <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="comment">// 说明页是存在的，但权限问题（写了只读页、用户访问内核页）</span></span><br><span class="line">        panic(<span class="string">&quot;Page fault: protection violation&quot;</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 缺页，可以考虑是否在合法地址范围内</span></span><br><span class="line">        <span class="keyword">if</span> (is_valid_user_address(faulting_address)) &#123;</span><br><span class="line">            <span class="comment">// 动态分配页框并映射</span></span><br><span class="line">            new_physical_page = pmm_alloc_page();</span><br><span class="line">            kernel_printf(<span class="string">&quot;Allocated page at 0x%x\n&quot;</span>, new_physical_page);</span><br><span class="line">            <span class="keyword">if</span> (!new_physical_page) &#123;</span><br><span class="line">                panic(<span class="string">&quot;Out of memory&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            map_page(faulting_address, new_physical_page, PAGE_USER | PAGE_RW);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 访问了非法地址，比如 NULL deref</span></span><br><span class="line">            panic(<span class="string">&quot;Segmentation Fault: invalid address&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// vmm.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> USER_SPACE_START 0x00001000          <span class="comment">// 跳过 NULL 页</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> USER_SPACE_END   0xC0000000          <span class="comment">// 默认用户空间最大值（3GB）</span></span></span><br><span class="line"><span class="type">bool</span> <span class="title function_">is_valid_user_address</span><span class="params">(<span class="type">uint32_t</span> addr)</span>;</span><br><span class="line"><span class="comment">// vmm.c</span></span><br><span class="line"><span class="type">bool</span> <span class="title function_">is_valid_user_address</span><span class="params">(<span class="type">uint32_t</span> addr)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> addr &gt;= USER_SPACE_START &amp;&amp; addr &lt; USER_SPACE_END;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>然后这里我们在内核入口中测试一下，访问一个未被映射的地址，先读取后写入。这里我为了调试方便在<strong>page_fault_handler</strong>中打印出了pmm分配的物理地址，然后就可以发现确实是只会触发一次缺页异常，并且写入后我们也可以在对应地址处看到写入的值。（这里还没移除前4MB的恒等映射，所以虚拟地址等于物理地址）</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/kernel.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;idt.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;isr.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;irq.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;screen.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;info.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;layout.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;pmm.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;vmm.h&quot;</span></span></span><br><span class="line"><span class="comment">// #include &quot;keyboard.h&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">kernel_main</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">    clear_screen();         <span class="comment">// 清屏</span></span><br><span class="line">    print_string(<span class="string">&quot;Hello, Kernel!\n&quot;</span>);  <span class="comment">// 打印一行字符</span></span><br><span class="line">    print_memory_map();</span><br><span class="line">    idt_install();</span><br><span class="line">    irq_remap();</span><br><span class="line">    isr_install();</span><br><span class="line">    irq_install();</span><br><span class="line">    </span><br><span class="line">    pmm_init(MEMORY_MAP_ADDR);      <span class="comment">// 初始化物理内存管理</span></span><br><span class="line">    vmm_init();                     <span class="comment">// 初始化虚拟内存管理，开启分页</span></span><br><span class="line">    test_page_fault();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;sti&quot;</span>)</span>;    <span class="comment">// 开中断</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123; </span><br><span class="line">        <span class="keyword">asm</span> <span class="title function_">volatile</span><span class="params">(<span class="string">&quot;hlt&quot;</span>)</span>;  <span class="comment">// 节省CPU</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">test_page_fault</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">volatile</span> <span class="type">int</span> *ptr = (<span class="type">int</span>*)<span class="number">0x0E000000</span>;  <span class="comment">// 这个地址大概率没有映射</span></span><br><span class="line">    <span class="type">int</span> val = *ptr;  <span class="comment">// 触发 page fault</span></span><br><span class="line">    *ptr = <span class="number">0x666</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250512142132051.png"
+                      class=""
+                >
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/image-20250512142223887.png"
+                      class=""
+                >
+<h3 id="参考资料">参考资料</h3>
+<p>https://ordoflammae.github.io/littleosbook/#linking-the-kernel</p>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 从零开始搭建自制操作系统——物理内存管理器&amp;简单分页机制实现</li>
+        <li><strong>作者:</strong> collectcrop</li>
+        <li><strong>创建于
+                :</strong> 2025-06-08 21:48:17</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2025-06-08 21:52:41
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://collectcrop.github.io/2025/06/08/从零开始搭建自制操作系统——物理内存管理器-简单分页机制实现/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/OS/">#OS</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——简单内核堆分配器实现/" title="从零开始搭建自制操作系统——简单内核堆分配器实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——简单内核堆分配器实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——简单内核堆分配器实现</span>
+</a><a class="recommended-article-item" href="/blog/2025/05/08/从零开始搭建自制操作系统——中断管理/" title="从零开始搭建自制操作系统——中断管理" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——中断管理" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——中断管理</span>
+</a><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——内核线程调度简单实现/" title="从零开始搭建自制操作系统——内核线程调度简单实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——内核线程调度简单实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——内核线程调度简单实现</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——简单内核堆分配器实现/" title="从零开始搭建自制操作系统——简单内核堆分配器实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——简单内核堆分配器实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——简单内核堆分配器实现</span>
+</a><a class="recommended-article-item" href="/blog/2025/05/08/从零开始搭建自制操作系统——中断管理/" title="从零开始搭建自制操作系统——中断管理" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——中断管理" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——中断管理</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">从零开始搭建自制操作系统——简单内核堆分配器实现</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2025/06/02/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3ret2dlresolve/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">深入理解ret2dlresolve</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">从零开始搭建自制操作系统——物理内存管理器&amp;简单分页机制实现</div>
+		<ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#bootloader%E4%BC%98%E5%8C%96"><span class="nav-text">bootloader优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%90%AF%E7%94%A8a20%E6%80%BB%E7%BA%BF"><span class="nav-text">启用A20总线</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E5%8F%AF%E7%94%A8%E5%86%85%E5%AD%98"><span class="nav-text">获取可用内存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9B%B4%E6%8D%A2%E5%86%85%E6%A0%B8%E5%8A%A0%E8%BD%BD%E5%9C%B0%E5%9D%80"><span class="nav-text">更换内核加载地址</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#pmm%E5%AE%9E%E7%8E%B0"><span class="nav-text">PMM实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#bitmap%E6%96%B9%E6%A1%88"><span class="nav-text">bitmap方案</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#buddy-system%E6%96%B9%E6%A1%88"><span class="nav-text">buddy system方案</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0"><span class="nav-text">简单分页机制实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E6%98%A0%E5%B0%84"><span class="nav-text">虚拟地址映射</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#panic%E5%AE%9E%E7%8E%B0"><span class="nav-text">panic实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BC%BA%E9%A1%B5%E5%BC%82%E5%B8%B8%E5%AE%9E%E7%8E%B0"><span class="nav-text">缺页异常实现</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-text">参考资料</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2025&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 34 篇文章
+                    </span>
+                    
+                        <span>
+                            共 187.1k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>

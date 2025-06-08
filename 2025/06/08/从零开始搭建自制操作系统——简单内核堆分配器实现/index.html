@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Hexo Theme Redefine">
+    
+    <meta name="author" content="collectcrop">
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://collectcrop.github.io/blog/2025/06/08/从零开始搭建自制操作系统——简单内核堆分配器实现/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+        <meta name="description" content="这里借鉴slab&#x2F;slub分配器的思想，往最简单实现一个内核堆分配器。之前我们已经用buddy system实现了物理内存分配器（PMM），也开启分页机制，可以利用虚拟地址。因为PMM分配内存是以页（4KB，0x1000）为粒度的，如果申请一小块结构体的内存就需要申请一整页的内存就过于浪费，所以slab分配器的核心功能是分配远小于一页大小的内存。 主体分配逻辑 从PMM中申请到的一页内存可以">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从零开始搭建自制操作系统——简单内核堆分配器实现">
+<meta property="og:url" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="Collectcrop&#39;s Blog">
+<meta property="og:description" content="这里借鉴slab&#x2F;slub分配器的思想，往最简单实现一个内核堆分配器。之前我们已经用buddy system实现了物理内存分配器（PMM），也开启分页机制，可以利用虚拟地址。因为PMM分配内存是以页（4KB，0x1000）为粒度的，如果申请一小块结构体的内存就需要申请一整页的内存就过于浪费，所以slab分配器的核心功能是分配远小于一页大小的内存。 主体分配逻辑 从PMM中申请到的一页内存可以">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/demo.drawio.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526220648528.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526220809324.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526221014510.png">
+<meta property="og:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526221537211.png">
+<meta property="article:published_time" content="2025-06-08T13:52:12.000Z">
+<meta property="article:modified_time" content="2025-06-08T13:52:56.438Z">
+<meta property="article:author" content="collectcrop">
+<meta property="article:tag" content="OS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://collectcrop.github.io/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/demo.drawio.png">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/blog/images/redefine-favicon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/redefine-favicon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/blog/images/redefine-favicon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            从零开始搭建自制操作系统——简单内核堆分配器实现 | Collectcrop&#39;s Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/blog/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+
+    
+<link rel="stylesheet" href="/blog/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/blog/build/css/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/blog/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/blog/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+    
+    
+    
+        
+<script src="/blog/build/js/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"collectcrop.github.io","root":"/blog/","language":"zh-CN","path":"search.xml"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":6,"number":false,"expand":true,"init_open":true},"copyright":{"enable":true,"default":"cc_by_nc_sa"},"lazyload":true,"pangu_js":false,"recommendation":{"enable":true,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":false,"family":null,"url":null},"english":{"enable":false,"family":null,"url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":false},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"open_graph":true,"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/wallhaven-wqery6-light.webp","dark":"/images/wallhaven-wqery6-dark.webp"},"title":"Collectcrop's Blog","subtitle":{"text":["Loading..."],"hitokoto":{"enable":true,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":true,"style":"default","links":{"github":"https://github.com/collectcrop","instagram":null,"zhihu":null,"twitter":null,"email":null,"qq":"http://wpa.qq.com/msgrd?v=3&uin=2583727188&site=qq&menu=yes"},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"9.3.0"}},"version":"2.8.1","navbar":{"auto_hide":false,"color":{"left":"#f78736","right":"#367df7","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags/","icon":"fa-solid fa-tags"},"Categories":{"path":"/categories/","icon":"fa-solid fa-folder"},"About":{"icon":"fa-regular fa-user","submenus":{"Me":"/about","Friends":"/links"}}},"search":{"enable":false,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":"Just enjoy.","show_on_mobile":true,"links":{"Archives":{"path":"/archives","icon":"fa-regular fa-archive"},"Tags":{"path":"/tags","icon":"fa-regular fa-tags"},"Categories":{"path":"/categories","icon":"fa-regular fa-folder"}}},"article_date_format":"YYYY-MM-DD","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2024/11/23 15:52:11"};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.data = {"masonry":false};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/blog/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/blog/fontawesome/regular.min.css">
+
+    
+    
+    
+    
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        Collectcrop&#39;s Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/blog/">
+                
+                Collectcrop&#39;s Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    归档
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    标签
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/blog/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分类
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-user fa-fw"></i>
+                                    关于
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a href="/blog/about">
+                                                    ME
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a href="/blog/links">
+                                                    友情链接
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/archives"
+                        >
+                            <span>
+                                归档
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/tags/"
+                        >
+                            <span>
+                                标签
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/blog/categories/"
+                        >
+                            <span>
+                                分类
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-About"
+                        >
+                            <span>
+                                关于
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-About">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/about">ME</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           href="/blog/links">友情链接</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+                
+                    
+                    
+                    
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">33</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">9</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/blog/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">34</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">从零开始搭建自制操作系统——简单内核堆分配器实现</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/blog/images/avatar.svg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">collectcrop</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv4</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2025-06-08 21:52:12</span>
+        <span class="mobile">2025-06-08 21:52:12</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2025-06-08 21:52:56</span>
+            <span class="mobile">2025-06-08 21:52:56</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/blog/categories/OS/">OS</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/blog/tags/OS/">OS</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>4.6k 字</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>21 分钟</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<p>这里借鉴slab/slub分配器的思想，往最简单实现一个内核堆分配器。之前我们已经用<strong>buddy
+system</strong>实现了物理内存分配器（PMM），也开启分页机制，可以利用虚拟地址。因为PMM分配内存是以页（4KB，0x1000）为粒度的，如果申请一小块结构体的内存就需要申请一整页的内存就过于浪费，所以slab分配器的核心功能是分配远小于一页大小的内存。</p>
+<h3 id="主体分配逻辑">主体分配逻辑</h3>
+<p>从PMM中申请到的一页内存可以内部划分成多个指定大小的内存块，这样的一页内存这里我称为是<strong>slab_page</strong>，而<strong>slab_page</strong>中的多个可划分内存块我称为是<strong>slab_obj</strong>。其中管理同一大小的<strong>slab_page</strong>用一个链表串联起来。一个<strong>slab_page</strong>内部可以采用<strong>bitmap</strong>或是<strong>freelist</strong>来管理其内部的内存块。用<strong>freelist</strong>管理的好处是可以快速进行分配，避免了使用<strong>bitmap</strong>时顺序查找第一个空闲块的过程，而且<strong>freelist</strong>管理时头部插入也比较方便，最近释放的块可以最先被分配出来，这样就可以提高TLB命中率和CPU
+Cache 命中率，性能上表现也比较好。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/demo.drawio.png"
+                      class=""
+                >
+<p>然后我们可以设计三种缓存状态（full、partial、empty）的链表来分别管理全部分配满，部分分配以及全部未分配的<strong>slab_page</strong>，这样子做有很多好处。比如当我们分配完一个chunk，发现当前的<strong>slab_page</strong>已经全部占满（即<strong>freelist</strong>为空），则可以直接放到full链表中，full链表里的<strong>slab_page</strong>不参与未来分配，因为该页已经没有可分配对象，所以分配器跳过这类页，减少遍历时间。而<strong>empty</strong>链表则暂时存着全空的<strong>slab_page</strong>，而不是直接将物理内存释放的好处是<strong>快速复用</strong>，不需要重新申请页就可以重新初始化使用，省去了向物理内存申请页的成本。在极端情况下，我们申请一个堆块释放一个堆块，由于每次释放后freelist都为全空，如果不进行暂存的话，每次申请和释放就都需要调用PMM的接口来频繁申请/释放内存。将empty链表里的内存归还给物理内存的时机很有讲究，一般<strong>shrink</strong>的时机都是当empty链表存的<strong>slab_page</strong>超过了某个阈值时再进行全部释放。这里的三个链表我们用一个<strong>cache</strong>结构体来进行管理，一个<strong>cache</strong>负责一个固定大小的内存分配。</p>
+<p>我们申请某个大小小于一页的内存，可以先判断大于请求大小的最小size的<strong>cache</strong>的partial是否为空，不空则可以直接从<strong>partial</strong>的<strong>freelist</strong>中直接取一个<strong>slab_obj</strong>作为分配的堆内存；否则尝试从<strong>empty</strong>链表取一个<strong>slab_page</strong>重新放回<strong>partial</strong>中；如果前两个尝试都失败了，最后就会调用PMM的接口去申请一段物理内存并手动建立好页表映射，加入到<strong>partial</strong>表中。最后就可以分配到堆内存。</p>
+<p>这里我们发现实际上还需要申请物理内存并建立页表映射，物理内存分配的细节我们可以不关注（全交给pmm），但我们需要映射到的虚拟地址需要我们进行设计。这里我直接采用线性的方式来得到映射的虚拟地址，也就是说即使释放了某段虚拟地址对应的物理地址并接触了页表映射，这个用过的虚拟地址也不会再进行使用，分配的虚拟地址不断往高虚拟地址处增长。可以这样做的原因在于我们实际可用的虚拟地址较大，而且也不会浪费到实际的物理内存，在我们目前开发的初期可以不用实现繁琐的虚拟地址分配管理。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_page</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_t</span> *<span class="title">next</span>;</span>             <span class="comment">// 指向下一个slab page</span></span><br><span class="line">    <span class="type">uint32_t</span> vaddr;                     <span class="comment">// 其obj页的虚拟地址</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_object_t</span> *<span class="title">freelist</span>;</span>            <span class="comment">// 指向空闲对象链表（对象内维护 next 指针）</span></span><br><span class="line">    <span class="type">uint32_t</span> used_count;                <span class="comment">// 已使用的对象数量</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_cache</span> *<span class="title">owner_cache</span>;</span>     <span class="comment">// slab page 所属的 slab cache</span></span><br><span class="line">    <span class="type">uint8_t</span>  bitmap[<span class="number">16</span>];               <span class="comment">// 最多支持 128 个对象（2048 / 16）,128/8=16</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_t</span> *<span class="title">next_hash</span>;</span>        <span class="comment">// hash table 中的下一个 slab page</span></span><br><span class="line">&#125; <span class="type">slab_page_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_cache</span> &#123;</span></span><br><span class="line">    <span class="type">size_t</span> object_size;</span><br><span class="line">    <span class="type">slab_page_t</span> *partial;</span><br><span class="line">    <span class="type">slab_page_t</span> *full;</span><br><span class="line">    <span class="type">slab_page_t</span> *empty;         <span class="comment">// lazy shrink 时启用</span></span><br><span class="line">    <span class="type">size_t</span> empty_count;</span><br><span class="line">&#125; <span class="type">slab_cache_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_object</span> &#123;</span>        <span class="comment">// slab page 内部管理的对象</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_object</span> *<span class="title">next</span>;</span></span><br><span class="line">    </span><br><span class="line">&#125; <span class="type">slab_object_t</span>;</span><br></pre></td></tr></table></figure></div>
+<h3 id="动态-slab_page-元数据管理设计">动态 slab_page
+元数据管理设计</h3>
+<p>实际上我们还需要一片区域来存slab_page的这个结构体，一种可行的方案是让在初始化<strong>free_list</strong>时就保留前面结构体大小的空间，后面的空间再用来存对应的内存分配对象<strong>obj</strong>，再相应调整<strong>bitmap</strong>的寻址逻辑即可。但这种设计会减少每个<strong>slab_page</strong>能够管理的<strong>obj</strong>数量，极端情况下，比如2048大小的块管理，由于1页空间为4096，本来一个<strong>slab_page</strong>可以管2个<strong>obj</strong>，如果预留了<strong>slab_page</strong>结构体的空间，那么就只能存下1个<strong>obj</strong>，那么我们可以单独为存这个
+<strong>slab_page</strong>
+结构体设计一个申请释放逻辑。这里我们的<strong>slab_page</strong>结构体的内存实际上作为<strong>slab_obj</strong>进行管理，<strong>slab_page_meta_chunk</strong>可以存很多个<strong>slab_page</strong>，同样也是用链表的分配逻辑。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> SLAB_PAGE_META_PER_PAGE (4096 / sizeof(slab_page_t))    <span class="comment">// 每页最多可以存的slab page结构体个数</span></span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_meta_chunk</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_meta_chunk</span> *<span class="title">next</span>;</span></span><br><span class="line">    <span class="type">slab_page_t</span> entries[SLAB_PAGE_META_PER_PAGE];  <span class="comment">// 一页中的 struct 数组</span></span><br><span class="line">&#125; <span class="type">slab_page_meta_chunk_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">slab_page_meta_chunk_t</span> *meta_chunk_list = <span class="literal">NULL</span>;      <span class="comment">// 存slab page元数据结构体的一个特制slab page</span></span><br><span class="line"><span class="type">static</span> <span class="type">slab_page_t</span> *meta_free_list = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">slab_page_t</span> *slab_page_map[SLAB_PAGE_HASH_SIZE];     <span class="comment">// slab page哈希表</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="keyword">inline</span> <span class="type">size_t</span> <span class="title function_">slab_page_hash</span><span class="params">(<span class="type">uintptr_t</span> vaddr)</span> &#123;  <span class="comment">// hash function</span></span><br><span class="line">    <span class="keyword">return</span> (vaddr &gt;&gt; <span class="number">12</span>) % SLAB_PAGE_HASH_SIZE; <span class="comment">// 每页对齐</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">remove_slab_page_from_hash</span><span class="params">(<span class="type">slab_page_t</span> *page)</span>&#123;</span><br><span class="line">    <span class="comment">// 从 slab_page_map 中移除</span></span><br><span class="line">    <span class="type">size_t</span> index = slab_page_hash((<span class="type">uintptr_t</span>)page-&gt;vaddr);</span><br><span class="line">    <span class="type">slab_page_t</span> **cur = &amp;slab_page_map[index];</span><br><span class="line">    <span class="keyword">while</span> (*cur) &#123;</span><br><span class="line">        <span class="keyword">if</span> (*cur == page) &#123;</span><br><span class="line">            *cur = page-&gt;next_hash;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        cur = &amp;(*cur)-&gt;next_hash;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> _alloc_slab_page_meta() &#123;          <span class="comment">// 往PMM发起请求申请一块物理空间</span></span><br><span class="line">    <span class="type">void</span> *vaddr = alloc_heap_page();  <span class="comment">// 分配一页</span></span><br><span class="line">    </span><br><span class="line">    <span class="type">slab_page_meta_chunk_t</span> *chunk = (<span class="type">slab_page_meta_chunk_t</span> *)vaddr;</span><br><span class="line">    chunk-&gt;next = meta_chunk_list;</span><br><span class="line">    meta_chunk_list = chunk;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = SLAB_PAGE_META_PER_PAGE - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</span><br><span class="line">        <span class="comment">// 逐个将slab page元数据结构体放入freelist</span></span><br><span class="line">        <span class="type">slab_page_t</span> *page = &amp;chunk-&gt;entries[i];</span><br><span class="line">        ((<span class="type">slab_object_t</span> *)page)-&gt;next = meta_free_list;</span><br><span class="line">        meta_free_list = (<span class="type">slab_object_t</span> *)page;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">slab_page_t</span> *<span class="title function_">alloc_slab_page_meta</span><span class="params">()</span> &#123;           <span class="comment">// 申请存slab page结构体的空间</span></span><br><span class="line">    <span class="keyword">if</span> (!meta_free_list) &#123;</span><br><span class="line">        _alloc_slab_page_meta();  <span class="comment">// 自动扩展</span></span><br><span class="line">        <span class="keyword">if</span> (!meta_free_list) <span class="keyword">return</span> <span class="literal">NULL</span>;  <span class="comment">// OOM fallback</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="type">slab_page_t</span> *page = (<span class="type">slab_page_t</span> *)meta_free_list;</span><br><span class="line">    meta_free_list = meta_free_list-&gt;next;</span><br><span class="line">    <span class="built_in">memset</span>(page, <span class="number">0</span>, <span class="keyword">sizeof</span>(<span class="type">slab_page_t</span>));</span><br><span class="line">    <span class="keyword">return</span> page;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">free_slab_page_meta</span><span class="params">(<span class="type">slab_page_t</span> *page)</span> &#123;       <span class="comment">// 释放一个 slab page 元数据结构体</span></span><br><span class="line">    ((<span class="type">slab_object_t</span> *)page)-&gt;next = meta_free_list;</span><br><span class="line">    meta_free_list = (<span class="type">slab_object_t</span> *)page;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p>由于我们之后实现<strong>slab_free</strong>时，需要通过一个<strong>slab_obj</strong>的地址来反过来查出所属的<strong>slab_page</strong>，而我们的<strong>slab_page</strong>结构体存的位置和其<strong>obj</strong>的位置是分离的。所以我们需要维护一个<strong>hash
+table</strong>，从而可以从obj所在的虚拟地址页高效查出对应<strong>slab_page</strong>。这里我们还需要解决hash冲突的问题，所以在前面的<strong>slab_page</strong>中定义了一个<strong>next_hash</strong>的字段来管理一个链表，从而在hash冲突时可以通过遍历这个链表来找到对应<strong>slab_page</strong>。</p>
+<h3 id="基本实现">基本实现</h3>
+<p>其中我保留了bitmap在<strong>slab_page</strong>结构体中，主要是为了可以方便判断是否存在<strong>double
+free</strong>，也可以快速定位到某页内存中哪些空间已经被分配利用。</p>
+<p>其中向PMM申请内存并进行页表映射操作都被封装进了<strong>alloc_heap_page</strong>()这个函数中，分配堆内存时只有在对应管理结构的链表的freelist全为空时才会用这个接口去申请物理内存，而且虚拟堆地址的增长也是在这个函数里完成的。</p>
+<p>最后我还实现了一个<strong>dump_slab_cache_partial_freelist</strong>接口来用于打印partial的freelist从而进行调试。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/slab.h</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;heap.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_BASE       0xC1000000</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_MAX_SIZE   0x01000000  <span class="comment">// 16MB</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PAGE_SIZE       4096</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SLAB_MIN_SIZE   16</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SLAB_MAX_SIZE   2048</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SLAB_STEP       16</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> NUM_SLAB_CLASSES ((SLAB_MAX_SIZE / SLAB_STEP) + 1)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SLAB_PAGE_META_PER_PAGE (4096 / sizeof(slab_page_t))    <span class="comment">// 每页最多可以存的slab page结构体个数</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> MAX_EMPTY_PAGES 8   <span class="comment">// 阈值,empty链表长度超过阈值时,释放空闲页</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> SLAB_PAGE_HASH_SIZE 4096    <span class="comment">// hash table 大小</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_page</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_t</span> *<span class="title">next</span>;</span>             <span class="comment">// 指向下一个slab page</span></span><br><span class="line">    <span class="type">uint32_t</span> vaddr;                     <span class="comment">// 其obj页的虚拟地址</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_object_t</span> *<span class="title">freelist</span>;</span>            <span class="comment">// 指向空闲对象链表（对象内维护 next 指针）</span></span><br><span class="line">    <span class="type">uint32_t</span> used_count;                <span class="comment">// 已使用的对象数量</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_cache</span> *<span class="title">owner_cache</span>;</span>     <span class="comment">// slab page 所属的 slab cache</span></span><br><span class="line">    <span class="type">uint8_t</span>  bitmap[<span class="number">16</span>];               <span class="comment">// 最多支持 128 个对象（2048 / 16）,128/8=16</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_t</span> *<span class="title">next_hash</span>;</span>        <span class="comment">// hash table 中的下一个 slab page</span></span><br><span class="line">&#125; <span class="type">slab_page_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_cache</span> &#123;</span></span><br><span class="line">    <span class="type">size_t</span> object_size;</span><br><span class="line">    <span class="type">slab_page_t</span> *partial;</span><br><span class="line">    <span class="type">slab_page_t</span> *full;</span><br><span class="line">    <span class="type">slab_page_t</span> *empty;         <span class="comment">// lazy shrink 时启用</span></span><br><span class="line">    <span class="type">size_t</span> empty_count;</span><br><span class="line">&#125; <span class="type">slab_cache_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_object</span> &#123;</span>        <span class="comment">// slab page 内部管理的对象</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_object</span> *<span class="title">next</span>;</span></span><br><span class="line">    </span><br><span class="line">&#125; <span class="type">slab_object_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_meta_chunk</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_meta_chunk</span> *<span class="title">next</span>;</span></span><br><span class="line">    <span class="type">slab_page_t</span> entries[SLAB_PAGE_META_PER_PAGE];  <span class="comment">// 一页中的 struct 数组</span></span><br><span class="line">&#125; <span class="type">slab_page_meta_chunk_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// typedef struct meta_free_list_node &#123;      // 用于meta_free_list链表</span></span><br><span class="line"><span class="comment">//     struct meta_free_list_node_t *next;</span></span><br><span class="line"><span class="comment">//     slab_page_t *page;</span></span><br><span class="line"><span class="comment">// &#125; meta_free_list_node_t;</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">slab_init</span><span class="params">()</span>;</span><br><span class="line"><span class="type">void</span>* <span class="title function_">slab_alloc</span><span class="params">(<span class="type">size_t</span> size)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">slab_free</span><span class="params">(<span class="type">void</span> * ptr)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">init_freelist</span><span class="params">(<span class="type">slab_page_t</span> *page, <span class="type">size_t</span> object_size)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">add_to_list</span><span class="params">(<span class="type">slab_page_t</span> **<span class="built_in">list</span>, <span class="type">slab_page_t</span> *page)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">remove_from_list</span><span class="params">(<span class="type">slab_page_t</span> **<span class="built_in">list</span>, <span class="type">slab_page_t</span> *page)</span>;</span><br><span class="line"><span class="type">static</span> <span class="type">uint32_t</span> <span class="title function_">alloc_heap_page</span><span class="params">(<span class="type">void</span>)</span>;</span><br><span class="line"><span class="type">slab_page_t</span>* <span class="title function_">get_slab_page</span><span class="params">(<span class="type">void</span> *vaddr)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">dump_slab_cache_partial_freelist</span><span class="params">(<span class="type">size_t</span> size)</span>;</span><br></pre></td></tr></table></figure></div>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// memory/slab.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;slab.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;pmm.h&quot;</span>  <span class="comment">// 物理页分配器</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;vmm.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;printf.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;common.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;string.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">slab_cache_t</span> slab_caches[NUM_SLAB_CLASSES];          <span class="comment">// 每个大小设置一个缓存</span></span><br><span class="line"><span class="type">static</span> <span class="type">uint32_t</span> heap_next_free = HEAP_BASE;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">slab_page_meta_chunk_t</span> *meta_chunk_list = <span class="literal">NULL</span>;      <span class="comment">// 存slab page元数据结构体的一个特制slab page</span></span><br><span class="line"><span class="type">static</span> <span class="type">slab_page_t</span> *meta_free_list = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">slab_page_t</span> *slab_page_map[SLAB_PAGE_HASH_SIZE];     <span class="comment">// slab page哈希表</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="keyword">inline</span> <span class="type">size_t</span> <span class="title function_">slab_page_hash</span><span class="params">(<span class="type">uintptr_t</span> vaddr)</span> &#123;  <span class="comment">// hash function</span></span><br><span class="line">    <span class="keyword">return</span> (vaddr &gt;&gt; <span class="number">12</span>) % SLAB_PAGE_HASH_SIZE; <span class="comment">// 每页对齐</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">remove_slab_page_from_hash</span><span class="params">(<span class="type">slab_page_t</span> *page)</span>&#123;</span><br><span class="line">    <span class="comment">// 从 slab_page_map 中移除</span></span><br><span class="line">    <span class="type">size_t</span> index = slab_page_hash((<span class="type">uintptr_t</span>)page-&gt;vaddr);</span><br><span class="line">    <span class="type">slab_page_t</span> **cur = &amp;slab_page_map[index];</span><br><span class="line">    <span class="keyword">while</span> (*cur) &#123;</span><br><span class="line">        <span class="keyword">if</span> (*cur == page) &#123;</span><br><span class="line">            *cur = page-&gt;next_hash;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        cur = &amp;(*cur)-&gt;next_hash;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> _alloc_slab_page_meta() &#123;          <span class="comment">// 往PMM发起请求申请一块物理空间</span></span><br><span class="line">    <span class="type">void</span> *vaddr = alloc_heap_page();  <span class="comment">// 分配一页</span></span><br><span class="line">    </span><br><span class="line">    <span class="type">slab_page_meta_chunk_t</span> *chunk = (<span class="type">slab_page_meta_chunk_t</span> *)vaddr;</span><br><span class="line">    chunk-&gt;next = meta_chunk_list;</span><br><span class="line">    meta_chunk_list = chunk;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = SLAB_PAGE_META_PER_PAGE - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</span><br><span class="line">        <span class="comment">// 逐个将slab page元数据结构体放入freelist</span></span><br><span class="line">        <span class="type">slab_page_t</span> *page = &amp;chunk-&gt;entries[i];</span><br><span class="line">        ((<span class="type">slab_object_t</span> *)page)-&gt;next = meta_free_list;</span><br><span class="line">        meta_free_list = (<span class="type">slab_object_t</span> *)page;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">slab_page_t</span> *<span class="title function_">alloc_slab_page_meta</span><span class="params">()</span> &#123;           <span class="comment">// 申请存slab page结构体的空间</span></span><br><span class="line">    <span class="keyword">if</span> (!meta_free_list) &#123;</span><br><span class="line">        _alloc_slab_page_meta();  <span class="comment">// 自动扩展</span></span><br><span class="line">        <span class="keyword">if</span> (!meta_free_list) <span class="keyword">return</span> <span class="literal">NULL</span>;  <span class="comment">// OOM fallback</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="type">slab_page_t</span> *page = (<span class="type">slab_page_t</span> *)meta_free_list;</span><br><span class="line">    meta_free_list = meta_free_list-&gt;next;</span><br><span class="line">    <span class="built_in">memset</span>(page, <span class="number">0</span>, <span class="keyword">sizeof</span>(<span class="type">slab_page_t</span>));</span><br><span class="line">    <span class="keyword">return</span> page;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">free_slab_page_meta</span><span class="params">(<span class="type">slab_page_t</span> *page)</span> &#123;       <span class="comment">// 释放一个 slab page 元数据结构体</span></span><br><span class="line">    ((<span class="type">slab_object_t</span> *)page)-&gt;next = meta_free_list;</span><br><span class="line">    meta_free_list = (<span class="type">slab_object_t</span> *)page;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="keyword">inline</span> <span class="type">int</span> <span class="title function_">slab_index</span><span class="params">(<span class="type">size_t</span> size)</span> &#123;</span><br><span class="line">    <span class="comment">// 获取 slab 索引</span></span><br><span class="line">    <span class="keyword">if</span> (size &gt; SLAB_MAX_SIZE) <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    <span class="type">int</span> idx = (size - <span class="number">1</span>) / SLAB_STEP;       </span><br><span class="line">    <span class="keyword">return</span> idx;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">uint32_t</span> <span class="title function_">alloc_heap_page</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (heap_next_free &gt;= HEAP_BASE + HEAP_MAX_SIZE) <span class="keyword">return</span> <span class="number">0</span>;          <span class="comment">// 堆已满</span></span><br><span class="line">    <span class="type">uint32_t</span> vaddr = heap_next_free;</span><br><span class="line">    heap_next_free += PAGE_SIZE;</span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> phys = pmm_alloc_page();</span><br><span class="line">    <span class="keyword">if</span> (!phys) <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    map_page(vaddr, phys, PAGE_RW|PAGE_PRESENT);  <span class="comment">// present + writable</span></span><br><span class="line">    <span class="keyword">if</span> (DEBUG) kernel_printf(<span class="string">&quot;alloc_heap_page: %x\n&quot;</span>, vaddr);</span><br><span class="line">    <span class="keyword">return</span> vaddr;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">free_heap_page</span><span class="params">(<span class="type">slab_page_t</span> *page)</span>&#123;</span><br><span class="line">    unmap_page(page-&gt;vaddr);</span><br><span class="line">    free_slab_page_meta(page);</span><br><span class="line">    remove_slab_page_from_hash(page);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">slab_init</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; NUM_SLAB_CLASSES; i++) &#123;</span><br><span class="line">        slab_caches[i].object_size = SLAB_MIN_SIZE + i * SLAB_STEP;</span><br><span class="line">        slab_caches[i].partial = <span class="literal">NULL</span>;</span><br><span class="line">        slab_caches[i].full = <span class="literal">NULL</span>;</span><br><span class="line">        slab_caches[i].empty = <span class="literal">NULL</span>;</span><br><span class="line">        slab_caches[i].empty_count = <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> *<span class="title function_">slab_alloc</span><span class="params">(<span class="type">size_t</span> size)</span> &#123;</span><br><span class="line">    <span class="type">slab_page_t</span> *page = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="keyword">if</span> (size == <span class="number">0</span>) <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> idx = slab_index(size);</span><br><span class="line">    <span class="keyword">if</span> (idx &lt; <span class="number">0</span> || idx &gt;= NUM_SLAB_CLASSES) &#123;</span><br><span class="line">        <span class="comment">// fallback：大块直接按页分配，先写个雏形，后续再完善</span></span><br><span class="line">        <span class="type">uint32_t</span> pages = (size + PAGE_SIZE - <span class="number">1</span>) / PAGE_SIZE;</span><br><span class="line">        <span class="type">void</span> *ptr = (<span class="type">void</span> *)heap_next_free;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; pages; i++) alloc_heap_page();</span><br><span class="line">        <span class="keyword">return</span> ptr;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">slab_cache_t</span> *cache = &amp;slab_caches[idx];</span><br><span class="line">    <span class="type">size_t</span> objs_per_page = PAGE_SIZE / cache-&gt;object_size;      <span class="comment">// 一个页可以存多少个对象</span></span><br><span class="line">    <span class="type">size_t</span> obj_size = cache-&gt;object_size;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 优先从 partial 取</span></span><br><span class="line">    <span class="keyword">if</span> (cache-&gt;partial) &#123;</span><br><span class="line">        page = cache-&gt;partial;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 然后尝试复用 empty 页</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (cache-&gt;empty) &#123;</span><br><span class="line">        page = cache-&gt;empty;</span><br><span class="line">        <span class="comment">// 从 empty 中移除</span></span><br><span class="line">        cache-&gt;empty = page-&gt;next;</span><br><span class="line">        page-&gt;next = <span class="literal">NULL</span>;</span><br><span class="line">        cache-&gt;empty_count--;</span><br><span class="line">        <span class="comment">// 重置 freelist</span></span><br><span class="line">        init_freelist(page, cache-&gt;object_size);</span><br><span class="line">        page-&gt;used_count = <span class="number">0</span>;</span><br><span class="line">        add_to_list(&amp;cache-&gt;partial, page);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 分配一个新的 slab 页</span></span><br><span class="line">    <span class="keyword">else</span> &#123;</span><br><span class="line">        page = alloc_slab_page_meta();      <span class="comment">// 申请存slab page元数据结构体的空间</span></span><br><span class="line">        <span class="keyword">if</span> (!page) <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">        <span class="type">uint32_t</span> vaddr = alloc_heap_page();      <span class="comment">// 分配存obj的空间</span></span><br><span class="line">        <span class="keyword">if</span> (!vaddr) <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">        </span><br><span class="line">        page-&gt;vaddr = vaddr;</span><br><span class="line">        page-&gt;used_count = <span class="number">0</span>;</span><br><span class="line">        page-&gt;owner_cache = cache;</span><br><span class="line">        <span class="built_in">memset</span>(page-&gt;bitmap, <span class="number">0</span>, <span class="keyword">sizeof</span>(page-&gt;bitmap));</span><br><span class="line">        init_freelist(page, cache-&gt;object_size);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 添加进哈希表</span></span><br><span class="line">        <span class="type">size_t</span> index = slab_page_hash((<span class="type">uintptr_t</span>)vaddr);</span><br><span class="line">        page-&gt;next_hash = slab_page_map[index];</span><br><span class="line">        slab_page_map[index] = page;</span><br><span class="line"></span><br><span class="line">        add_to_list(&amp;cache-&gt;partial, page);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 取一个obj出来分配</span></span><br><span class="line">    <span class="type">slab_object_t</span> *obj = page-&gt;freelist;</span><br><span class="line">    <span class="keyword">if</span> (!obj) <span class="keyword">return</span> <span class="literal">NULL</span>; </span><br><span class="line"></span><br><span class="line">    <span class="comment">// 维护 bitmap</span></span><br><span class="line">    <span class="type">uint32_t</span> offset = (<span class="type">uint32_t</span>)obj - page-&gt;vaddr;</span><br><span class="line">    <span class="type">size_t</span> index = offset / obj_size;</span><br><span class="line">    <span class="type">uint8_t</span> bit_offset = index % <span class="number">8</span>;</span><br><span class="line">    page-&gt;bitmap[index/<span class="number">8</span>] |= (<span class="number">1</span> &lt;&lt; bit_offset);  <span class="comment">// 标记为已使用</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 从 freelist 中取出</span></span><br><span class="line">    page-&gt;freelist = obj-&gt;next;</span><br><span class="line">    page-&gt;used_count++;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 清空整个对象空间,清除旧指针</span></span><br><span class="line">    <span class="built_in">memset</span>(obj, <span class="number">0</span>, obj_size);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (page-&gt;used_count == objs_per_page) &#123;</span><br><span class="line">        <span class="comment">// 移动到 full list</span></span><br><span class="line">        remove_from_list(&amp;cache-&gt;partial, page);</span><br><span class="line">        add_to_list(&amp;cache-&gt;full, page);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (DEBUG)  kernel_printf(<span class="string">&quot;slab alloc: %x, size:%d\n&quot;</span>, obj, obj_size);</span><br><span class="line">    <span class="keyword">return</span> (<span class="type">void</span> *)obj;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">slab_free</span><span class="params">(<span class="type">void</span> *ptr)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!ptr) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> vaddr = (<span class="type">uint32_t</span>)ptr;</span><br><span class="line">    <span class="type">slab_page_t</span> *page = get_slab_page(vaddr);</span><br><span class="line">    <span class="keyword">if</span> (!page || !page-&gt;owner_cache) <span class="keyword">return</span>;   <span class="comment">// 非 slab 管理区</span></span><br><span class="line"></span><br><span class="line">    <span class="type">slab_cache_t</span> *cache = page-&gt;owner_cache;    <span class="comment">// 反查所属 slab cache</span></span><br><span class="line">    <span class="type">size_t</span> obj_size = cache-&gt;object_size;</span><br><span class="line">    <span class="type">size_t</span> objs_per_page = PAGE_SIZE / obj_size;</span><br><span class="line"></span><br><span class="line">    <span class="type">uint32_t</span> offset = vaddr - page-&gt;vaddr;</span><br><span class="line">    <span class="keyword">if</span> (offset % obj_size != <span class="number">0</span> || offset &gt;= PAGE_SIZE) <span class="keyword">return</span>;  <span class="comment">// 非合法对象指针</span></span><br><span class="line"></span><br><span class="line">    <span class="type">size_t</span> index = offset / obj_size;</span><br><span class="line">    <span class="type">size_t</span> byte_index = index / <span class="number">8</span>;</span><br><span class="line">    <span class="type">size_t</span> bit_offset = index % <span class="number">8</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// double free 检查：如果这个 bit 已经是 0，说明已经释放过了</span></span><br><span class="line">    <span class="keyword">if</span> (((page-&gt;bitmap[byte_index] &gt;&gt; bit_offset) &amp; <span class="number">1</span>) == <span class="number">0</span>) &#123;</span><br><span class="line">        kernel_printf(<span class="string">&quot;double free detected!\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;  <span class="comment">// double free</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 标记为未使用（bit 清零）</span></span><br><span class="line">    page-&gt;bitmap[byte_index] &amp;= ~(<span class="number">1</span> &lt;&lt; bit_offset);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 插入回 freelist</span></span><br><span class="line">    ((<span class="type">slab_object_t</span> *)ptr)-&gt;next = page-&gt;freelist;</span><br><span class="line">    page-&gt;freelist = (<span class="type">slab_object_t</span> *)ptr;</span><br><span class="line"></span><br><span class="line">    page-&gt;used_count--;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 从 full → partial</span></span><br><span class="line">    <span class="keyword">if</span> (page-&gt;used_count == objs_per_page - <span class="number">1</span>) &#123;</span><br><span class="line">        remove_from_list(&amp;cache-&gt;full, page);</span><br><span class="line">        add_to_list(&amp;cache-&gt;partial, page);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 从 partial → empty</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (page-&gt;used_count == <span class="number">0</span>) &#123;</span><br><span class="line">        remove_from_list(&amp;cache-&gt;partial, page);</span><br><span class="line">        <span class="comment">// lazy shrink: 加入 empty 链表（不立刻释放）</span></span><br><span class="line">        add_to_list(&amp;cache-&gt;empty, page);</span><br><span class="line">        cache-&gt;empty_count++;</span><br><span class="line">        <span class="keyword">if</span> (cache-&gt;empty_count &gt; MAX_EMPTY_PAGES) &#123;</span><br><span class="line">            shrink_slab_cache(cache);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">shrink_slab_cache</span><span class="params">(<span class="type">slab_cache_t</span> *cache)</span> &#123;       </span><br><span class="line">    <span class="comment">// 释放 empty 链表</span></span><br><span class="line">    <span class="type">slab_page_t</span> *page = cache-&gt;empty;</span><br><span class="line">    <span class="keyword">while</span> (page) &#123;</span><br><span class="line">        <span class="comment">// 实际释放 slab page</span></span><br><span class="line">        free_heap_page((<span class="type">void</span> *)page);</span><br><span class="line">        page = page-&gt;next;</span><br><span class="line">    &#125;</span><br><span class="line">    cache-&gt;empty_count = <span class="number">0</span>;</span><br><span class="line">    cache-&gt;empty = <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="type">slab_page_t</span> *<span class="title function_">get_slab_page</span><span class="params">(<span class="type">void</span> *ptr)</span> &#123;</span><br><span class="line">    <span class="comment">// 从虚拟地址获取到所属的slab page</span></span><br><span class="line">    <span class="type">uintptr_t</span> page_base = (<span class="type">uintptr_t</span>)ptr &amp; ~(PAGE_SIZE - <span class="number">1</span>);        <span class="comment">// 去除最后12位</span></span><br><span class="line">    <span class="type">size_t</span> index = slab_page_hash(page_base);</span><br><span class="line"></span><br><span class="line">    <span class="type">slab_page_t</span> *cur = slab_page_map[index];</span><br><span class="line">    <span class="keyword">while</span> (cur) &#123;</span><br><span class="line">        <span class="keyword">if</span> (cur-&gt;vaddr == page_base)</span><br><span class="line">            <span class="keyword">return</span> cur;</span><br><span class="line">        cur = cur-&gt;next_hash;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">init_freelist</span><span class="params">(<span class="type">slab_page_t</span> *page, <span class="type">size_t</span> obj_size)</span> &#123;            <span class="comment">// 初始化page内部管理的freelist</span></span><br><span class="line">    <span class="type">size_t</span> objs_per_page = PAGE_SIZE / obj_size;</span><br><span class="line">    page-&gt;freelist = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = objs_per_page - <span class="number">1</span>; i &gt;= <span class="number">0</span>; i--) &#123;</span><br><span class="line">        <span class="type">slab_object_t</span> *obj = (<span class="type">slab_object_t</span> *)(page-&gt;vaddr + i * obj_size);</span><br><span class="line">        obj-&gt;next = page-&gt;freelist;</span><br><span class="line">        page-&gt;freelist = obj;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">dump_slab_cache_partial_freelist</span><span class="params">(<span class="type">size_t</span> size)</span> &#123;            <span class="comment">// 查看slab caches的partial链表</span></span><br><span class="line">    <span class="keyword">if</span> (size == <span class="number">0</span> || size&gt;=NUM_SLAB_CLASSES*SLAB_STEP) <span class="keyword">return</span>;</span><br><span class="line">    <span class="type">slab_cache_t</span> *cache = &amp;slab_caches[(size<span class="number">-1</span>) / SLAB_STEP];</span><br><span class="line">    <span class="type">slab_page_t</span> *partial = cache-&gt;partial;</span><br><span class="line">    <span class="keyword">if</span> (!partial) <span class="keyword">return</span>;</span><br><span class="line">    kernel_printf(<span class="string">&quot;slab cache partial list for size %d:\n&quot;</span>, cache-&gt;object_size);</span><br><span class="line">    <span class="type">size_t</span> cnt1 = <span class="number">0</span>;       <span class="comment">// 记录已打印的freelist表项，限制最大显示长度</span></span><br><span class="line">    <span class="type">size_t</span> cnt2 = <span class="number">0</span>;       <span class="comment">// 记录已打印的partial表项，限制最大显示长度</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">slab_page_t</span> *p = partial; p&amp;&amp;cnt2&lt;=<span class="number">5</span>; p = p-&gt;next,cnt2++)&#123;         <span class="comment">// 遍历partial链表</span></span><br><span class="line">        kernel_printf(<span class="string">&quot;partial-%d freelist:&quot;</span>,cnt2);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">slab_page_t</span> *page = p-&gt;freelist; page&amp;&amp;cnt1&lt;=<span class="number">5</span>; page = page-&gt;next,cnt1++) &#123;      <span class="comment">// 遍历freelist</span></span><br><span class="line">            kernel_printf(<span class="string">&quot; %x-&gt;&quot;</span>, page);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    kernel_printf(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">    </span><br><span class="line">&#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">add_to_list</span><span class="params">(<span class="type">slab_page_t</span> **<span class="built_in">list</span>, <span class="type">slab_page_t</span> *page)</span> &#123;</span><br><span class="line">    page-&gt;next = *<span class="built_in">list</span>;</span><br><span class="line">    *<span class="built_in">list</span> = page;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">remove_from_list</span><span class="params">(<span class="type">slab_page_t</span> **<span class="built_in">list</span>, <span class="type">slab_page_t</span> *page)</span> &#123;</span><br><span class="line">    <span class="type">slab_page_t</span> *prev = <span class="literal">NULL</span>, *cur = *<span class="built_in">list</span>;</span><br><span class="line">    <span class="keyword">while</span> (cur) &#123;</span><br><span class="line">        <span class="keyword">if</span> (cur == page) &#123;</span><br><span class="line">            <span class="keyword">if</span> (prev) prev-&gt;next = cur-&gt;next;</span><br><span class="line">            <span class="keyword">else</span> *<span class="built_in">list</span> = cur-&gt;next;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        prev = cur;</span><br><span class="line">        cur = cur-&gt;next;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h3 id="简单测试结果">简单测试结果</h3>
+<p>这里在<strong>kernel_main</strong>里写几个测试堆分配的函数，调用这些函数看看堆管理的基本行为是否符合预期。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">test_basic_alloc_free</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">void</span> *a = kmalloc(<span class="number">32</span>);</span><br><span class="line">    <span class="type">void</span> *b = kmalloc(<span class="number">32</span>);</span><br><span class="line">    <span class="type">void</span> *c = kmalloc(<span class="number">32</span>);</span><br><span class="line"></span><br><span class="line">    kernel_printf(<span class="string">&quot;Allocated a: %x, b: %x, c: %x\n&quot;</span>, a, b, c);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">strcpy</span>(a, <span class="string">&quot;hello A&quot;</span>);</span><br><span class="line">    <span class="built_in">strcpy</span>(b, <span class="string">&quot;hello B&quot;</span>);</span><br><span class="line">    <span class="built_in">strcpy</span>(c, <span class="string">&quot;hello C&quot;</span>);</span><br><span class="line"></span><br><span class="line">    kernel_printf(<span class="string">&quot;Data: %s %s %s\n&quot;</span>, (<span class="type">char</span> *)a, (<span class="type">char</span> *)b, (<span class="type">char</span> *)c);</span><br><span class="line"></span><br><span class="line">    kfree(a);</span><br><span class="line">    kfree(b);</span><br><span class="line">    dump_slab_cache_partial(<span class="number">32</span>);</span><br><span class="line">    kfree(c);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">test_double_free</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">void</span> *a = kmalloc(<span class="number">64</span>);</span><br><span class="line">    kfree(a);</span><br><span class="line">    kernel_printf(<span class="string">&quot;Freed a once\n&quot;</span>);</span><br><span class="line"></span><br><span class="line">    kfree(a);  <span class="comment">// 应该检测到 double free 并报警或忽略</span></span><br><span class="line">    kernel_printf(<span class="string">&quot;Tried to free a again (should trigger warning)\n&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">test_multiple_sizes</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">void</span> *s1 = kmalloc(<span class="number">32</span>);</span><br><span class="line">    <span class="type">void</span> *s2 = kmalloc(<span class="number">128</span>);</span><br><span class="line">    <span class="type">void</span> *s3 = kmalloc(<span class="number">256</span>);</span><br><span class="line">    kernel_printf(<span class="string">&quot;Allocated sizes 32 -&gt; %p, 128 -&gt; %p, 256 -&gt; %p\n&quot;</span>, s1, s2, s3);</span><br><span class="line"></span><br><span class="line">    kfree(s1);</span><br><span class="line">    kfree(s2);</span><br><span class="line">    kfree(s3);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">test_reuse</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">void</span> *a1 = kmalloc(<span class="number">64</span>);</span><br><span class="line">    kfree(a1);</span><br><span class="line"></span><br><span class="line">    <span class="type">void</span> *a2 = kmalloc(<span class="number">64</span>);</span><br><span class="line">    kernel_printf(<span class="string">&quot;a1 = %p, a2 = %p (should be same if reused)\n&quot;</span>, a1, a2);</span><br><span class="line"></span><br><span class="line">    kfree(a2);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<p><strong>test_basic_alloc_free</strong>结果如下，发现首先分配到的是连续的堆空间的地址，然后也可以写入而不触发缺页异常。在free之后我们可以发现后free的b会在partial的freelist的链表头部，符合我们设计的头插FILO的链表。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526220648528.png"
+                      class=""
+                >
+<p><strong>test_multiple_sizes</strong>结果如下，因为一开始每个cache中都是空的，所以会映射一片新的页来存储。连续的分配新页符合预期。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526220809324.png"
+                      class=""
+                >
+<p><strong>test_reuse</strong>也正常工作，相同大小的的chunk可以复用。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526221014510.png"
+                      class=""
+                >
+<p><strong>test_double_free</strong>也可以检测到重复释放，从而不进行任何操作返回。</p>
+<img  
+                     lazyload
+                     src="/images/loading.svg"
+                     data-src="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%AE%80%E5%8D%95%E5%86%85%E6%A0%B8%E5%A0%86%E5%88%86%E9%85%8D%E5%99%A8%E5%AE%9E%E7%8E%B0/image-20250526221537211.png"
+                      class=""
+                >
+<p>现在可以进行简单的运用，虽然没有尝试大量分配内存后是否会存在bug，但目前简单实现还是比较成功的。后续还可以扩展超过1页内存的大页分配逻辑。</p>
+<h3 id="大页分配逻辑扩展">大页分配逻辑扩展</h3>
+<p>我们这里复用之前的slab_page来表示大页，其中用到一个新的字段pages。这里我们先简单实现一个大页分配器，主要是用一个链表来存所有已分配的大页，而释放时也先不加入缓存机制，可以直接归还物理内存并从分配链表中移除。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">slab_page</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_t</span> *<span class="title">next</span>;</span>             <span class="comment">// 指向下一个slab page</span></span><br><span class="line">    <span class="type">uint32_t</span> vaddr;                     <span class="comment">// 其obj页的虚拟地址</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_object_t</span> *<span class="title">freelist</span>;</span>            <span class="comment">// 指向空闲对象链表（对象内维护 next 指针）</span></span><br><span class="line">    <span class="type">uint32_t</span> used_count;                <span class="comment">// 已使用的对象数量</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_cache</span> *<span class="title">owner_cache</span>;</span>     <span class="comment">// slab page 所属的 slab cache</span></span><br><span class="line">    <span class="type">uint8_t</span>  bitmap[<span class="number">16</span>];               <span class="comment">// 最多支持 128 个对象（2048 / 16）,128/8=16</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">slab_page_t</span> *<span class="title">next_hash</span>;</span>        <span class="comment">// hash table 中的下一个 slab page</span></span><br><span class="line">    <span class="type">uint32_t</span> pages;                <span class="comment">// 分配页数,大页分配使用;0:小页，x:大页</span></span><br><span class="line">&#125; <span class="type">slab_page_t</span>;</span><br></pre></td></tr></table></figure></div>
+<p>这里相应可以复用<strong>alloc_slab_page_meta</strong>来申请存slab
+page元数据结构体的空间，也可以填入hash
+table中方便后续<strong>slab_free</strong>时可以用之前实现的<strong>get_slab_page</strong>得到对应的<strong>slab
+page</strong>。</p>
+<div class="highlight-container" data-rel="C"><figure class="iseeu highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">slab_page_t</span> *large_alloc_list = <span class="literal">NULL</span>;         <span class="comment">// 存大页的链表</span></span><br><span class="line"></span><br><span class="line"><span class="type">void</span> *<span class="title function_">slab_alloc</span><span class="params">(<span class="type">size_t</span> size)</span> &#123;</span><br><span class="line">    <span class="type">slab_page_t</span> *page = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="keyword">if</span> (size == <span class="number">0</span>) <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> idx = slab_index(size);</span><br><span class="line">    <span class="keyword">if</span> (idx &lt; <span class="number">0</span> || idx &gt;= NUM_SLAB_CLASSES) &#123;</span><br><span class="line">        <span class="comment">// fallback：大块直接按页分配</span></span><br><span class="line">        <span class="type">uint32_t</span> pages = (size + PAGE_SIZE - <span class="number">1</span>) / PAGE_SIZE;</span><br><span class="line">        kernel_printf(<span class="string">&quot;[slab] alloc %d bytes(%d pages), fallback to pmm_alloc_pages\n&quot;</span>, size, pages);</span><br><span class="line">        page = alloc_slab_page_meta();      <span class="comment">// 申请存slab page元数据结构体的空间</span></span><br><span class="line">        <span class="keyword">if</span> (!page) <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">        page-&gt;pages = pages;</span><br><span class="line">        <span class="type">void</span> *ptr = (<span class="type">void</span> *)heap_next_free;</span><br><span class="line">        page-&gt;vaddr = (<span class="type">uint32_t</span>)ptr;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">uint32_t</span> i = <span class="number">0</span>; i &lt; pages; i++) alloc_heap_page();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 添加进哈希表</span></span><br><span class="line">        <span class="type">size_t</span> index = slab_page_hash((<span class="type">uintptr_t</span>)ptr);</span><br><span class="line">        page-&gt;next_hash = slab_page_map[index];</span><br><span class="line">        slab_page_map[index] = page;</span><br><span class="line"></span><br><span class="line">        add_to_list(&amp;large_alloc_list, page);</span><br><span class="line">        <span class="keyword">return</span> ptr;</span><br><span class="line">    &#125;</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">free_heap_pages</span><span class="params">(<span class="type">slab_page_t</span> *page,<span class="type">uint32_t</span> count)</span>&#123;     <span class="comment">// 释放多页，为大页准备</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i=<span class="number">0</span>;i&lt;count;i++) &#123; </span><br><span class="line">        unmap_page(page-&gt;vaddr + i * PAGE_SIZE);</span><br><span class="line">    &#125;</span><br><span class="line">    free_slab_page_meta(page);</span><br><span class="line">    remove_slab_page_from_hash(page);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">slab_free</span><span class="params">(<span class="type">void</span> *ptr)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!ptr) <span class="keyword">return</span>;</span><br><span class="line">    <span class="type">uint32_t</span> vaddr = (<span class="type">uint32_t</span>)ptr;</span><br><span class="line">    <span class="type">slab_page_t</span> *page = get_slab_page(vaddr);</span><br><span class="line">    <span class="keyword">if</span> (!page || !page-&gt;owner_cache) <span class="keyword">return</span>;   <span class="comment">// 非 slab 管理区</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (page-&gt;pages==<span class="number">0</span>)&#123;        <span class="comment">// 小页</span></span><br><span class="line">        ......</span><br><span class="line">    &#125;<span class="keyword">else</span>&#123;      <span class="comment">// 大页</span></span><br><span class="line">        remove_from_list(&amp;large_alloc_list, page);</span><br><span class="line">        free_heap_pages(page,page-&gt;pages);</span><br><span class="line">    &#125; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+
+		</div>
+
+		
+		<div class="post-copyright-info w-full my-8 px-2 sm:px-6 md:px-8">
+			<div class="article-copyright-info-container">
+    <ul>
+        <li><strong>标题:</strong> 从零开始搭建自制操作系统——简单内核堆分配器实现</li>
+        <li><strong>作者:</strong> collectcrop</li>
+        <li><strong>创建于
+                :</strong> 2025-06-08 21:52:12</li>
+        
+            <li>
+                <strong>更新于
+                    :</strong> 2025-06-08 21:52:56
+            </li>
+        
+        <li>
+            <strong>链接:</strong> https://collectcrop.github.io/2025/06/08/从零开始搭建自制操作系统——简单内核堆分配器实现/
+        </li>
+        <li>
+            <strong>
+                版权声明:
+            </strong>
+            
+
+            
+                本文章采用 <a class="license" target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA 4.0</a> 进行许可。
+            
+        </li>
+    </ul>
+</div>
+
+		</div>
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/blog/tags/OS/">#OS</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+  <div class="recommended-article px-2 sm:px-6 md:px-8">
+   <div class="recommended-desktop">
+    <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+    </div>
+    <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——物理内存管理器-简单分页机制实现/" title="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/09/ret2dir手法学习/" title="ret2dir手法学习" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="ret2dir手法学习" class="!max-w-none">
+  <span class="title">ret2dir手法学习</span>
+</a><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——内核线程调度简单实现/" title="从零开始搭建自制操作系统——内核线程调度简单实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——内核线程调度简单实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——内核线程调度简单实现</span>
+</a></div>
+   </div>
+   <div class="recommended-mobile">
+   <div class="recommended-article-header text-xl md:text-3xl font-bold mt-10">
+     <i aria-hidden="true"></i><span>推荐阅读</span>
+   </div>
+   <div class="recommended-article-group"><a class="recommended-article-item" href="/blog/2025/06/08/从零开始搭建自制操作系统——物理内存管理器-简单分页机制实现/" title="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现" class="!max-w-none">
+  <span class="title">从零开始搭建自制操作系统——物理内存管理器&简单分页机制实现</span>
+</a><a class="recommended-article-item" href="/blog/2025/03/09/ret2dir手法学习/" title="ret2dir手法学习" rel="bookmark">
+  <img src="/images/wallhaven-wqery6-light.webp" alt="ret2dir手法学习" class="!max-w-none">
+  <span class="title">ret2dir手法学习</span>
+</a></div>
+   </div>
+  </div>
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			<div class="article-prev border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="prev" rel="prev" href="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B%E8%B0%83%E5%BA%A6%E7%AE%80%E5%8D%95%E5%AE%9E%E7%8E%B0/">
+					<span class="left arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-left"></i>
+					</span>
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">从零开始搭建自制操作系统——内核线程调度简单实现</span>
+						<span class="post-nav-item">上一篇</span>
+					</span>
+				</a>
+			</div>
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/blog/2025/06/08/%E4%BB%8E%E9%9B%B6%E5%BC%80%E5%A7%8B%E6%90%AD%E5%BB%BA%E8%87%AA%E5%88%B6%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E2%80%94%E2%80%94%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%99%A8-%E7%AE%80%E5%8D%95%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%E5%AE%9E%E7%8E%B0/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item">从零开始搭建自制操作系统——物理内存管理器&amp;简单分页机制实现</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">从零开始搭建自制操作系统——简单内核堆分配器实现</div>
+		<ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BB%E4%BD%93%E5%88%86%E9%85%8D%E9%80%BB%E8%BE%91"><span class="nav-text">主体分配逻辑</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8A%A8%E6%80%81-slab_page-%E5%85%83%E6%95%B0%E6%8D%AE%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1"><span class="nav-text">动态 slab_page
+元数据管理设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E5%AE%9E%E7%8E%B0"><span class="nav-text">基本实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%80%E5%8D%95%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C"><span class="nav-text">简单测试结果</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%A7%E9%A1%B5%E5%88%86%E9%85%8D%E9%80%BB%E8%BE%91%E6%89%A9%E5%B1%95"><span class="nav-text">大页分配逻辑扩展</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2024</span>
+              -
+            
+            2025&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/blog/">collectcrop</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 34 篇文章
+                    </span>
+                    
+                        <span>
+                            共 187.1k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.1</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+
+</main>
+
+
+
+<script src="/blog/build/js/libs/Swup.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/blog/build/js/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/blog/build/js/tools/imageViewer.js" type="module"></script>
+
+<script src="/blog/build/js/utils.js" type="module"></script>
+
+<script src="/blog/build/js/main.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/blog/build/js/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/blog/build/js/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/blog/build/js/layouts/categoryList.js" type="module"></script>
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/codeBlock.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/layouts/lazyload.js" type="module"></script>
+
+
+
+
+    
+<script src="/blog/build/js/tools/runtime.js"></script>
+
+    
+<script src="/blog/build/js/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/blog/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/blog/build/js/libs/Typed.min.js"></script>
+
+  
+<script src="/blog/build/js/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+
+
+
+
+
+    
+<script src="/blog/build/js/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/blog/build/js/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/blog/build/js/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/blog/build/js/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>
